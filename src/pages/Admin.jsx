@@ -36,6 +36,7 @@ const [editCategoriaId, setEditCategoriaId] = useState('')
 const [puntajesCargados, setPuntajesCargados] = useState([])
 const [puntajeEditandoId, setPuntajeEditandoId] = useState(null)
 const [editPuntaje, setEditPuntaje] = useState('')
+const [editPuntaje, setEditPuntaje] = useState('')
 
   async function obtenerTorneos() {
     const { data, error } = await supabase
@@ -764,6 +765,32 @@ async function cerrarTorneo(torneoId) {
 
           <hr style={{ margin: '25px 0' }} />
 
+          <div className="mobile-tabs">
+
+  <button
+    onClick={() => setVistaAdmin('gimnastas')}
+  >
+    Ver/editar gimnastas
+  </button>
+
+  <button
+    onClick={() => setVistaAdmin('puntajes')}
+  >
+    Ver/editar puntajes
+  </button>
+
+</div>
+
+<div className="admin-grid">
+
+  <div
+  className={
+    vistaAdmin === 'gimnastas'
+      ? 'admin-section active'
+      : 'admin-section'
+  }
+></div>
+
           <h2>Gimnastas inscriptas</h2>
 
           
@@ -835,6 +862,16 @@ async function cerrarTorneo(torneoId) {
 
           <hr style={{ margin: '25px 0' }} />
 
+          </div>
+
+<div
+  className={
+    vistaAdmin === 'puntajes'
+      ? 'admin-section active'
+      : 'admin-section'
+  }
+>
+
           <h2>Puntajes cargados</h2>
 
           {puntajesCargados.length === 0 ? (
@@ -895,5 +932,8 @@ async function cerrarTorneo(torneoId) {
     </div>
   )
 }
+</div>
+
+</div>
 
 export default Admin

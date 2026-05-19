@@ -107,3 +107,40 @@ table th {
     width: auto;
   }
 }
+
+.mobile-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.admin-grid {
+  width: 100%;
+}
+
+.admin-section {
+  display: none;
+}
+
+.admin-section.active {
+  display: block;
+}
+
+@media (min-width: 900px) {
+
+  .mobile-tabs {
+    display: none;
+  }
+
+  .admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .admin-section {
+    display: block;
+  }
+}
