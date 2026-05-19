@@ -53,7 +53,7 @@ function Home() {
           torneos.map((torneo) => (
             <div key={torneo.id}>
               <p>
-                {torneo.nombre} - {torneo.codigo}
+                {torneo.nombre} 
               </p>
             </div>
           ))

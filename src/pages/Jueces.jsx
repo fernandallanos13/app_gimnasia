@@ -34,6 +34,12 @@ function Jueces() {
       .single()
 
     if (errorTorneo || !torneoEncontrado) {
+      if (torneoEncontrado.estado === 'cerrado') {
+
+  alert('Este torneo está cerrado')
+
+  return
+}
       alert('Código de torneo incorrecto o torneo no activo')
       return
     }

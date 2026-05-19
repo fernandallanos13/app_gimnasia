@@ -532,6 +532,35 @@ async function exportarResultadosExcel() {
   )
 }
 
+async function cerrarTorneo(torneoId) {
+
+  const confirmar = confirm(
+    '¿Seguro que querés cerrar este torneo?'
+  )
+
+  if (!confirmar) return
+
+  const { error } = await supabase
+    .from('torneos')
+    .update({
+      estado: 'cerrado'
+    })
+    .eq('id', torneoId)
+
+  if (error) {
+
+    console.log(error)
+
+    alert('Error al cerrar torneo')
+
+    return
+  }
+
+  alert('Torneo cerrado')
+
+  obtenerTorneos()
+}
+
   async function cerrarSesion() {
     await supabase.auth.signOut()
     navigate('/admin-login')
@@ -593,30 +622,66 @@ obtenerPuntajesCargados(torneo.id)
             }}
           >
             <h3>{torneo.nombre}</h3>
-            <p>Código: {torneo.codigo}</p>
+            
             <p>Estado: {torneo.estado}</p>
             <p>
               Resultados públicos:{' '}
               {torneo.resultados_publicos ? 'Sí' : 'No'}
             </p>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleResultadosPublicos(torneo.id, torneo.resultados_publicos)
-              }}
-            >
-              {torneo.resultados_publicos ? 'Ocultar resultados' : 'Publicar resultados'}
-            </button>
+            <div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    marginTop: '15px',
+    maxWidth: '260px'
+  }}
+>
+  <button
+    onClick={(e) => {
+      e.stopPropagation()
+      toggleResultadosPublicos(
+        torneo.id,
+        torneo.resultados_publicos
+      )
+    }}
+  >
+    {
+      torneo.resultados_publicos
+        ? 'Ocultar resultados'
+        : 'Publicar resultados'
+    }
+  </button>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                copiarLinkPublico(torneo.id)
-              }}
-              style={{ marginTop: '10px' }}
-            >
-              Copiar link público
+  <button
+    onClick={(e) => {
+      e.stopPropagation()
+      copiarLinkPublico(torneo.id)
+    }}
+  >
+    Copiar link público
+  </button>
+
+  {
+    torneo.estado !== 'cerrado' && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          cerrarTorneo(torneo.id)
+        }}
+        style={{
+          background: '#b00020',
+          color: 'white'
+        }}
+      >
+        Cerrar torneo
+      </button>
+    )
+  }
+</div>
+  )
+}
             </button>
           </div>
         ))}
