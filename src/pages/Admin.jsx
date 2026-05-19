@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
+import { QRCodeCanvas } from 'qrcode.react'
 
 import { supabase } from '../services/supabase'
 
@@ -656,6 +657,13 @@ async function cerrarTorneo(torneoId) {
         >
           Copiar link público
         </button>
+
+        <div style={{ marginTop: '10px', background: 'white', padding: '10px', width: 'fit-content' }}>
+  <QRCodeCanvas
+    value={`${window.location.origin}/resultados/${torneo.id}`}
+    size={140}
+  />
+</div>
 
         {torneo.estado !== 'cerrado' && (
           <button

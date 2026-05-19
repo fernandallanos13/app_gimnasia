@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 
 function Resultados() {
-  const { torneoId } = useParams()
-
+  
   const [torneo, setTorneo] = useState(null)
   const [resultados, setResultados] = useState([])
   const [podios, setPodios] = useState([])
@@ -50,6 +48,21 @@ function Resultados() {
 
   async function obtenerResultados() {
     setCargando(true)
+    const { data: torneoActivo, error: errorTorneo } = await supabase
+  .from('torneos')
+  .select('*')
+  .eq('estado', 'activo')
+  .limit(1)
+  .single()
+
+if (errorTorneo || !torneoActivo) {
+  console.log(errorTorneo)
+  setCargando(false)
+  return
+}
+
+const torneoId = torneoActivo.id
+    
 
     const { data: torneoData, error: torneoError } = await supabase
       .from('torneos')

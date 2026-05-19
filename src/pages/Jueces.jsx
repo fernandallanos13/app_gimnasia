@@ -34,15 +34,13 @@ function Jueces() {
       .single()
 
     if (errorTorneo || !torneoEncontrado) {
-      if (torneoEncontrado.estado === 'cerrado') {
-
-  alert('Este torneo está cerrado')
-
+  alert('Código de torneo incorrecto o torneo no activo')
   return
 }
-      alert('Código de torneo incorrecto o torneo no activo')
-      return
-    }
+if (torneoEncontrado.estado === 'cerrado') {
+  alert('Este torneo ya está cerrado')
+  return
+}
 
     const { data: juezCreado, error: errorJuez } = await supabase
       .from('jueces')
@@ -290,6 +288,36 @@ if (error) {
     setPuntajes({})
   }
 
+  async function verificarTorneoGuardado(torneoGuardado) {
+  const { data, error } = await supabase
+    .from('torneos')
+    .select('*')
+    .eq('id', torneoGuardado.id)
+    .single()
+
+  if (error || !data) {
+    localStorage.removeItem('juez')
+    localStorage.removeItem('torneo')
+    setJuez(null)
+    setTorneo(null)
+    return
+  }
+
+  if (data.estado === 'cerrado') {
+    alert('Este torneo ya está cerrado')
+    localStorage.removeItem('juez')
+    localStorage.removeItem('torneo')
+    localStorage.removeItem('aparatoSeleccionado')
+    setJuez(null)
+    setTorneo(null)
+    setAparatoSeleccionado('')
+    return
+  }
+
+  setTorneo(data)
+  obtenerNiveles(data.id)
+}
+
   useEffect(() => {
     obtenerAparatos()
 
@@ -302,13 +330,12 @@ if (error) {
       const torneoParseado = JSON.parse(torneoGuardado)
 
       setJuez(juezParseado)
-      setTorneo(torneoParseado)
 
-      if (aparatoGuardado) {
-        setAparatoSeleccionado(aparatoGuardado)
-      }
+if (aparatoGuardado) {
+  setAparatoSeleccionado(aparatoGuardado)
+}
 
-      obtenerNiveles(torneoParseado.id)
+verificarTorneoGuardado(torneoParseado)
     }
   }, [])
 

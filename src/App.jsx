@@ -29,7 +29,7 @@ function App() {
         <Route path="/jueces" element={<Jueces />} />
 
         <Route
-  path="/resultados/:torneoId"
+  path="/resultados"
   element={<Resultados />}
 />
 
