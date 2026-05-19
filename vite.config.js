@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     react(),
-    VitePWA({
+    VitePWA({ 
       registerType: 'autoUpdate',
       manifest: {
         name: 'Sistema de Torneos de Gimnasia',
