@@ -602,90 +602,79 @@ async function cerrarTorneo(torneoId) {
       </div>
 
       <div style={{ marginTop: '40px', width: '90%', maxWidth: '700px' }}>
-        <h2>Torneos</h2>
+  <h2>Torneos</h2>
 
-        {torneos.map((torneo) => (
-          <div
-            key={torneo.id}
-            onClick={() => {
-              setTorneoSeleccionado(torneo)
-obtenerGimnastasInscriptas(torneo.id)
-obtenerPuntajesCargados(torneo.id)
-            }}
-            style={{
-              background: torneoSeleccionado?.id === torneo.id ? '#d4edda' : 'white',
-              padding: '20px',
-              borderRadius: '14px',
-              marginTop: '15px',
-              cursor: 'pointer',
-              border: torneoSeleccionado?.id === torneo.id ? '3px solid green' : '1px solid #ccc'
-            }}
-          >
-            <h3>{torneo.nombre}</h3>
-            
-            <p>Estado: {torneo.estado}</p>
-            <p>
-              Resultados públicos:{' '}
-              {torneo.resultados_publicos ? 'Sí' : 'No'}
-            </p>
+  {torneos.map((torneo) => (
+    <div
+      key={torneo.id}
+      onClick={() => {
+        setTorneoSeleccionado(torneo)
+        obtenerGimnastasInscriptas(torneo.id)
+        obtenerPuntajesCargados(torneo.id)
+      }}
+      style={{
+        background: torneoSeleccionado?.id === torneo.id ? '#d4edda' : 'white',
+        padding: '20px',
+        borderRadius: '14px',
+        marginTop: '15px',
+        cursor: 'pointer',
+        border: torneoSeleccionado?.id === torneo.id ? '3px solid green' : '1px solid #ccc'
+      }}
+    >
+      <h3>{torneo.nombre}</h3>
 
-            <div
-  style={{
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    marginTop: '15px',
-    maxWidth: '260px'
-  }}
->
-  <button
-    onClick={(e) => {
-      e.stopPropagation()
-      toggleResultadosPublicos(
-        torneo.id,
-        torneo.resultados_publicos
-      )
-    }}
-  >
-    {
-      torneo.resultados_publicos
-        ? 'Ocultar resultados'
-        : 'Publicar resultados'
-    }
-  </button>
+      <p>Estado: {torneo.estado}</p>
 
-  <button
-    onClick={(e) => {
-      e.stopPropagation()
-      copiarLinkPublico(torneo.id)
-    }}
-  >
-    Copiar link público
-  </button>
+      <p>
+        Resultados públicos:{' '}
+        {torneo.resultados_publicos ? 'Sí' : 'No'}
+      </p>
 
-  {
-    torneo.estado !== 'cerrado' && (
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          cerrarTorneo(torneo.id)
-        }}
+      <div
         style={{
-          background: '#b00020',
-          color: 'white'
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          marginTop: '15px',
+          maxWidth: '260px'
         }}
       >
-        Cerrar torneo
-      </button>
-    )
-  }
-</div>
-  )
-}
-            </button>
-          </div>
-        ))}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleResultadosPublicos(torneo.id, torneo.resultados_publicos)
+          }}
+        >
+          {torneo.resultados_publicos ? 'Ocultar resultados' : 'Publicar resultados'}
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            copiarLinkPublico(torneo.id)
+          }}
+        >
+          Copiar link público
+        </button>
+
+        {torneo.estado !== 'cerrado' && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              cerrarTorneo(torneo.id)
+            }}
+            style={{
+              background: '#b00020',
+              color: 'white'
+            }}
+          >
+            Cerrar torneo
+          </button>
+        )}
       </div>
+    </div>
+  ))}
+</div>
 
       {torneoSeleccionado && (
         <div style={{ marginTop: '40px', background: '#fff', padding: '20px', borderRadius: '14px', width: '90%', maxWidth: '700px' }}>
