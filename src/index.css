@@ -144,3 +144,19 @@ table th {
     display: block;
   }
 }
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.buttons a {
+  width: 100%;
+}
+
+.buttons button {
+  width: 100%;
+}

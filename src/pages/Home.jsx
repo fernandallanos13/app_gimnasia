@@ -30,20 +30,18 @@ function Home() {
       <h1>Sistema de Torneos</h1>
 
       <div className="buttons">
+  <Link to="/admin-login">
+    <button>Soy Admin</button>
+  </Link>
 
-        <Link to="/admin">
-          <button>Soy Admin</button>
-        </Link>
+  <Link to="/jueces">
+    <button>Soy Juez</button>
+  </Link>
 
-        <Link to="/jueces">
-          <button>Soy Juez</button>
-        </Link>
-
-        <Link to="/resultados">
-          <button>Soy Espectador</button>
-        </Link>
-
-      </div>
+  <Link to="/resultados">
+    <button>Soy Espectador</button>
+  </Link>
+</div>
 
       <div style={{ marginTop: '40px' }}>
 

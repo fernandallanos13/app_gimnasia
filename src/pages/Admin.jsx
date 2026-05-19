@@ -36,7 +36,7 @@ const [editCategoriaId, setEditCategoriaId] = useState('')
 const [puntajesCargados, setPuntajesCargados] = useState([])
 const [puntajeEditandoId, setPuntajeEditandoId] = useState(null)
 const [editPuntaje, setEditPuntaje] = useState('')
-const [editPuntaje, setEditPuntaje] = useState('')
+const [vistaAdmin, setVistaAdmin] = useState('gimnastas')
 
   async function obtenerTorneos() {
     const { data, error } = await supabase
@@ -789,7 +789,7 @@ async function cerrarTorneo(torneoId) {
       ? 'admin-section active'
       : 'admin-section'
   }
-></div>
+>
 
           <h2>Gimnastas inscriptas</h2>
 
@@ -927,13 +927,13 @@ async function cerrarTorneo(torneoId) {
               </div>
             ))
           )}
-        </div>
+                </div>
+
+      </div>
+
       )}
     </div>
   )
 }
-</div>
-
-</div>
 
 export default Admin
