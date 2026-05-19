@@ -273,8 +273,7 @@ const torneoId = torneoActivo.id
           }}
         >
           <h3>{grupo.nivel} - {grupo.categoria}</h3>
-          <p>Tipo de premiación: {grupo.tipo}</p>
-
+          
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
