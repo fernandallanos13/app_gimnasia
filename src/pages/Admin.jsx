@@ -875,65 +875,64 @@ async function cerrarTorneo(torneoId) {
           <h2>Puntajes cargados</h2>
 
           {puntajesCargados.length === 0 ? (
-            <p>No hay puntajes cargados en este torneo.</p>
-          ) : (
-            puntajesCargados.map((p) => (
-              <div
-                key={p.id}
-                style={{
-                  background: '#f5f5f5',
-                  padding: '15px',
-                  borderRadius: '12px',
-                  marginTop: '10px'
-                }}
-              >
-                <h3>
-                  {p.gimnastas?.apellido}, {p.gimnastas?.nombre}
-                </h3>
+  <p>No hay puntajes cargados en este torneo.</p>
+) : (
+  puntajesCargados.map((p) => (
+    <div
+      key={p.id}
+      style={{
+        background: '#f5f5f5',
+        padding: '15px',
+        borderRadius: '12px',
+        marginTop: '10px'
+      }}
+    >
+      <h3>
+        {p.gimnastas?.apellido}, {p.gimnastas?.nombre}
+      </h3>
 
-                <p>Club: {p.gimnastas?.club}</p>
-                <p>Aparato: {p.aparatos?.nombre}</p>
-                <p>Juez: {p.jueces?.nombre}</p>
+      <p>Club: {p.gimnastas?.club}</p>
+      <p>Aparato: {p.aparatos?.nombre}</p>
+      <p>Juez: {p.jueces?.nombre}</p>
 
-                {puntajeEditandoId === p.id ? (
-                  <>
-                    <input
-                      type="number"
-                      min="0"
-                      max="99"
-                      value={editPuntaje}
-                      onChange={(e) => setEditPuntaje(e.target.value)}
-                    />
+      {puntajeEditandoId === p.id ? (
+        <>
+          <input
+            type="number"
+            min="0"
+            max="99"
+            value={editPuntaje}
+            onChange={(e) => setEditPuntaje(e.target.value)}
+          />
 
-                    <button onClick={() => guardarEdicionPuntaje(p.id)}>
-                      Guardar
-                    </button>
+          <button onClick={() => guardarEdicionPuntaje(p.id)}>
+            Guardar
+          </button>
 
-                    <button onClick={cancelarEdicionPuntaje}>
-                      Cancelar
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p>
-                      Puntaje: <strong>{p.puntaje}</strong>
-                    </p>
+          <button onClick={cancelarEdicionPuntaje}>
+            Cancelar
+          </button>
+        </>
+      ) : (
+        <>
+          <p>
+            Puntaje: <strong>{p.puntaje}</strong>
+          </p>
 
-                    <button onClick={() => iniciarEdicionPuntaje(p)}>
-                      Editar puntaje
-                    </button>
-                  </>
-                )}
-              </div>
-            ))
-          )}
-                </div>
-
-      </div>
-
+          <button onClick={() => iniciarEdicionPuntaje(p)}>
+            Editar puntaje
+          </button>
+        </>
       )}
     </div>
-  )
+  ))
+)}
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)
 }
 
 export default Admin
