@@ -38,6 +38,7 @@ const [puntajeEditandoId, setPuntajeEditandoId] = useState(null)
 const [editPuntaje, setEditPuntaje] = useState('')
 const [vistaAdmin, setVistaAdmin] = useState('gimnastas')
 
+
   async function obtenerTorneos() {
     const { data, error } = await supabase
       .from('torneos')
@@ -562,7 +563,47 @@ async function cerrarTorneo(torneoId) {
 
   obtenerTorneos()
 }
+function descargarQR(torneoNombre) {
+  const canvas = document.querySelector('.qr-box canvas')
 
+  if (!canvas) {
+    alert('No se encontró el QR')
+    return
+  }
+
+  const qrImage = canvas.toDataURL('image/png')
+
+  const finalCanvas = document.createElement('canvas')
+  finalCanvas.width = 800
+  finalCanvas.height = 1000
+
+  const ctx = finalCanvas.getContext('2d')
+
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height)
+
+  ctx.fillStyle = '#5b2c83'
+  ctx.font = 'bold 44px Arial'
+  ctx.textAlign = 'center'
+  ctx.fillText('ESCANEÁ PARA VER', 400, 120)
+  ctx.fillText('LOS RESULTADOS EN VIVO', 400, 180)
+
+  const img = new Image()
+  img.onload = () => {
+    ctx.drawImage(img, 200, 260, 400, 400)
+
+    ctx.fillStyle = '#333'
+    ctx.font = 'bold 30px Arial'
+    ctx.fillText(torneoNombre, 400, 760)
+
+    const link = document.createElement('a')
+    link.download = `qr-resultados-${torneoNombre}.png`
+    link.href = finalCanvas.toDataURL('image/png')
+    link.click()
+  }
+
+  img.src = qrImage
+}
   async function cerrarSesion() {
     await supabase.auth.signOut()
     navigate('/admin-login')
@@ -572,6 +613,29 @@ async function cerrarTorneo(torneoId) {
     obtenerTorneos()
     obtenerNivelesYCategorias()
   }, [])
+
+  const gimnastasOrdenadas = [...gimnastasInscriptas].sort((a, b) => {
+  const ga = a.gimnastas
+  const gb = b.gimnastas
+
+  if (ordenGimnastas === 'categoria-apellido') {
+
+    const categoriaA =
+      ga?.categorias?.nombre || ''
+
+    const categoriaB =
+      gb?.categorias?.nombre || ''
+
+    if (categoriaA !== categoriaB) {
+      return categoriaA.localeCompare(categoriaB)
+    }
+  }
+
+  const apellidoA = ga?.apellido || ''
+  const apellidoB = gb?.apellido || ''
+
+  return apellidoA.localeCompare(apellidoB)
+})
 
   return (
     <div className="container">
@@ -659,11 +723,22 @@ async function cerrarTorneo(torneoId) {
           Copiar link público
         </button>
 
-        <div style={{ marginTop: '10px', background: 'white', padding: '10px', width: 'fit-content' }}>
+       <div className="qr-box">
+  <p>Escaneá para ver resultados</p>
+
   <QRCodeCanvas
-    value={`${window.location.origin}/resultados/${torneo.id}`}
+    value={`${window.location.origin}/resultados`}
     size={140}
   />
+
+  <button
+    onClick={(e) => {
+      e.stopPropagation()
+      descargarQR(torneo.nombre)
+    }}
+  >
+    Descargar QR
+  </button>
 </div>
 
         {torneo.estado !== 'cerrado' && (
@@ -792,13 +867,29 @@ async function cerrarTorneo(torneoId) {
 >
 
           <h2>Gimnastas inscriptas</h2>
+          <select
+  value={ordenGimnastas}
+  onChange={(e) => setOrdenGimnastas(e.target.value)}
+  style={{
+    marginTop: '10px',
+    marginBottom: '15px'
+  }}
+>
+  <option value="apellido">
+    Ordenar por apellido
+  </option>
+
+  <option value="categoria-apellido">
+    Ordenar por categoría + apellido
+  </option>
+</select>
 
           
 
           {gimnastasInscriptas.length === 0 ? (
             <p>No hay gimnastas inscriptas en este torneo.</p>
           ) : (
-            gimnastasInscriptas.map((inscripcion) => (
+            gimnastasOrdenadas.map((inscripcion) => (
               
               <div
   key={inscripcion.id}
