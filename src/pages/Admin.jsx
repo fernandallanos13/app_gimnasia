@@ -26,20 +26,20 @@ function Admin() {
   const [gimnastasInscriptas, setGimnastasInscriptas] = useState([])
 
   const [gimnastaEditandoId, setGimnastaEditandoId] = useState(null)
-const [editNombre, setEditNombre] = useState('')
-const [editApellido, setEditApellido] = useState('')
-const [editClub, setEditClub] = useState('')
-const [editProfe, setEditProfe] = useState('')
-const [editNivelId, setEditNivelId] = useState('')
-const [editCategoriaId, setEditCategoriaId] = useState('')
+  const [editNombre, setEditNombre] = useState('')
+  const [editApellido, setEditApellido] = useState('')
+  const [editClub, setEditClub] = useState('')
+  const [editProfe, setEditProfe] = useState('')
+  const [editNivelId, setEditNivelId] = useState('')
+  const [editCategoriaId, setEditCategoriaId] = useState('')
 
-const [puntajesCargados, setPuntajesCargados] = useState([])
-const [puntajeEditandoId, setPuntajeEditandoId] = useState(null)
-const [editPuntaje, setEditPuntaje] = useState('')
-const [vistaAdmin, setVistaAdmin] = useState('gimnastas')
-const [mostrarHistoricos, setMostrarHistoricos] = useState(false)
-const [ordenGimnastas, setOrdenGimnastas] = useState('apellido')
+  const [puntajesCargados, setPuntajesCargados] = useState([])
+  const [puntajeEditandoId, setPuntajeEditandoId] = useState(null)
+  const [editPuntaje, setEditPuntaje] = useState('')
 
+  const [vistaAdmin, setVistaAdmin] = useState('gimnastas')
+  const [mostrarHistoricos, setMostrarHistoricos] = useState(false)
+  const [ordenGimnastas, setOrdenGimnastas] = useState('apellido')
 
   async function obtenerTorneos() {
     const { data, error } = await supabase
@@ -104,9 +104,9 @@ const [ordenGimnastas, setOrdenGimnastas] = useState('apellido')
           club,
           profe,
           nivel_id,
-categoria_id,
-niveles (nombre),
-categorias (nombre)
+          categoria_id,
+          niveles (nombre),
+          categorias (nombre)
         )
       `)
       .eq('torneo_id', torneoId)
@@ -185,7 +185,6 @@ categorias (nombre)
     }
 
     const archivo = e.target.files[0]
-
     if (!archivo) return
 
     const normalizar = (texto) =>
@@ -203,7 +202,8 @@ categorias (nombre)
       const hoja = workbook.Sheets[workbook.SheetNames[0]]
 
       const filas = XLSX.utils.sheet_to_json(hoja, {
-        defval: ''
+        defval: '',
+        range: 2
       })
 
       let cargadas = 0
@@ -335,7 +335,6 @@ categorias (nombre)
       )
 
       obtenerGimnastasInscriptas(torneoSeleccionado.id)
-
       e.target.value = ''
     }
 
@@ -359,256 +358,256 @@ categorias (nombre)
     obtenerTorneos()
   }
 
-  function copiarLinkPublico(torneoId) {
-    const link = `${window.location.origin}/resultados/${torneoId}`
+  function copiarLinkPublico() {
+    const link = `${window.location.origin}/resultados`
     navigator.clipboard.writeText(link)
     alert('Link público copiado')
   }
 
   function iniciarEdicion(inscripcion) {
-  const g = inscripcion.gimnastas
+    const g = inscripcion.gimnastas
 
-  setGimnastaEditandoId(g.id)
-  setEditNombre(g.nombre || '')
-  setEditApellido(g.apellido || '')
-  setEditClub(g.club || '')
-  setEditProfe(g.profe || '')
-  setEditNivelId(g.nivel_id || '')
-  setEditCategoriaId(g.categoria_id || '')
-}
-
-function cancelarEdicion() {
-  setGimnastaEditandoId(null)
-}
-
-async function guardarEdicionGimnasta(gimnastaId) {
-  const { error } = await supabase
-    .from('gimnastas')
-    .update({
-      nombre: editNombre,
-      apellido: editApellido,
-      club: editClub,
-      profe: editProfe,
-      nivel_id: Number(editNivelId),
-      categoria_id: Number(editCategoriaId)
-    })
-    .eq('id', gimnastaId)
-
-  if (error) {
-    console.log(error)
-    alert('Error al editar gimnasta')
-    return
+    setGimnastaEditandoId(g.id)
+    setEditNombre(g.nombre || '')
+    setEditApellido(g.apellido || '')
+    setEditClub(g.club || '')
+    setEditProfe(g.profe || '')
+    setEditNivelId(g.nivel_id || '')
+    setEditCategoriaId(g.categoria_id || '')
   }
 
-  alert('Gimnasta editada')
-  setGimnastaEditandoId(null)
-  obtenerGimnastasInscriptas(torneoSeleccionado.id)
-}
-
-async function obtenerPuntajesCargados(torneoId) {
-  const { data, error } = await supabase
-    .from('puntajes')
-    .select(`
-      id,
-      puntaje,
-      gimnastas (
-        nombre,
-        apellido,
-        club
-      ),
-      aparatos (
-        nombre
-      ),
-      jueces (
-        nombre
-      )
-    `)
-    .eq('torneo_id', torneoId)
-
-  if (error) {
-    console.log(error)
-    alert('Error al traer puntajes')
-  } else {
-    setPuntajesCargados(data)
-  }
-}
-
-function iniciarEdicionPuntaje(puntaje) {
-  setPuntajeEditandoId(puntaje.id)
-  setEditPuntaje(puntaje.puntaje)
-}
-
-function cancelarEdicionPuntaje() {
-  setPuntajeEditandoId(null)
-  setEditPuntaje('')
-}
-
-async function guardarEdicionPuntaje(puntajeId) {
-  if (editPuntaje === '' || Number(editPuntaje) < 0 || Number(editPuntaje) > 99) {
-    alert('El puntaje debe estar entre 0 y 99')
-    return
+  function cancelarEdicion() {
+    setGimnastaEditandoId(null)
   }
 
-  const { error } = await supabase
-    .from('puntajes')
-    .update({
-      puntaje: Number(editPuntaje)
-    })
-    .eq('id', puntajeId)
+  async function guardarEdicionGimnasta(gimnastaId) {
+    const { error } = await supabase
+      .from('gimnastas')
+      .update({
+        nombre: editNombre,
+        apellido: editApellido,
+        club: editClub,
+        profe: editProfe,
+        nivel_id: Number(editNivelId),
+        categoria_id: Number(editCategoriaId)
+      })
+      .eq('id', gimnastaId)
 
-  if (error) {
-    console.log(error)
-    alert('Error al editar puntaje')
-    return
-  }
-
-  alert('Puntaje editado')
-  setPuntajeEditandoId(null)
-  setEditPuntaje('')
-  obtenerPuntajesCargados(torneoSeleccionado.id)
-}
-
-async function exportarResultadosExcel() {
-  if (!torneoSeleccionado) {
-    alert('Primero seleccioná un torneo')
-    return
-  }
-
-  const { data, error } = await supabase
-    .from('puntajes')
-    .select(`
-      puntaje,
-      gimnastas (
-        nombre,
-        apellido,
-        club,
-        niveles (nombre),
-        categorias (nombre)
-      ),
-      aparatos (nombre)
-    `)
-    .eq('torneo_id', torneoSeleccionado.id)
-
-  if (error) {
-    console.log(error)
-    alert('Error al exportar resultados')
-    return
-  }
-
-  const agrupados = {}
-
-  data.forEach((item) => {
-    const g = item.gimnastas
-    const aparato = item.aparatos?.nombre
-
-    if (!g || !aparato) return
-
-    const clave = `${g.apellido}-${g.nombre}-${g.club}`
-
-    if (!agrupados[clave]) {
-      agrupados[clave] = {
-        Apellido: g.apellido,
-        Nombre: g.nombre,
-        Club: g.club,
-        Nivel: g.niveles?.nombre || '',
-        Categoria: g.categorias?.nombre || '',
-        Suelo: 0,
-        Salto: 0,
-        Viga: 0,
-        Paralelas: 0,
-        Total: 0
-      }
+    if (error) {
+      console.log(error)
+      alert('Error al editar gimnasta')
+      return
     }
 
-    agrupados[clave][aparato] = Number(item.puntaje)
-    agrupados[clave].Total += Number(item.puntaje)
-  })
+    alert('Gimnasta editada')
+    setGimnastaEditandoId(null)
+    obtenerGimnastasInscriptas(torneoSeleccionado.id)
+  }
 
-  const filas = Object.values(agrupados)
+  async function obtenerPuntajesCargados(torneoId) {
+    const { data, error } = await supabase
+      .from('puntajes')
+      .select(`
+        id,
+        puntaje,
+        gimnastas (
+          nombre,
+          apellido,
+          club
+        ),
+        aparatos (
+          nombre
+        ),
+        jueces (
+          nombre
+        )
+      `)
+      .eq('torneo_id', torneoId)
 
-  const hoja = XLSX.utils.json_to_sheet(filas)
-  const libro = XLSX.utils.book_new()
+    if (error) {
+      console.log(error)
+      alert('Error al traer puntajes')
+    } else {
+      setPuntajesCargados(data)
+    }
+  }
 
-  XLSX.utils.book_append_sheet(libro, hoja, 'Resultados')
+  function iniciarEdicionPuntaje(puntaje) {
+    setPuntajeEditandoId(puntaje.id)
+    setEditPuntaje(puntaje.puntaje)
+  }
 
-  XLSX.writeFile(
-    libro,
-    `resultados-${torneoSeleccionado.nombre}.xlsx`
-  )
-}
+  function cancelarEdicionPuntaje() {
+    setPuntajeEditandoId(null)
+    setEditPuntaje('')
+  }
 
-async function cerrarTorneo(torneoId) {
+  async function guardarEdicionPuntaje(puntajeId) {
+    if (
+      editPuntaje === '' ||
+      Number(editPuntaje) < 0 ||
+      Number(editPuntaje) > 99
+    ) {
+      alert('El puntaje debe estar entre 0 y 99')
+      return
+    }
 
-  const confirmar = confirm(
-    '¿Seguro que querés cerrar este torneo?'
-  )
+    const { error } = await supabase
+      .from('puntajes')
+      .update({
+        puntaje: Number(editPuntaje)
+      })
+      .eq('id', puntajeId)
 
-  if (!confirmar) return
+    if (error) {
+      console.log(error)
+      alert('Error al editar puntaje')
+      return
+    }
 
-  const { error } = await supabase
-    .from('torneos')
-    .update({
-      estado: 'cerrado'
+    alert('Puntaje editado')
+    setPuntajeEditandoId(null)
+    setEditPuntaje('')
+    obtenerPuntajesCargados(torneoSeleccionado.id)
+  }
+
+  async function exportarResultadosExcelPorTorneo(torneo) {
+    const { data, error } = await supabase
+      .from('puntajes')
+      .select(`
+        puntaje,
+        gimnastas (
+          nombre,
+          apellido,
+          club,
+          niveles (nombre),
+          categorias (nombre)
+        ),
+        aparatos (nombre)
+      `)
+      .eq('torneo_id', torneo.id)
+
+    if (error) {
+      console.log(error)
+      alert('Error al exportar resultados')
+      return
+    }
+
+    const agrupados = {}
+
+    data.forEach((item) => {
+      const g = item.gimnastas
+      const aparato = item.aparatos?.nombre
+
+      if (!g || !aparato) return
+
+      const clave = `${g.apellido}-${g.nombre}-${g.club}`
+
+      if (!agrupados[clave]) {
+        agrupados[clave] = {
+          Apellido: g.apellido,
+          Nombre: g.nombre,
+          Club: g.club,
+          Nivel: g.niveles?.nombre || '',
+          Categoria: g.categorias?.nombre || '',
+          Suelo: 0,
+          Salto: 0,
+          Viga: 0,
+          Paralelas: 0,
+          Total: 0
+        }
+      }
+
+      agrupados[clave][aparato] = Number(item.puntaje)
+      agrupados[clave].Total += Number(item.puntaje)
     })
-    .eq('id', torneoId)
 
-  if (error) {
+    const hoja = XLSX.utils.json_to_sheet(Object.values(agrupados))
+    const libro = XLSX.utils.book_new()
 
-    console.log(error)
-
-    alert('Error al cerrar torneo')
-
-    return
+    XLSX.utils.book_append_sheet(libro, hoja, 'Resultados')
+    XLSX.writeFile(libro, `resultados-${torneo.nombre}.xlsx`)
   }
 
-  alert('Torneo cerrado')
-  setTorneoSeleccionado(null)
-setGimnastasInscriptas([])
-setPuntajesCargados([])
+  async function exportarResultadosExcel() {
+    if (!torneoSeleccionado) {
+      alert('Primero seleccioná un torneo')
+      return
+    }
 
-  obtenerTorneos()
-}
-function descargarQR(torneoNombre) {
-  const canvas = document.querySelector('.qr-box canvas')
-
-  if (!canvas) {
-    alert('No se encontró el QR')
-    return
+    exportarResultadosExcelPorTorneo(torneoSeleccionado)
   }
 
-  const qrImage = canvas.toDataURL('image/png')
+  async function cerrarTorneo(torneoId) {
+    const confirmar = confirm('¿Seguro que querés cerrar este torneo?')
 
-  const finalCanvas = document.createElement('canvas')
-  finalCanvas.width = 800
-  finalCanvas.height = 1000
+    if (!confirmar) return
 
-  const ctx = finalCanvas.getContext('2d')
+    const { error } = await supabase
+      .from('torneos')
+      .update({
+        estado: 'cerrado'
+      })
+      .eq('id', torneoId)
 
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height)
+    if (error) {
+      console.log(error)
+      alert('Error al cerrar torneo')
+      return
+    }
 
-  ctx.fillStyle = '#5b2c83'
-  ctx.font = 'bold 44px Arial'
-  ctx.textAlign = 'center'
-  ctx.fillText('ESCANEÁ PARA VER', 400, 120)
-  ctx.fillText('LOS RESULTADOS EN VIVO', 400, 180)
+    alert('Torneo cerrado')
 
-  const img = new Image()
-  img.onload = () => {
-    ctx.drawImage(img, 200, 260, 400, 400)
+    setTorneoSeleccionado(null)
+    setGimnastasInscriptas([])
+    setPuntajesCargados([])
 
-    ctx.fillStyle = '#333'
-    ctx.font = 'bold 30px Arial'
-    ctx.fillText(torneoNombre, 400, 760)
-
-    const link = document.createElement('a')
-    link.download = `qr-resultados-${torneoNombre}.png`
-    link.href = finalCanvas.toDataURL('image/png')
-    link.click()
+    obtenerTorneos()
   }
 
-  img.src = qrImage
-}
+  function descargarQR(torneoNombre) {
+    const canvas = document.querySelector('.qr-box canvas')
+
+    if (!canvas) {
+      alert('No se encontró el QR')
+      return
+    }
+
+    const qrImage = canvas.toDataURL('image/png')
+
+    const finalCanvas = document.createElement('canvas')
+    finalCanvas.width = 800
+    finalCanvas.height = 1000
+
+    const ctx = finalCanvas.getContext('2d')
+
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height)
+
+    ctx.fillStyle = '#c1121f'
+    ctx.font = 'bold 44px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText('ESCANEÁ PARA VER', 400, 120)
+    ctx.fillText('LOS RESULTADOS EN VIVO', 400, 180)
+
+    const img = new Image()
+
+    img.onload = () => {
+      ctx.drawImage(img, 200, 260, 400, 400)
+
+      ctx.fillStyle = '#333'
+      ctx.font = 'bold 30px Arial'
+      ctx.fillText(torneoNombre, 400, 760)
+
+      const link = document.createElement('a')
+      link.download = `qr-resultados-${torneoNombre}.png`
+      link.href = finalCanvas.toDataURL('image/png')
+      link.click()
+    }
+
+    img.src = qrImage
+  }
+
   async function cerrarSesion() {
     await supabase.auth.signOut()
     navigate('/admin-login')
@@ -620,31 +619,31 @@ function descargarQR(torneoNombre) {
   }, [])
 
   const gimnastasOrdenadas = [...gimnastasInscriptas].sort((a, b) => {
-  const ga = a.gimnastas
-  const gb = b.gimnastas
+    const ga = a.gimnastas
+    const gb = b.gimnastas
 
-  if (ordenGimnastas === 'categoria-apellido') {
-    const categoriaA = ga?.categorias?.nombre || ''
-    const categoriaB = gb?.categorias?.nombre || ''
+    if (ordenGimnastas === 'nivel-apellido') {
+      const nivelA = ga?.niveles?.nombre || ''
+      const nivelB = gb?.niveles?.nombre || ''
 
-    if (categoriaA !== categoriaB) {
-      return categoriaA.localeCompare(categoriaB)
+      if (nivelA !== nivelB) {
+        return nivelA.localeCompare(nivelB)
+      }
     }
-  }
 
-  const apellidoA = ga?.apellido || ''
-  const apellidoB = gb?.apellido || ''
+    const apellidoA = ga?.apellido || ''
+    const apellidoB = gb?.apellido || ''
 
-  return apellidoA.localeCompare(apellidoB)
-})
+    return apellidoA.localeCompare(apellidoB)
+  })
 
-const torneosActivos = torneos.filter(
-  (torneo) => torneo.estado !== 'cerrado'
-)
+  const torneosActivos = torneos.filter(
+    (torneo) => torneo.estado !== 'cerrado'
+  )
 
-const torneosHistoricos = torneos.filter(
-  (torneo) => torneo.estado === 'cerrado'
-)
+  const torneosHistoricos = torneos.filter(
+    (torneo) => torneo.estado === 'cerrado'
+  )
 
   return (
     <div className="container">
@@ -655,10 +654,46 @@ const torneosHistoricos = torneos.filter(
       </button>
 
       <button onClick={() => setMostrarHistoricos(!mostrarHistoricos)}>
-  {mostrarHistoricos ? 'Ocultar torneos históricos' : 'Ver torneos históricos'}
-</button>
+        {mostrarHistoricos ? 'Ocultar torneos históricos' : 'Ver torneos históricos'}
+      </button>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', width: '300px', marginTop: '30px' }}>
+      {mostrarHistoricos && (
+        <div className="card" style={{ maxWidth: '700px' }}>
+          <h2>Torneos históricos</h2>
+
+          {torneosHistoricos.length === 0 ? (
+            <p>No hay torneos cerrados todavía.</p>
+          ) : (
+            torneosHistoricos.map((torneo) => (
+              <div
+                key={torneo.id}
+                style={{
+                  background: '#f5f5f5',
+                  padding: '15px',
+                  borderRadius: '12px',
+                  marginTop: '10px'
+                }}
+              >
+                <h3>{torneo.nombre}</h3>
+
+                <button onClick={() => exportarResultadosExcelPorTorneo(torneo)}>
+                  Descargar Excel
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '15px',
+          width: '300px',
+          marginTop: '30px'
+        }}
+      >
         <h2>Crear torneo</h2>
 
         <input
@@ -680,149 +715,119 @@ const torneosHistoricos = torneos.filter(
         </button>
       </div>
 
-        
       <div style={{ marginTop: '40px', width: '90%', maxWidth: '700px' }}>
-      <h2>Torneos</h2>
+        <h2>Torneos activos</h2>
 
-      {torneosActivos.map((torneo) => (
-    <div
-      key={torneo.id}
-      onClick={() => {
-        setTorneoSeleccionado(torneo)
-        obtenerGimnastasInscriptas(torneo.id)
-        obtenerPuntajesCargados(torneo.id)
-      }}
-      style={{
-        background: torneoSeleccionado?.id === torneo.id ? '#d4edda' : 'white',
-        padding: '20px',
-        borderRadius: '14px',
-        marginTop: '15px',
-        cursor: 'pointer',
-        border: torneoSeleccionado?.id === torneo.id ? '3px solid green' : '1px solid #ccc'
-      }}
-    >
-      <h3>{torneo.nombre}</h3>
+        {torneosActivos.length === 0 ? (
+          <p>No hay torneos activos.</p>
+        ) : (
+          torneosActivos.map((torneo) => (
+            <div
+              key={torneo.id}
+              onClick={() => {
+                setTorneoSeleccionado(torneo)
+                obtenerGimnastasInscriptas(torneo.id)
+                obtenerPuntajesCargados(torneo.id)
+              }}
+              style={{
+                background:
+                  torneoSeleccionado?.id === torneo.id ? '#d4edda' : 'white',
+                padding: '20px',
+                borderRadius: '14px',
+                marginTop: '15px',
+                cursor: 'pointer',
+                border:
+                  torneoSeleccionado?.id === torneo.id
+                    ? '3px solid green'
+                    : '1px solid #ccc'
+              }}
+            >
+              <h3>{torneo.nombre}</h3>
 
-      <p>Estado: {torneo.estado}</p>
+              <p>Estado: {torneo.estado}</p>
 
-      <p>
-        Resultados públicos:{' '}
-        {torneo.resultados_publicos ? 'Sí' : 'No'}
-      </p>
+              <p>
+                Resultados públicos:{' '}
+                {torneo.resultados_publicos ? 'Sí' : 'No'}
+              </p>
 
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          marginTop: '15px',
-          maxWidth: '260px'
-        }}
-      >
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            toggleResultadosPublicos(torneo.id, torneo.resultados_publicos)
-          }}
-        >
-          {torneo.resultados_publicos ? 'Ocultar resultados' : 'Publicar resultados'}
-        </button>
+              <div className="actions">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleResultadosPublicos(
+                      torneo.id,
+                      torneo.resultados_publicos
+                    )
+                  }}
+                >
+                  {torneo.resultados_publicos
+                    ? 'Ocultar resultados'
+                    : 'Publicar resultados'}
+                </button>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            copiarLinkPublico(torneo.id)
-          }}
-        >
-          Copiar link público
-        </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    copiarLinkPublico()
+                  }}
+                >
+                  Copiar link público
+                </button>
 
-       <div className="qr-box">
-  <p>Escaneá para ver resultados</p>
+                <div className="qr-box">
+                  <p>Escaneá para ver resultados</p>
 
-  <QRCodeCanvas
-    value={`${window.location.origin}/resultados`}
-    size={140}
-  />
+                  <QRCodeCanvas
+                    value={`${window.location.origin}/resultados`}
+                    size={140}
+                  />
 
-  <button
-    onClick={(e) => {
-      e.stopPropagation()
-      descargarQR(torneo.nombre)
-    }}
-  >
-    Descargar QR
-  </button>
-</div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      descargarQR(torneo.nombre)
+                    }}
+                  >
+                    Descargar QR
+                  </button>
+                </div>
 
-        {torneo.estado !== 'cerrado' && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              cerrarTorneo(torneo.id)
-            }}
-            style={{
-              background: '#b00020',
-              color: 'white'
-            }}
-          >
-            Cerrar torneo
-          </button>
+                {torneo.estado !== 'cerrado' && (
+                  <button
+                    className="danger"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      cerrarTorneo(torneo.id)
+                    }}
+                  >
+                    Cerrar torneo
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
         )}
       </div>
-    </div>
-  ))}
-</div>
-{mostrarHistoricos && (
-<div style={{ marginTop: '40px', width: '90%', maxWidth: '700px' }}>
-  <h2>Torneos históricos</h2>
-
-  {torneosHistoricos.length === 0 ? (
-    <p>No hay torneos cerrados todavía.</p>
-  ) : (
-    torneosHistoricos.map((torneo) => (
-      <div
-        key={torneo.id}
-        onClick={() => {
-          setTorneoSeleccionado(torneo)
-          obtenerGimnastasInscriptas(torneo.id)
-          obtenerPuntajesCargados(torneo.id)
-        }}
-        style={{
-          background: '#f5f5f5',
-          padding: '20px',
-          borderRadius: '14px',
-          marginTop: '15px',
-          cursor: 'pointer',
-          border: '1px solid #ccc'
-        }}
-      >
-        <h3>{torneo.nombre}</h3>
-        <p>Estado: cerrado</p>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            copiarLinkPublico(torneo.id)
-          }}
-        >
-          Copiar link histórico
-        </button>
-        </div>
-      ))
-    )}
-  </div>
-)}
 
       {torneoSeleccionado && (
-        <div style={{ marginTop: '40px', background: '#fff', padding: '20px', borderRadius: '14px', width: '90%', maxWidth: '700px' }}>
+        <div
+          style={{
+            marginTop: '40px',
+            background: '#fff',
+            padding: '20px',
+            borderRadius: '14px',
+            width: '90%',
+            maxWidth: '1000px'
+          }}
+        >
           <h2>Torneo seleccionado</h2>
           <p>{torneoSeleccionado.nombre}</p>
           <p>Código: {torneoSeleccionado.codigo}</p>
 
           <button onClick={exportarResultadosExcel}>
-  Exportar resultados a Excel
-</button>
+            Exportar resultados a Excel
+          </button>
 
           <hr style={{ margin: '25px 0' }} />
 
@@ -838,9 +843,13 @@ const torneosHistoricos = torneos.filter(
 
           <h2>Cargar gimnasta</h2>
 
-
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '15px'
+            }}
+          >
             <input
               type="text"
               placeholder="Nombre"
@@ -878,7 +887,10 @@ const torneosHistoricos = torneos.filter(
               ))}
             </select>
 
-            <select value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}>
+            <select
+              value={categoriaId}
+              onChange={(e) => setCategoriaId(e.target.value)}
+            >
               <option value="">Seleccionar categoría</option>
               {categorias.map((categoria) => (
                 <option key={categoria.id} value={categoria.id}>
@@ -895,188 +907,204 @@ const torneosHistoricos = torneos.filter(
           <hr style={{ margin: '25px 0' }} />
 
           <div className="mobile-tabs">
+            <button onClick={() => setVistaAdmin('gimnastas')}>
+              Ver/editar gimnastas
+            </button>
 
-  <button
-    onClick={() => setVistaAdmin('gimnastas')}
-  >
-    Ver/editar gimnastas
-  </button>
-
-  <button
-    onClick={() => setVistaAdmin('puntajes')}
-  >
-    Ver/editar puntajes
-  </button>
-
-</div>
-
-<div className="admin-grid">
-
-  <div
-  className={
-    vistaAdmin === 'gimnastas'
-      ? 'admin-section active'
-      : 'admin-section'
-  }
->
-
-          <h2>Gimnastas inscriptas</h2>
-          <select
-  value={ordenGimnastas}
-  onChange={(e) => setOrdenGimnastas(e.target.value)}
-  style={{
-    marginTop: '10px',
-    marginBottom: '15px'
-  }}
->
-  <option value="apellido">
-    Ordenar por apellido
-  </option>
-
-  <option value="categoria-apellido">
-    Ordenar por categoría + apellido
-  </option>
-</select>
-
-          
-          {gimnastasInscriptas.length === 0 ? (
-            <p>No hay gimnastas inscriptas en este torneo.</p>
-          ) : (
-            gimnastasOrdenadas.map((inscripcion) => (
-              
-              <div
-  key={inscripcion.id}
-  style={{
-    background: '#f5f5f5',
-    padding: '15px',
-    borderRadius: '12px',
-    marginTop: '10px'
-  }}
->
-  {gimnastaEditandoId === inscripcion.gimnastas.id ? (
-    <>
-      <input value={editNombre} onChange={(e) => setEditNombre(e.target.value)} />
-      <input value={editApellido} onChange={(e) => setEditApellido(e.target.value)} />
-      <input value={editClub} onChange={(e) => setEditClub(e.target.value)} />
-      <input value={editProfe} onChange={(e) => setEditProfe(e.target.value)} />
-
-      <select value={editNivelId} onChange={(e) => setEditNivelId(e.target.value)}>
-        {niveles.map((nivel) => (
-          <option key={nivel.id} value={nivel.id}>
-            {nivel.nombre}
-          </option>
-        ))}
-      </select>
-
-      <select value={editCategoriaId} onChange={(e) => setEditCategoriaId(e.target.value)}>
-        {categorias.map((categoria) => (
-          <option key={categoria.id} value={categoria.id}>
-            {categoria.nombre}
-          </option>
-        ))}
-      </select>
-
-      <button onClick={() => guardarEdicionGimnasta(inscripcion.gimnastas.id)}>
-        Guardar cambios
-      </button>
-
-      <button onClick={cancelarEdicion}>
-        Cancelar
-      </button>
-    </>
-  ) : (
-    <>
-      <h3>
-        {inscripcion.gimnastas.nombre} {inscripcion.gimnastas.apellido}
-      </h3>
-
-      <p>Club: {inscripcion.gimnastas.club}</p>
-      <p>Profe: {inscripcion.gimnastas.profe}</p>
-      <p>Nivel: {inscripcion.gimnastas.niveles?.nombre}</p>
-      <p>Categoría: {inscripcion.gimnastas.categorias?.nombre}</p>
-
-      <button onClick={() => iniciarEdicion(inscripcion)}>
-        Editar
-      </button>
-    </>
-  )}
-</div>
-                  ))
-          )}
-
-          <hr style={{ margin: '25px 0' }} />
-
+            <button onClick={() => setVistaAdmin('puntajes')}>
+              Ver/editar puntajes
+            </button>
           </div>
 
-<div
-  className={
-    vistaAdmin === 'puntajes'
-      ? 'admin-section active'
-      : 'admin-section'
-  }
->
+          <div className="admin-grid">
+            <div
+              className={
+                vistaAdmin === 'gimnastas'
+                  ? 'admin-section active'
+                  : 'admin-section'
+              }
+            >
+              <h2>Gimnastas inscriptas</h2>
 
-          <h2>Puntajes cargados</h2>
+              <select
+                value={ordenGimnastas}
+                onChange={(e) => setOrdenGimnastas(e.target.value)}
+                style={{
+                  marginTop: '10px',
+                  marginBottom: '15px'
+                }}
+              >
+                <option value="apellido">
+                  Ordenar por apellido
+                </option>
 
-          {puntajesCargados.length === 0 ? (
-  <p>No hay puntajes cargados en este torneo.</p>
-) : (
-  puntajesCargados.map((p) => (
-    <div
-      key={p.id}
-      style={{
-        background: '#f5f5f5',
-        padding: '15px',
-        borderRadius: '12px',
-        marginTop: '10px'
-      }}
-    >
-      <h3>
-        {p.gimnastas?.apellido}, {p.gimnastas?.nombre}
-      </h3>
+                <option value="nivel-apellido">
+                  Ordenar por nivel + apellido
+                </option>
+              </select>
 
-      <p>Club: {p.gimnastas?.club}</p>
-      <p>Aparato: {p.aparatos?.nombre}</p>
-      <p>Juez: {p.jueces?.nombre}</p>
+              {gimnastasInscriptas.length === 0 ? (
+                <p>No hay gimnastas inscriptas en este torneo.</p>
+              ) : (
+                gimnastasOrdenadas.map((inscripcion) => (
+                  <div
+                    key={inscripcion.id}
+                    style={{
+                      background: '#f5f5f5',
+                      padding: '15px',
+                      borderRadius: '12px',
+                      marginTop: '10px'
+                    }}
+                  >
+                    {gimnastaEditandoId === inscripcion.gimnastas.id ? (
+                      <>
+                        <input
+                          value={editNombre}
+                          onChange={(e) => setEditNombre(e.target.value)}
+                        />
 
-      {puntajeEditandoId === p.id ? (
-        <>
-          <input
-            type="number"
-            min="0"
-            max="99"
-            value={editPuntaje}
-            onChange={(e) => setEditPuntaje(e.target.value)}
-          />
+                        <input
+                          value={editApellido}
+                          onChange={(e) => setEditApellido(e.target.value)}
+                        />
 
-          <button onClick={() => guardarEdicionPuntaje(p.id)}>
-            Guardar
-          </button>
+                        <input
+                          value={editClub}
+                          onChange={(e) => setEditClub(e.target.value)}
+                        />
 
-          <button onClick={cancelarEdicionPuntaje}>
-            Cancelar
-          </button>
-        </>
-      ) : (
-        <>
-          <p>
-            Puntaje: <strong>{p.puntaje}</strong>
-          </p>
+                        <input
+                          value={editProfe}
+                          onChange={(e) => setEditProfe(e.target.value)}
+                        />
 
-          <button onClick={() => iniciarEdicionPuntaje(p)}>
-            Editar puntaje
-          </button>
-        </>
-      )}
-    </div>
-  ))
-)}
+                        <select
+                          value={editNivelId}
+                          onChange={(e) => setEditNivelId(e.target.value)}
+                        >
+                          {niveles.map((nivel) => (
+                            <option key={nivel.id} value={nivel.id}>
+                              {nivel.nombre}
+                            </option>
+                          ))}
+                        </select>
+
+                        <select
+                          value={editCategoriaId}
+                          onChange={(e) => setEditCategoriaId(e.target.value)}
+                        >
+                          {categorias.map((categoria) => (
+                            <option key={categoria.id} value={categoria.id}>
+                              {categoria.nombre}
+                            </option>
+                          ))}
+                        </select>
+
+                        <button
+                          onClick={() =>
+                            guardarEdicionGimnasta(inscripcion.gimnastas.id)
+                          }
+                        >
+                          Guardar cambios
+                        </button>
+
+                        <button onClick={cancelarEdicion}>
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h3>
+                          {inscripcion.gimnastas.apellido},{' '}
+                          {inscripcion.gimnastas.nombre}
+                        </h3>
+
+                        <p>Club: {inscripcion.gimnastas.club}</p>
+                        <p>Profe: {inscripcion.gimnastas.profe}</p>
+                        <p>Nivel: {inscripcion.gimnastas.niveles?.nombre}</p>
+                        <p>
+                          Categoría:{' '}
+                          {inscripcion.gimnastas.categorias?.nombre}
+                        </p>
+
+                        <button onClick={() => iniciarEdicion(inscripcion)}>
+                          Editar
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div
+              className={
+                vistaAdmin === 'puntajes'
+                  ? 'admin-section active'
+                  : 'admin-section'
+              }
+            >
+              <h2>Puntajes cargados</h2>
+
+              {puntajesCargados.length === 0 ? (
+                <p>No hay puntajes cargados en este torneo.</p>
+              ) : (
+                puntajesCargados.map((p) => (
+                  <div
+                    key={p.id}
+                    style={{
+                      background: '#f5f5f5',
+                      padding: '15px',
+                      borderRadius: '12px',
+                      marginTop: '10px'
+                    }}
+                  >
+                    <h3>
+                      {p.gimnastas?.apellido}, {p.gimnastas?.nombre}
+                    </h3>
+
+                    <p>Club: {p.gimnastas?.club}</p>
+                    <p>Aparato: {p.aparatos?.nombre}</p>
+                    <p>Juez: {p.jueces?.nombre}</p>
+
+                    {puntajeEditandoId === p.id ? (
+                      <>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          value={editPuntaje}
+                          onChange={(e) => setEditPuntaje(e.target.value)}
+                        />
+
+                        <button onClick={() => guardarEdicionPuntaje(p.id)}>
+                          Guardar
+                        </button>
+
+                        <button onClick={cancelarEdicionPuntaje}>
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p>
+                          Puntaje: <strong>{p.puntaje}</strong>
+                        </p>
+
+                        <button onClick={() => iniciarEdicionPuntaje(p)}>
+                          Editar puntaje
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    )}
-  </div>
-)
+      )}
+    </div>
+  )
 }
 
 export default Admin
