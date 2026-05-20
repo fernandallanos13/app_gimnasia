@@ -181,11 +181,6 @@ const [importandoExcel, setImportandoExcel] = useState(false)
   }
 
   async function importarExcel() {
-    if (!torneoSeleccionado) {
-      alert('Primero seleccioná un torneo')
-      return
-    }
-
     if (!archivoExcel) {
   alert('Primero seleccioná un archivo Excel')
   return
