@@ -803,6 +803,13 @@ function Admin() {
                   >
                     Cerrar torneo
                   </button>
+                  style={{
+  background: '#b00020',
+  color: 'white',
+  width: '220px',
+  height: '60px',
+  alignSelf: 'flex-start'
+}}
                 )}
               </div>
             </div>
