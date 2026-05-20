@@ -40,6 +40,8 @@ function Admin() {
   const [vistaAdmin, setVistaAdmin] = useState('gimnastas')
   const [mostrarHistoricos, setMostrarHistoricos] = useState(false)
   const [ordenGimnastas, setOrdenGimnastas] = useState('apellido')
+  const [archivoExcel, setArchivoExcel] = useState(null)
+const [importandoExcel, setImportandoExcel] = useState(false)
 
   async function obtenerTorneos() {
     const { data, error } = await supabase
@@ -178,14 +180,19 @@ function Admin() {
     obtenerGimnastasInscriptas(torneoSeleccionado.id)
   }
 
-  async function importarExcel(e) {
+  async function importarExcel() {
     if (!torneoSeleccionado) {
       alert('Primero seleccioná un torneo')
       return
     }
 
-    const archivo = e.target.files[0]
-    if (!archivo) return
+    if (!archivoExcel) {
+  alert('Primero seleccioná un archivo Excel')
+  return
+}
+
+const archivo = archivoExcel
+setImportandoExcel(true)
 
     const normalizar = (texto) =>
       String(texto || '')
@@ -357,7 +364,8 @@ const filas = XLSX.utils.sheet_to_json(hoja, {
       )
 
       obtenerGimnastasInscriptas(torneoSeleccionado.id)
-      e.target.value = ''
+      setArchivoExcel(null)
+setImportandoExcel(false)
     }
 
     lector.readAsArrayBuffer(archivo)
@@ -863,10 +871,21 @@ const filas = XLSX.utils.sheet_to_json(hoja, {
           <h2>Importar desde Excel</h2>
 
           <input
-            type="file"
-            accept=".xlsx, .xls"
-            onChange={importarExcel}
-          />
+  type="file"
+  accept=".xlsx, .xls"
+  onChange={(e) => setArchivoExcel(e.target.files[0])}
+/>
+
+{archivoExcel && (
+  <p>Archivo seleccionado: {archivoExcel.name}</p>
+)}
+
+<button
+  onClick={importarExcel}
+  disabled={importandoExcel}
+>
+  {importandoExcel ? 'Importando...' : 'Cargar Excel'}
+</button>
 
           <hr style={{ margin: '25px 0' }} />
 
