@@ -7,6 +7,7 @@ import Jueces from './pages/Jueces'
 import Resultados from './pages/Resultados'
 import AdminInscriptas from './pages/AdminInscriptas'
 import AdminPuntajes from './pages/AdminPuntajes'
+import AdminPodios from './pages/AdminPodios'
 
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -36,6 +37,7 @@ function App() {
 />
 <Route path="/admin/inscriptas" element={<AdminInscriptas />} />
 <Route path="/admin/puntajes" element={<AdminPuntajes />} />
+<Route path="/admin/podios" element={<AdminPodios />} />
 
       </Routes>
     </BrowserRouter>

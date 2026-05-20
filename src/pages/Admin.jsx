@@ -1088,6 +1088,18 @@ setImportandoExcel(false)
           >
             Ver puntajes
           </button>
+          
+          <button
+  onClick={() =>
+    navigate('/admin/podios', {
+      state: {
+        puntajesCargados
+      }
+    })
+  }
+>
+  Ver podios
+</button>
 
         </section>
 

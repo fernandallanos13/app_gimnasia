@@ -625,3 +625,15 @@ table th {
     grid-column: 2;
   }
 }
+
+.podios-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.podios-filter-grid button {
+  width: 100%;
+  max-width: none;
+}
