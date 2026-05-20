@@ -457,3 +457,48 @@ table th {
 .admin-page button:hover {
   background: #e5383b;
 }
+
+.admin-clean-dashboard {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 22px;
+  align-items: start;
+}
+
+.admin-box {
+  background: #eeeeee;
+  border-radius: 22px;
+  padding: 24px;
+  width: 100%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.admin-box h2 {
+  margin-bottom: 8px;
+}
+
+.admin-box p {
+  margin-bottom: 14px;
+}
+
+.admin-box input,
+.admin-box select {
+  margin-bottom: 10px;
+}
+
+.admin-box button {
+  background: #c1121f;
+  color: white;
+}
+
+.admin-box button:hover {
+  background: #e5383b;
+}
+
+.admin-box-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}

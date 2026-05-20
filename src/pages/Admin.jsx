@@ -789,438 +789,303 @@ setImportandoExcel(false)
   )
 
   return (
-    <div className="container">
-      <h1>Panel Admin</h1>
+  <div className="container">
 
-      <button onClick={cerrarSesion}>
-        Cerrar sesión
-      </button>
+    <h1>Panel Admin</h1>
 
-      <button onClick={() => setMostrarHistoricos(!mostrarHistoricos)}>
-        {mostrarHistoricos ? 'Ocultar torneos históricos' : 'Ver torneos históricos'}
-      </button>
+    <button onClick={cerrarSesion}>
+      Cerrar sesión
+    </button>
 
-      {mostrarHistoricos && (
-        <div className="card" style={{ maxWidth: '700px' }}>
-          <h2>Torneos históricos</h2>
+    <button onClick={() => setMostrarHistoricos(!mostrarHistoricos)}>
+      {mostrarHistoricos
+        ? 'Ocultar torneos históricos'
+        : 'Ver torneos históricos'}
+    </button>
 
-          {torneosHistoricos.length === 0 ? (
-            <p>No hay torneos cerrados todavía.</p>
-          ) : (
-            torneosHistoricos.map((torneo) => (
-              <div
-                key={torneo.id}
-                style={{
-                  background: '#f5f5f5',
-                  padding: '15px',
-                  borderRadius: '12px',
-                  marginTop: '10px'
-                }}
+    {mostrarHistoricos && (
+      <div className="card" style={{ maxWidth: '700px' }}>
+        <h2>Torneos históricos</h2>
+
+        {torneosHistoricos.length === 0 ? (
+          <p>No hay torneos cerrados todavía.</p>
+        ) : (
+          torneosHistoricos.map((torneo) => (
+            <div
+              key={torneo.id}
+              style={{
+                background: '#f5f5f5',
+                padding: '15px',
+                borderRadius: '12px',
+                marginTop: '10px'
+              }}
+            >
+              <h3>{torneo.nombre}</h3>
+
+              <button
+                onClick={() =>
+                  exportarResultadosExcelPorTorneo(torneo)
+                }
               >
-                <h3>{torneo.nombre}</h3>
+                Descargar Excel
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    )}
 
-                <button onClick={() => exportarResultadosExcelPorTorneo(torneo)}>
-                  Descargar Excel
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+    <div className="admin-top-grid">
 
-      <div className="admin-top-grid">
-        <div className="card admin-create-card">
-          <h2>Crear torneo</h2>
+      <div className="admin-box">
+        <h2>Crear torneo</h2>
 
-          <input
-            type="text"
-            placeholder="Nombre torneo"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-          />
+        <input
+          type="text"
+          placeholder="Nombre torneo"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+        />
 
-          <input
-            type="text"
-            placeholder="Código torneo"
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-          />
+        <input
+          type="text"
+          placeholder="Código torneo"
+          value={codigo}
+          onChange={(e) => setCodigo(e.target.value)}
+        />
 
-          <button onClick={crearTorneo}>Crear torneo</button>
-        </div>
-
-        <div className="card admin-active-card">
-          <h2>Torneo activo</h2>
-
-          {torneosActivos.length === 0 ? (
-            <p>No hay torneos activos.</p>
-          ) : (
-            <>
-              <h3>{torneoSeleccionado?.nombre}</h3>
-              <p><strong>Código:</strong> {torneoSeleccionado?.codigo}</p>
-              <p><strong>Estado:</strong> {torneoSeleccionado?.estado}</p>
-              <p>
-                <strong>Resultados públicos:</strong>{' '}
-                {torneoSeleccionado?.resultados_publicos ? 'Sí' : 'No'}
-              </p>
-
-              <div className="actions">
-                <button
-                  onClick={() =>
-                    toggleResultadosPublicos(
-                      torneoSeleccionado.id,
-                      torneoSeleccionado.resultados_publicos
-                    )
-                  }
-                >
-                  {torneoSeleccionado?.resultados_publicos
-                    ? 'Ocultar resultados'
-                    : 'Publicar resultados'}
-                </button>
-
-                <button onClick={copiarLinkPublico}>Copiar link público</button>
-
-                <button onClick={exportarResultadosExcel}>
-                  Exportar resultados
-                </button>
-
-                {torneoSeleccionado?.estado !== 'cerrado' && (
-                  <button
-                    className="danger"
-                    onClick={() => cerrarTorneo(torneoSeleccionado.id)}
-                  >
-                    Cerrar torneo
-                  </button>
-                )}
-              </div>
-
-              <div className="qr-box">
-                <p>Escaneá para ver resultados</p>
-
-                <QRCodeCanvas
-                  value={`${window.location.origin}/resultados`}
-                  size={140}
-                />
-
-                <button onClick={() => descargarQR(torneoSeleccionado.nombre)}>
-                  Descargar QR
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        <button onClick={crearTorneo}>
+          Crear torneo
+        </button>
       </div>
 
-      {torneoSeleccionado && (
-        <div className="card admin-dashboard-card">
-          <div className="admin-dashboard-header">
-            <div>
-              <h2>Gestión de inscripciones</h2>
-              <p>
-                {gimnastasInscriptas.length} gimnasta(s) inscripta(s) en este torneo.
-              </p>
+      <div className="admin-box">
+        <h2>Torneo activo</h2>
+
+        {torneosActivos.length === 0 ? (
+          <p>No hay torneos activos.</p>
+        ) : (
+          <>
+            <h3>{torneoSeleccionado?.nombre}</h3>
+
+            <p>
+              <strong>Código:</strong>{' '}
+              {torneoSeleccionado?.codigo}
+            </p>
+
+            <div className="admin-box-actions">
+
+              <button
+                onClick={() =>
+                  toggleResultadosPublicos(
+                    torneoSeleccionado.id,
+                    torneoSeleccionado.resultados_publicos
+                  )
+                }
+              >
+                {torneoSeleccionado?.resultados_publicos
+                  ? 'Ocultar resultados'
+                  : 'Publicar resultados'}
+              </button>
+
+              <button onClick={copiarLinkPublico}>
+                Copiar link público
+              </button>
+
+              <button onClick={exportarResultadosExcel}>
+                Exportar resultados
+              </button>
+
+              <button
+                className="danger"
+                onClick={() =>
+                  cerrarTorneo(torneoSeleccionado.id)
+                }
+              >
+                Cerrar torneo
+              </button>
+
             </div>
+
+            <div className="qr-box">
+              <p>Escaneá para ver resultados</p>
+
+              <QRCodeCanvas
+                value={`${window.location.origin}/resultados`}
+                size={140}
+              />
+
+              <button
+                onClick={() =>
+                  descargarQR(torneoSeleccionado.nombre)
+                }
+              >
+                Descargar QR
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+
+    {torneoSeleccionado && (
+
+      <div className="admin-clean-dashboard">
+
+        <section className="admin-box">
+
+          <h2>Gestión de inscripciones</h2>
+
+          <p>
+            {gimnastasInscriptas.length} gimnasta(s)
+            inscripta(s)
+          </p>
+
+          <div className="admin-box-actions">
 
             <button
-  onClick={() => navigate('/admin/inscriptas')}
-  className="secondary-button"
->
-  Ver inscriptas
-</button>
-          </div>
-
-          <div className="admin-form-grid">
-            <section className="admin-form-box">
-              <h2>Cargar gimnasta</h2>
-
-              <input
-                type="text"
-                placeholder="Nombre"
-                value={nombreGimnasta}
-                onChange={(e) => setNombreGimnasta(e.target.value)}
-              />
-
-              <input
-                type="text"
-                placeholder="Apellido"
-                value={apellidoGimnasta}
-                onChange={(e) => setApellidoGimnasta(e.target.value)}
-              />
-
-              <input
-                type="text"
-                placeholder="Club"
-                value={club}
-                onChange={(e) => setClub(e.target.value)}
-              />
-
-              <input
-                type="text"
-                placeholder="Profe"
-                value={profe}
-                onChange={(e) => setProfe(e.target.value)}
-              />
-
-              <select value={nivelId} onChange={(e) => setNivelId(e.target.value)}>
-                <option value="">Seleccionar nivel</option>
-                {niveles.map((nivel) => (
-                  <option key={nivel.id} value={nivel.id}>
-                    {nivel.nombre}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={categoriaId}
-                onChange={(e) => setCategoriaId(e.target.value)}
-              >
-                <option value="">Seleccionar categoría</option>
-                {categorias.map((categoria) => (
-                  <option key={categoria.id} value={categoria.id}>
-                    {categoria.nombre}
-                  </option>
-                ))}
-              </select>
-
-              <button onClick={cargarGimnasta}>Cargar gimnasta</button>
-            </section>
-
-            <section className="admin-form-box">
-              <h2>Importar desde Excel</h2>
-              <p className="helper-text">
-                Primero seleccioná el archivo y después tocá Cargar Excel.
-              </p>
-
-              <input
-                type="file"
-                accept=".xlsx, .xls"
-                onChange={(e) => setArchivoExcel(e.target.files[0])}
-              />
-
-              {archivoExcel && (
-                <p className="helper-text">
-                  Archivo seleccionado: <strong>{archivoExcel.name}</strong>
-                </p>
-              )}
-
-              <button onClick={importarExcel} disabled={importandoExcel}>
-                {importandoExcel ? 'Importando...' : 'Cargar Excel'}
-              </button>
-            </section>
-          </div>
-
-          {mostrarInscriptas && (
-            <section className="inscriptas-panel">
-              <div className="inscriptas-header">
-                <h2>Gimnastas inscriptas</h2>
-
-                <select
-                  value={ordenGimnastas}
-                  onChange={(e) => setOrdenGimnastas(e.target.value)}
-                >
-                  <option value="apellido">Ordenar por apellido</option>
-                  <option value="nivel-apellido">Ordenar por nivel + apellido</option>
-                </select>
-              </div>
-
-              {gimnastasInscriptas.length === 0 ? (
-                <p>No hay gimnastas inscriptas en este torneo.</p>
-              ) : (
-                <div className="table-wrapper">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Apellido</th>
-                        <th>Nombre</th>
-                        <th>Club</th>
-                        <th>Profe</th>
-                        <th>Nivel</th>
-                        <th>Categoría</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {gimnastasOrdenadas.map((inscripcion) => (
-                        <tr key={inscripcion.id}>
-                          {gimnastaEditandoId === inscripcion.gimnastas.id ? (
-                            <>
-                              <td>
-                                <input
-                                  value={editApellido}
-                                  onChange={(e) => setEditApellido(e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  value={editNombre}
-                                  onChange={(e) => setEditNombre(e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  value={editClub}
-                                  onChange={(e) => setEditClub(e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  value={editProfe}
-                                  onChange={(e) => setEditProfe(e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <select
-                                  value={editNivelId}
-                                  onChange={(e) => setEditNivelId(e.target.value)}
-                                >
-                                  {niveles.map((nivel) => (
-                                    <option key={nivel.id} value={nivel.id}>
-                                      {nivel.nombre}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td>
-                                <select
-                                  value={editCategoriaId}
-                                  onChange={(e) => setEditCategoriaId(e.target.value)}
-                                >
-                                  {categorias.map((categoria) => (
-                                    <option key={categoria.id} value={categoria.id}>
-                                      {categoria.nombre}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td>
-                                <div className="row-actions">
-                                  <button
-                                    onClick={() =>
-                                      guardarEdicionGimnasta(inscripcion.gimnastas.id)
-                                    }
-                                  >
-                                    Guardar
-                                  </button>
-                                  <button
-                                    className="secondary-button"
-                                    onClick={cancelarEdicion}
-                                  >
-                                    Cancelar
-                                  </button>
-                                </div>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td>{inscripcion.gimnastas.apellido}</td>
-                              <td>{inscripcion.gimnastas.nombre}</td>
-                              <td>{inscripcion.gimnastas.club}</td>
-                              <td>{inscripcion.gimnastas.profe}</td>
-                              <td>{inscripcion.gimnastas.niveles?.nombre}</td>
-                              <td>{inscripcion.gimnastas.categorias?.nombre}</td>
-                              <td>
-                                <div className="row-actions">
-                                  <button onClick={() => iniciarEdicion(inscripcion)}>
-                                    Editar
-                                  </button>
-                                  <button
-                                    className="danger"
-                                    onClick={() => eliminarGimnasta(inscripcion)}
-                                  >
-                                    Eliminar
-                                  </button>
-                                </div>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
-          )}
-
-          <hr style={{ margin: '25px 0' }} />
-
-          <div className="mobile-tabs">
-            <button onClick={() => navigate('/admin/puntajes')}>
-  Ver puntajes
-</button>
-          </div>
-
-          <div className="admin-grid">
-
-            <div
-              className={
-                vistaAdmin === 'puntajes'
-                  ? 'admin-section active'
-                  : 'admin-section'
+              onClick={() =>
+                navigate('/admin/inscriptas')
               }
             >
-              <h2>Puntajes cargados</h2>
+              Ver inscriptas
+            </button>
 
-              {puntajesCargados.length === 0 ? (
-                <p>No hay puntajes cargados en este torneo.</p>
-              ) : (
-                puntajesCargados.map((p) => (
-                  <div
-                    key={p.id}
-                    style={{
-                      background: '#f5f5f5',
-                      padding: '15px',
-                      borderRadius: '12px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <h3>
-                      {p.gimnastas?.apellido}, {p.gimnastas?.nombre}
-                    </h3>
-
-                    <p>Club: {p.gimnastas?.club}</p>
-                    <p>Aparato: {p.aparatos?.nombre}</p>
-                    <p>Juez: {p.jueces?.nombre}</p>
-
-                    {puntajeEditandoId === p.id ? (
-                      <>
-                        <input
-                          type="number"
-                          min="0"
-                          max="99"
-                          value={editPuntaje}
-                          onChange={(e) => setEditPuntaje(e.target.value)}
-                        />
-
-                        <button onClick={() => guardarEdicionPuntaje(p.id)}>
-                          Guardar
-                        </button>
-
-                        <button onClick={cancelarEdicionPuntaje}>
-                          Cancelar
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <p>
-                          Puntaje: <strong>{p.puntaje}</strong>
-                        </p>
-
-                        <button onClick={() => iniciarEdicionPuntaje(p)}>
-                          Editar puntaje
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
           </div>
-        </div>
-      )}
-    </div>
-  )
+
+          <h3 style={{ marginTop: '20px' }}>
+            Importar desde Excel
+          </h3>
+
+          <input
+            type="file"
+            accept=".xlsx, .xls"
+            onChange={(e) =>
+              setArchivoExcel(e.target.files[0])
+            }
+          />
+
+          {archivoExcel && (
+            <p className="helper-text">
+              Archivo seleccionado:
+              <strong> {archivoExcel.name}</strong>
+            </p>
+          )}
+
+          <button
+            onClick={importarExcel}
+            disabled={importandoExcel}
+          >
+            {importandoExcel
+              ? 'Importando...'
+              : 'Cargar Excel'}
+          </button>
+
+        </section>
+
+        <section className="admin-box">
+
+          <h2>Cargar gimnasta</h2>
+
+          <input
+            type="text"
+            placeholder="Nombre"
+            value={nombreGimnasta}
+            onChange={(e) =>
+              setNombreGimnasta(e.target.value)
+            }
+          />
+
+          <input
+            type="text"
+            placeholder="Apellido"
+            value={apellidoGimnasta}
+            onChange={(e) =>
+              setApellidoGimnasta(e.target.value)
+            }
+          />
+
+          <input
+            type="text"
+            placeholder="Club"
+            value={club}
+            onChange={(e) => setClub(e.target.value)}
+          />
+
+          <input
+            type="text"
+            placeholder="Profe"
+            value={profe}
+            onChange={(e) => setProfe(e.target.value)}
+          />
+
+          <select
+            value={nivelId}
+            onChange={(e) => setNivelId(e.target.value)}
+          >
+            <option value="">
+              Seleccionar nivel
+            </option>
+
+            {niveles.map((nivel) => (
+              <option
+                key={nivel.id}
+                value={nivel.id}
+              >
+                {nivel.nombre}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={categoriaId}
+            onChange={(e) =>
+              setCategoriaId(e.target.value)
+            }
+          >
+            <option value="">
+              Seleccionar categoría
+            </option>
+
+            {categorias.map((categoria) => (
+              <option
+                key={categoria.id}
+                value={categoria.id}
+              >
+                {categoria.nombre}
+              </option>
+            ))}
+          </select>
+
+          <button onClick={cargarGimnasta}>
+            Cargar gimnasta
+          </button>
+
+        </section>
+
+        <section className="admin-box">
+
+          <h2>Puntajes</h2>
+
+          <p>
+            Consultá y editá los puntajes cargados.
+          </p>
+
+          <button
+            onClick={() =>
+              navigate('/admin/puntajes')
+            }
+          >
+            Ver puntajes
+          </button>
+
+        </section>
+
+      </div>
+    )}
+
+  </div>
+)
 }
 
 export default Admin
