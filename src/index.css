@@ -70,7 +70,7 @@ table td {
 }
 
 table th {
-  background: #5b2c83;
+  background: #c1121f;
   color: white;
 }
 
@@ -107,9 +107,7 @@ table th {
     flex-wrap: wrap;
   }
 
-  button {
-    width: auto;
-  }
+  
 }
 
 .mobile-tabs {
