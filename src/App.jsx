@@ -5,8 +5,11 @@ import AdminLogin from './pages/AdminLogin'
 import Admin from './pages/Admin'
 import Jueces from './pages/Jueces'
 import Resultados from './pages/Resultados'
+import AdminInscriptas from './pages/AdminInscriptas'
+import AdminPuntajes from './pages/AdminPuntajes'
 
 import ProtectedRoute from './components/ProtectedRoute'
+
 
 function App() {
   return (
@@ -28,10 +31,11 @@ function App() {
 
         <Route path="/jueces" element={<Jueces />} />
 
-        <Route
-  path="/resultados"
+        <Route path="/resultados" 
   element={<Resultados />}
 />
+<Route path="/admin/inscriptas" element={<AdminInscriptas />} />
+<Route path="/admin/puntajes" element={<AdminPuntajes />} />
 
       </Routes>
     </BrowserRouter>

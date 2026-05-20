@@ -433,3 +433,27 @@ table th {
     flex-direction: column;
   }
 }
+
+.admin-page {
+  background: #f3f4f6;
+}
+
+.admin-box {
+  width: 100%;
+  max-width: 1000px;
+  background: #e5e7eb;
+  padding: 24px;
+  border-radius: 22px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.admin-box button,
+.admin-page button {
+  background: #c1121f;
+  color: white;
+}
+
+.admin-box button:hover,
+.admin-page button:hover {
+  background: #e5383b;
+}

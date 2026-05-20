@@ -922,11 +922,11 @@ setImportandoExcel(false)
             </div>
 
             <button
-              onClick={() => setMostrarInscriptas(!mostrarInscriptas)}
-              className="secondary-button"
-            >
-              {mostrarInscriptas ? 'Ocultar inscriptas' : 'Ver/editar inscriptas'}
-            </button>
+  onClick={() => navigate('/admin/inscriptas')}
+  className="secondary-button"
+>
+  Ver inscriptas
+</button>
           </div>
 
           <div className="admin-form-grid">
@@ -1146,9 +1146,9 @@ setImportandoExcel(false)
           <hr style={{ margin: '25px 0' }} />
 
           <div className="mobile-tabs">
-            <button onClick={() => setVistaAdmin('puntajes')}>
-              Ver/editar puntajes
-            </button>
+            <button onClick={() => navigate('/admin/puntajes')}>
+  Ver puntajes
+</button>
           </div>
 
           <div className="admin-grid">
