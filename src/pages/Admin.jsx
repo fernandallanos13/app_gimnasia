@@ -793,25 +793,24 @@ function Admin() {
                   </button>
                 </div>
 
-                {torneo.estado !== 'cerrado' && (
-                  <button
-                    className="danger"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      cerrarTorneo(torneo.id)
-                    }}
-                  >
-                    style={{
-  background: '#b00020',
-  color: 'white',
-  width: '220px',
-  height: '60px',
-  alignSelf: 'flex-start'
-}}
-                    Cerrar torneo
-                  </button>
-                  
-                )}
+               {torneo.estado !== 'cerrado' && (
+  <button
+    className="danger"
+    onClick={(e) => {
+      e.stopPropagation()
+      cerrarTorneo(torneo.id)
+    }}
+    style={{
+      background: '#b00020',
+      color: 'white',
+      width: '220px',
+      padding: '14px 20px',
+      alignSelf: 'flex-start'
+    }}
+  >
+    Cerrar torneo
+  </button>
+)}
               </div>
             </div>
           ))
