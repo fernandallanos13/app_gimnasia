@@ -539,10 +539,12 @@ setImportandoExcel(false)
         id,
         puntaje,
         gimnastas (
-          nombre,
-          apellido,
-          club
-        ),
+  nombre,
+  apellido,
+  club,
+  niveles (nombre),
+  categorias (nombre)
+),
         aparatos (
           nombre
         ),
@@ -1088,7 +1090,7 @@ setImportandoExcel(false)
           >
             Ver puntajes
           </button>
-          
+
           <button
   onClick={() =>
     navigate('/admin/podios', {
