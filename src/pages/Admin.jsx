@@ -945,7 +945,13 @@ setImportandoExcel(false)
 
             <button
               onClick={() =>
-                navigate('/admin/inscriptas')
+                navigate('/admin/inscriptas', {
+  state: {
+    gimnastasInscriptas,
+    niveles,
+    categorias
+  }
+})
               }
             >
               Ver inscriptas

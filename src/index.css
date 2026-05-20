@@ -502,3 +502,54 @@ table th {
   gap: 10px;
   margin-bottom: 12px;
 }
+
+.admin-box-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.admin-box-actions button {
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 700px) {
+  .admin-box-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 20px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.admin-table th {
+  background: #c1121f;
+  color: white;
+  padding: 14px;
+}
+
+.admin-table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  background: white;
+}
+
+.admin-table tr:hover td {
+  background: #f9f9f9;
+}
+
+.table-buttons {
+  display: flex;
+  gap: 8px;
+}
