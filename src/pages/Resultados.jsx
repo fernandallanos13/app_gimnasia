@@ -83,6 +83,20 @@ const torneoId = torneoActivo.id
       return
     }
 
+    const { data: inscripcionesData, error: inscripcionesError } = await supabase
+  .from('inscripciones')
+  .select(`
+    gimnastas (
+      id,
+      nombre,
+      apellido,
+      club,
+      niveles (nombre),
+      categorias (nombre)
+    )
+  `)
+  .eq('torneo_id', torneoId)
+
     const { data: puntajesData, error: puntajesError } = await supabase
       .from('puntajes')
       .select(`
@@ -103,13 +117,31 @@ const torneoId = torneoActivo.id
       .from('reglas_premiacion')
       .select('*')
 
-    if (puntajesError || reglasError) {
+    if (puntajesError || reglasError || inscripcionesError) {
       console.log(puntajesError || reglasError)
       setCargando(false)
       return
     }
 
     const agrupados = {}
+    inscripcionesData.forEach((item) => {
+  const gimnasta = item.gimnastas
+
+  if (!gimnasta) return
+
+  agrupados[gimnasta.id] = {
+    id: gimnasta.id,
+    nombre: `${gimnasta.apellido}, ${gimnasta.nombre}`,
+    club: gimnasta.club || '',
+    nivel: gimnasta.niveles?.nombre || '',
+    categoria: gimnasta.categorias?.nombre || '',
+    Suelo: 0,
+    Salto: 0,
+    Viga: 0,
+    Paralelas: 0,
+    total: 0
+  }
+})
 
     puntajesData.forEach((item) => {
       const gimnasta = item.gimnastas

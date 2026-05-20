@@ -34,13 +34,14 @@ function Jueces() {
       .single()
 
     if (errorTorneo || !torneoEncontrado) {
-  alert('Código de torneo incorrecto o torneo no activo')
-  return
-}
-if (torneoEncontrado.estado === 'cerrado') {
-  alert('Este torneo ya está cerrado')
-  return
-}
+      alert('Código de torneo incorrecto o torneo no activo')
+      return
+    }
+
+    if (torneoEncontrado.estado === 'cerrado') {
+      alert('Este torneo ya está cerrado')
+      return
+    }
 
     const { data: juezCreado, error: errorJuez } = await supabase
       .from('jueces')
@@ -114,6 +115,7 @@ if (torneoEncontrado.estado === 'cerrado') {
   }
 
   async function obtenerCategorias(nivelId) {
+    setNivelSeleccionado(nivelId)
     setCategoriaSeleccionada('')
     setGimnastasGrupo([])
     setPuntajes({})
@@ -161,6 +163,11 @@ if (torneoEncontrado.estado === 'cerrado') {
     setGimnastasGrupo([])
     setPuntajes({})
 
+    if (!aparatoSeleccionado) {
+      alert('Primero seleccioná un aparato')
+      return
+    }
+
     const { data, error } = await supabase
       .from('inscripciones')
       .select(`
@@ -193,20 +200,62 @@ if (torneoEncontrado.estado === 'cerrado') {
     })
 
     setGimnastasGrupo(filtradas)
-  }
 
-  function cambiarPuntaje(gimnastaId, valor) {
-    if (valor === '') {
-      setPuntajes({
-        ...puntajes,
-        [gimnastaId]: ''
-      })
+    const idsGimnastas = filtradas.map((item) => item.gimnastas.id)
+
+    if (idsGimnastas.length === 0) {
       return
     }
 
-    const numero = Number(valor)
+    const { data: puntajesExistentes, error: errorPuntajes } = await supabase
+      .from('puntajes')
+      .select('*')
+      .eq('torneo_id', torneo.id)
+      .eq('juez_id', juez.id)
+      .eq('aparato_id', Number(aparatoSeleccionado))
+      .in('gimnasta_id', idsGimnastas)
 
-    if (numero < 0 || numero > 99) {
+    if (!errorPuntajes && puntajesExistentes) {
+      const puntajesPrevios = {}
+
+      puntajesExistentes.forEach((p) => {
+        puntajesPrevios[p.gimnasta_id] = p.puntaje
+      })
+
+      setPuntajes(puntajesPrevios)
+    }
+  }
+
+  async function guardarPuntajeIndividual(gimnastaId, valor) {
+    if (!aparatoSeleccionado || !torneo || !juez) return
+
+    if (valor === '' || Number(valor) < 0 || Number(valor) > 99) {
+      return
+    }
+
+    const { error } = await supabase
+      .from('puntajes')
+      .upsert(
+        {
+          torneo_id: torneo.id,
+          gimnasta_id: gimnastaId,
+          juez_id: juez.id,
+          aparato_id: Number(aparatoSeleccionado),
+          puntaje: Number(valor)
+        },
+        {
+          onConflict: 'torneo_id,gimnasta_id,juez_id,aparato_id'
+        }
+      )
+
+    if (error) {
+      console.log(error)
+      alert('Error al autoguardar puntaje')
+    }
+  }
+
+  function cambiarPuntaje(gimnastaId, valor) {
+    if (valor !== '' && (Number(valor) < 0 || Number(valor) > 99)) {
       alert('El puntaje debe ser entre 0 y 99')
       return
     }
@@ -215,54 +264,8 @@ if (torneoEncontrado.estado === 'cerrado') {
       ...puntajes,
       [gimnastaId]: valor
     })
-  }
 
-  async function guardarPuntajes() {
-    if (!aparatoSeleccionado || !nivelSeleccionado || !categoriaSeleccionada) {
-      alert('Seleccioná aparato, nivel y categoría')
-      return
-    }
-
-    if (gimnastasGrupo.length === 0) {
-      alert('No hay gimnastas para puntuar')
-      return
-    }
-
-    const faltanPuntajes = gimnastasGrupo.some((item) => {
-      const gimnastaId = item.gimnastas.id
-      return puntajes[gimnastaId] === undefined || puntajes[gimnastaId] === ''
-    })
-
-    if (faltanPuntajes) {
-      alert('Completá todos los puntajes. Si una gimnasta está ausente, poné 0.')
-      return
-    }
-
-    const registros = gimnastasGrupo.map((item) => ({
-      torneo_id: torneo.id,
-      gimnasta_id: item.gimnastas.id,
-      juez_id: juez.id,
-      aparato_id: Number(aparatoSeleccionado),
-      puntaje: Number(puntajes[item.gimnastas.id])
-    }))
-
-    const { error } = await supabase
-  .from('puntajes')
-  .insert(registros)
-
-if (error) {
-  console.log(error)
-
-  if (error.code === '23505') {
-    alert('Este grupo ya fue cargado por este juez para este aparato. No se puede duplicar.')
-  } else {
-    alert('Error al guardar puntajes')
-  }
-
-  return
-}
-
-    alert('Puntajes guardados correctamente')
+    guardarPuntajeIndividual(gimnastaId, valor)
   }
 
   function cargarOtroGrupo() {
@@ -289,34 +292,34 @@ if (error) {
   }
 
   async function verificarTorneoGuardado(torneoGuardado) {
-  const { data, error } = await supabase
-    .from('torneos')
-    .select('*')
-    .eq('id', torneoGuardado.id)
-    .single()
+    const { data, error } = await supabase
+      .from('torneos')
+      .select('*')
+      .eq('id', torneoGuardado.id)
+      .single()
 
-  if (error || !data) {
-    localStorage.removeItem('juez')
-    localStorage.removeItem('torneo')
-    setJuez(null)
-    setTorneo(null)
-    return
+    if (error || !data) {
+      localStorage.removeItem('juez')
+      localStorage.removeItem('torneo')
+      setJuez(null)
+      setTorneo(null)
+      return
+    }
+
+    if (data.estado === 'cerrado') {
+      alert('Este torneo ya está cerrado')
+      localStorage.removeItem('juez')
+      localStorage.removeItem('torneo')
+      localStorage.removeItem('aparatoSeleccionado')
+      setJuez(null)
+      setTorneo(null)
+      setAparatoSeleccionado('')
+      return
+    }
+
+    setTorneo(data)
+    obtenerNiveles(data.id)
   }
-
-  if (data.estado === 'cerrado') {
-    alert('Este torneo ya está cerrado')
-    localStorage.removeItem('juez')
-    localStorage.removeItem('torneo')
-    localStorage.removeItem('aparatoSeleccionado')
-    setJuez(null)
-    setTorneo(null)
-    setAparatoSeleccionado('')
-    return
-  }
-
-  setTorneo(data)
-  obtenerNiveles(data.id)
-}
 
   useEffect(() => {
     obtenerAparatos()
@@ -331,11 +334,11 @@ if (error) {
 
       setJuez(juezParseado)
 
-if (aparatoGuardado) {
-  setAparatoSeleccionado(aparatoGuardado)
-}
+      if (aparatoGuardado) {
+        setAparatoSeleccionado(aparatoGuardado)
+      }
 
-verificarTorneoGuardado(torneoParseado)
+      verificarTorneoGuardado(torneoParseado)
     }
   }, [])
 
@@ -366,7 +369,7 @@ verificarTorneoGuardado(torneoParseado)
       )}
 
       {torneo && juez && (
-        <div style={{ background: 'white', padding: '20px', borderRadius: '14px', width: '90%', maxWidth: '700px' }}>
+        <div className="judge-card">
           <h2>Bienvenido/a {juez.nombre}</h2>
           <p>Torneo: {torneo.nombre}</p>
 
@@ -383,6 +386,11 @@ verificarTorneoGuardado(torneoParseado)
             onChange={(e) => {
               setAparatoSeleccionado(e.target.value)
               localStorage.setItem('aparatoSeleccionado', e.target.value)
+              setNivelSeleccionado('')
+              setCategoriaSeleccionada('')
+              setCategorias([])
+              setGimnastasGrupo([])
+              setPuntajes({})
             }}
           >
             <option value="">Seleccionar aparato</option>
@@ -398,10 +406,7 @@ verificarTorneoGuardado(torneoParseado)
 
           <select
             value={nivelSeleccionado}
-            onChange={(e) => {
-              setNivelSeleccionado(e.target.value)
-              obtenerCategorias(e.target.value)
-            }}
+            onChange={(e) => obtenerCategorias(e.target.value)}
           >
             <option value="">Seleccionar nivel</option>
 
@@ -434,20 +439,14 @@ verificarTorneoGuardado(torneoParseado)
           {gimnastasGrupo.length > 0 && (
             <div style={{ marginTop: '30px' }}>
               <h2>Cargar puntajes</h2>
+              <p style={{ marginTop: '8px' }}>
+                Los puntajes se guardan automáticamente.
+              </p>
 
               {gimnastasGrupo.map((item) => (
                 <div
                   key={item.gimnastas.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '15px',
-                    background: '#f5f5f5',
-                    padding: '12px',
-                    borderRadius: '10px',
-                    marginTop: '10px'
-                  }}
+                  className="score-row"
                 >
                   <div>
                     <strong>
@@ -463,17 +462,9 @@ verificarTorneoGuardado(torneoParseado)
                     placeholder="0-99"
                     value={puntajes[item.gimnastas.id] || ''}
                     onChange={(e) => cambiarPuntaje(item.gimnastas.id, e.target.value)}
-                    style={{ width: '90px' }}
                   />
                 </div>
               ))}
-
-              <button
-                onClick={guardarPuntajes}
-                style={{ marginTop: '20px' }}
-              >
-                Guardar puntajes
-              </button>
 
               <button
                 onClick={cargarOtroGrupo}
