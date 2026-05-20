@@ -7,32 +7,43 @@ function Resultados() {
   const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [categoriasAbiertas, setCategoriasAbiertas] = useState({})
+  const [ultimaActualizacion, setUltimaActualizacion] = useState(null)
 
-  function esMiniaturas(categoria) {
-    return categoria === 'Miniaturas'
+  function esMiniatura(categoria) {
+    const texto = String(categoria || '').toLowerCase().trim()
+    return texto.includes('miniatura')
   }
 
   function mostrarPuntaje(valor, categoria) {
-    if (esMiniaturas(categoria)) {
+    if (esMiniatura(categoria)) {
       return Number(valor) > 0 ? '🙂' : ''
     }
 
     return valor || ''
   }
 
-  function calcularPuestos(lista, tipo, categoria) {
-    if (esMiniaturas(categoria)) {
-      return lista.map((g) => ({
+  function mostrarTotal(g, categoria) {
+    if (esMiniatura(categoria)) {
+      return Number(g.total) > 0 ? '🙂' : ''
+    }
+
+    return g.total
+  }
+
+  function calcularPuestos(lista, categoria, nivel) {
+    const ordenados = [...lista].sort((a, b) => b.total - a.total)
+
+    if (esMiniatura(categoria)) {
+      return ordenados.map((g) => ({
         ...g,
-        puesto: '🙂'
+        puesto: Number(g.total) > 0 ? '🙂' : ''
       }))
     }
 
-    const ordenados = [...lista].sort((a, b) => b.total - a.total)
+    const nivelTexto = String(nivel || '').toUpperCase().trim()
 
-    if (tipo === 'tercios') {
-      const cantidad = ordenados.length
-      const tercio = Math.ceil(cantidad / 3)
+    if (nivelTexto === 'N1') {
+      const tercio = Math.ceil(ordenados.length / 3)
 
       return ordenados.map((g, index) => ({
         ...g,
@@ -45,11 +56,34 @@ function Resultados() {
       }))
     }
 
-    if (tipo === 'hasta_6_y_grupos') {
-      return ordenados.map((g, index) => ({
-        ...g,
-        puesto: index < 6 ? `${index + 1}°` : `${Math.min(index + 1, 10)}°`
-      }))
+    if (nivelTexto === 'N2' || nivelTexto === 'N3') {
+      return ordenados.map((g, index) => {
+        if (index < 6) {
+          return {
+            ...g,
+            puesto: `${index + 1}°`
+          }
+        }
+
+        const restantes = ordenados.length - 6
+        const posicionRestante = index - 6
+        const cuarto = Math.ceil(restantes / 4)
+
+        let puesto = '10°'
+
+        if (posicionRestante < cuarto) {
+          puesto = '7°'
+        } else if (posicionRestante < cuarto * 2) {
+          puesto = '8°'
+        } else if (posicionRestante < cuarto * 3) {
+          puesto = '9°'
+        }
+
+        return {
+          ...g,
+          puesto
+        }
+      })
     }
 
     return ordenados.map((g, index) => ({
@@ -63,6 +97,11 @@ function Resultados() {
       ...categoriasAbiertas,
       [clave]: !categoriasAbiertas[clave]
     })
+  }
+
+  function numeroNivel(nivel) {
+    const match = String(nivel || '').match(/\d+/)
+    return match ? Number(match[0]) : 999
   }
 
   async function obtenerResultados() {
@@ -132,12 +171,8 @@ function Resultados() {
       `)
       .eq('torneo_id', torneoId)
 
-    const { data: reglasData, error: reglasError } = await supabase
-      .from('reglas_premiacion')
-      .select('*')
-
-    if (puntajesError || reglasError || inscripcionesError) {
-      console.log(puntajesError || reglasError || inscripcionesError)
+    if (puntajesError || inscripcionesError) {
+      console.log(puntajesError || inscripcionesError)
       setCargando(false)
       return
     }
@@ -168,7 +203,6 @@ function Resultados() {
       const aparato = item.aparatos?.nombre
 
       if (!gimnasta || !aparato) return
-
       if (!agrupados[gimnasta.id]) return
 
       agrupados[gimnasta.id][aparato] = Number(item.puntaje)
@@ -176,7 +210,6 @@ function Resultados() {
     })
 
     const resultadosFinales = Object.values(agrupados)
-
     const grupos = {}
 
     resultadosFinales.forEach((g) => {
@@ -192,22 +225,16 @@ function Resultados() {
     const podiosCalculados = Object.entries(grupos).map(([clave, gimnastas]) => {
       const [nivel, categoria] = clave.split('|||')
 
-      const regla = reglasData.find(
-        (r) => r.nivel === nivel && r.categoria === categoria
-      )
-
-      const tipo = regla?.tipo || 'ranking_completo'
-
       return {
         clave,
         nivel,
         categoria,
-        tipo,
-        gimnastas: calcularPuestos(gimnastas, tipo, categoria)
+        gimnastas: calcularPuestos(gimnastas, categoria, nivel)
       }
     })
 
     setPodios(podiosCalculados)
+    setUltimaActualizacion(new Date())
     setCargando(false)
   }
 
@@ -245,6 +272,16 @@ function Resultados() {
       }
     })
     .filter((grupo) => grupo.gimnastas.length > 0)
+    .sort((a, b) => {
+      const nivelA = numeroNivel(a.nivel)
+      const nivelB = numeroNivel(b.nivel)
+
+      if (nivelA !== nivelB) {
+        return nivelA - nivelB
+      }
+
+      return String(a.categoria || '').localeCompare(String(b.categoria || ''))
+    })
 
   if (cargando) {
     return (
@@ -276,6 +313,20 @@ function Resultados() {
       <h1>{torneo.nombre}</h1>
       <p>Resultados en vivo</p>
 
+      <p className="live-status">
+        🟢 EN VIVO
+        {ultimaActualizacion && (
+          <>
+            {' '}· Actualizado a las{' '}
+            {ultimaActualizacion.toLocaleTimeString('es-AR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })}
+          </>
+        )}
+      </p>
+
       <div className="results-search-box">
         <input
           type="text"
@@ -286,20 +337,17 @@ function Resultados() {
       </div>
 
       {podiosFiltrados.map((grupo) => {
-        const abierta = categoriasAbiertas[grupo.clave]
+        const abierta = busqueda.trim()
+          ? true
+          : categoriasAbiertas[grupo.clave]
 
         return (
-          <div
-            key={grupo.clave}
-            className="result-category-card"
-          >
+          <div key={grupo.clave} className="result-category-card">
             <button
               className="result-category-header"
               onClick={() => toggleCategoria(grupo.clave)}
             >
-              <span>
-                {abierta ? '−' : '+'}
-              </span>
+              <span>{abierta ? '−' : '+'}</span>
 
               <strong>
                 {grupo.nivel} - {grupo.categoria}
@@ -329,7 +377,9 @@ function Resultados() {
                   <tbody>
                     {grupo.gimnastas.map((g) => (
                       <tr key={g.id}>
-                        <td><strong>{g.puesto}</strong></td>
+                        <td>
+                          <strong>{g.puesto}</strong>
+                        </td>
                         <td>{g.nombre}</td>
                         <td>{g.club}</td>
                         <td>{mostrarPuntaje(g.Suelo, grupo.categoria)}</td>
@@ -337,9 +387,7 @@ function Resultados() {
                         <td>{mostrarPuntaje(g.Viga, grupo.categoria)}</td>
                         <td>{mostrarPuntaje(g.Paralelas, grupo.categoria)}</td>
                         <td>
-                          <strong>
-                            {esMiniaturas(grupo.categoria) ? '🙂' : g.total}
-                          </strong>
+                          <strong>{mostrarTotal(g, grupo.categoria)}</strong>
                         </td>
                       </tr>
                     ))}

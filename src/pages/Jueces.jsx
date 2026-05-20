@@ -336,7 +336,7 @@ const categoriaActual = categorias.find(
 )
 
 const esMiniaturas =
-  categoriaActual?.nombre === 'Miniaturas'
+  String(categoriaActual?.nombre || '').toLowerCase().trim() === 'miniaturas'
   useEffect(() => {
     obtenerAparatos()
 

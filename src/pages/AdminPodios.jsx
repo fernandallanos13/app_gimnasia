@@ -73,12 +73,12 @@ function AdminPodios() {
     grupos[clave].push(g)
   })
 
-  function esMiniaturas(categoria) {
-    return categoria === 'Miniaturas'
+  function esMiniatura(categoria) {
+    return categoria === 'Miniatura'
   }
 
   function mostrarPuntaje(valor, categoria) {
-    if (esMiniaturas(categoria)) {
+    if (esMiniatura(categoria)) {
       return Number(valor) > 0 ? '🙂' : ''
     }
 
@@ -91,7 +91,37 @@ function AdminPodios() {
     setCategoriaFiltro('')
     setClubFiltro('')
   }
+function calcularPuestoAdmin(index, total, nivel, categoria) {
+  const nivelTexto = String(nivel || '').toUpperCase().trim()
+  const categoriaTexto = String(categoria || '').toLowerCase().trim()
 
+  if (categoriaTexto.includes('miniaturas')) {
+    return '🙂'
+  }
+
+  if (nivelTexto === 'N1') {
+    const tercio = Math.ceil(total / 3)
+
+    if (index < tercio) return '1°'
+    if (index < tercio * 2) return '2°'
+    return '3°'
+  }
+
+  if (nivelTexto === 'N2' || nivelTexto === 'N3') {
+    if (index < 6) return `${index + 1}°`
+
+    const restantes = total - 6
+    const posicionRestante = index - 6
+    const cuarto = Math.ceil(restantes / 4)
+
+    if (posicionRestante < cuarto) return '7°'
+    if (posicionRestante < cuarto * 2) return '8°'
+    if (posicionRestante < cuarto * 3) return '9°'
+    return '10°'
+  }
+
+  return `${index + 1}°`
+}
   return (
     <div className="container admin-page">
       <h1>Podios y resultados</h1>
@@ -161,7 +191,7 @@ function AdminPodios() {
                   <tr key={`${g.apellido}-${g.nombre}-${g.club}`}>
                     <td>
                       <strong>
-                        {esMiniaturas(g.categoria) ? '🙂' : `${index + 1}°`}
+                        {calcularPuestoAdmin(index, gimnastas.length, g.nivel, g.categoria)}
                       </strong>
                     </td>
                     <td>{g.apellido}</td>
@@ -172,7 +202,7 @@ function AdminPodios() {
                     <td>{mostrarPuntaje(g.Viga, g.categoria)}</td>
                     <td>{mostrarPuntaje(g.Paralelas, g.categoria)}</td>
                     <td>
-                      <strong>{esMiniaturas(g.categoria) ? '🙂' : g.total}</strong>
+                      <strong>{esMiniatura(g.categoria) ? '🙂' : g.total}</strong>
                     </td>
                   </tr>
                 ))}
