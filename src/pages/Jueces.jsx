@@ -199,7 +199,18 @@ function Jueces() {
       )
     })
 
-    setGimnastasGrupo(filtradas)
+    const ordenadas = filtradas.sort((a, b) => {
+
+  const apellidoA =
+    a.gimnastas?.apellido?.toLowerCase() || ''
+
+  const apellidoB =
+    b.gimnastas?.apellido?.toLowerCase() || ''
+
+  return apellidoA.localeCompare(apellidoB)
+})
+
+setGimnastasGrupo(ordenadas)
 
     const idsGimnastas = filtradas.map((item) => item.gimnastas.id)
 
@@ -320,7 +331,12 @@ function Jueces() {
     setTorneo(data)
     obtenerNiveles(data.id)
   }
+const categoriaActual = categorias.find(
+  (c) => String(c.id) === String(categoriaSeleccionada)
+)
 
+const esMiniaturas =
+  categoriaActual?.nombre === 'Miniaturas'
   useEffect(() => {
     obtenerAparatos()
 
@@ -455,14 +471,38 @@ function Jueces() {
                     <p>{item.gimnastas.club}</p>
                   </div>
 
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    placeholder="0-99"
-                    value={puntajes[item.gimnastas.id] || ''}
-                    onChange={(e) => cambiarPuntaje(item.gimnastas.id, e.target.value)}
-                  />
+                  {esMiniaturas ? (
+
+  <button
+    className={
+      puntajes[item.gimnastas.id]
+        ? 'mini-score-button active'
+        : 'mini-score-button'
+    }
+    onClick={() =>
+      cambiarPuntaje(item.gimnastas.id, 1)
+    }
+  >
+    🙂
+  </button>
+
+) : (
+
+  <input
+    type="number"
+    min="0"
+    max="99"
+    placeholder="0-99"
+    value={puntajes[item.gimnastas.id] || ''}
+    onChange={(e) =>
+      cambiarPuntaje(
+        item.gimnastas.id,
+        e.target.value
+      )
+    }
+  />
+
+)}
                 </div>
               ))}
 

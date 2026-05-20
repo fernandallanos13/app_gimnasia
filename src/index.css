@@ -553,3 +553,75 @@ table th {
   display: flex;
   gap: 8px;
 }
+
+.mini-score-button {
+  width: 100%;
+  height: 70px;
+  border: none;
+  border-radius: 18px;
+  font-size: 36px;
+  background: #eeeeee;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.mini-score-button:hover {
+  transform: scale(1.03);
+}
+
+.mini-score-button.active {
+  background: #c1121f;
+  color: white;
+}
+
+.results-search-box {
+  width: 100%;
+  max-width: 900px;
+  margin-top: 20px;
+}
+
+.result-category-card {
+  width: 100%;
+  background: #eeeeee;
+  border-radius: 20px;
+  padding: 14px;
+  margin-top: 18px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.result-category-header {
+  width: 100%;
+  max-width: none;
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  background: #c1121f;
+  color: white;
+}
+
+.result-category-header:hover {
+  background: #e5383b;
+}
+
+.result-category-header span {
+  font-size: 26px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.result-category-header small {
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+@media (max-width: 600px) {
+  .result-category-header {
+    grid-template-columns: 32px 1fr;
+  }
+
+  .result-category-header small {
+    grid-column: 2;
+  }
+}

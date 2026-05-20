@@ -2,21 +2,33 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../services/supabase'
 
 function Resultados() {
-  
   const [torneo, setTorneo] = useState(null)
-  const [resultados, setResultados] = useState([])
   const [podios, setPodios] = useState([])
   const [cargando, setCargando] = useState(true)
+  const [busqueda, setBusqueda] = useState('')
+  const [categoriasAbiertas, setCategoriasAbiertas] = useState({})
 
-  function calcularPuestos(lista, tipo) {
-    const ordenados = [...lista].sort((a, b) => b.total - a.total)
+  function esMiniaturas(categoria) {
+    return categoria === 'Miniaturas'
+  }
 
-    if (tipo === 'participativo') {
-      return ordenados.map((g, index) => ({
+  function mostrarPuntaje(valor, categoria) {
+    if (esMiniaturas(categoria)) {
+      return Number(valor) > 0 ? '🙂' : ''
+    }
+
+    return valor || ''
+  }
+
+  function calcularPuestos(lista, tipo, categoria) {
+    if (esMiniaturas(categoria)) {
+      return lista.map((g) => ({
         ...g,
-        puesto: index % 3 === 0 ? ':)' : index % 3 === 1 ? ':|' : ':('
+        puesto: '🙂'
       }))
     }
+
+    const ordenados = [...lista].sort((a, b) => b.total - a.total)
 
     if (tipo === 'tercios') {
       const cantidad = ordenados.length
@@ -46,23 +58,30 @@ function Resultados() {
     }))
   }
 
+  function toggleCategoria(clave) {
+    setCategoriasAbiertas({
+      ...categoriasAbiertas,
+      [clave]: !categoriasAbiertas[clave]
+    })
+  }
+
   async function obtenerResultados() {
     setCargando(true)
+
     const { data: torneoActivo, error: errorTorneo } = await supabase
-  .from('torneos')
-  .select('*')
-  .eq('estado', 'activo')
-  .limit(1)
-  .single()
+      .from('torneos')
+      .select('*')
+      .eq('estado', 'activo')
+      .limit(1)
+      .single()
 
-if (errorTorneo || !torneoActivo) {
-  console.log(errorTorneo)
-  setCargando(false)
-  return
-}
+    if (errorTorneo || !torneoActivo) {
+      console.log(errorTorneo)
+      setCargando(false)
+      return
+    }
 
-const torneoId = torneoActivo.id
-    
+    const torneoId = torneoActivo.id
 
     const { data: torneoData, error: torneoError } = await supabase
       .from('torneos')
@@ -84,18 +103,18 @@ const torneoId = torneoActivo.id
     }
 
     const { data: inscripcionesData, error: inscripcionesError } = await supabase
-  .from('inscripciones')
-  .select(`
-    gimnastas (
-      id,
-      nombre,
-      apellido,
-      club,
-      niveles (nombre),
-      categorias (nombre)
-    )
-  `)
-  .eq('torneo_id', torneoId)
+      .from('inscripciones')
+      .select(`
+        gimnastas (
+          id,
+          nombre,
+          apellido,
+          club,
+          niveles (nombre),
+          categorias (nombre)
+        )
+      `)
+      .eq('torneo_id', torneoId)
 
     const { data: puntajesData, error: puntajesError } = await supabase
       .from('puntajes')
@@ -118,30 +137,31 @@ const torneoId = torneoActivo.id
       .select('*')
 
     if (puntajesError || reglasError || inscripcionesError) {
-      console.log(puntajesError || reglasError)
+      console.log(puntajesError || reglasError || inscripcionesError)
       setCargando(false)
       return
     }
 
     const agrupados = {}
+
     inscripcionesData.forEach((item) => {
-  const gimnasta = item.gimnastas
+      const gimnasta = item.gimnastas
 
-  if (!gimnasta) return
+      if (!gimnasta) return
 
-  agrupados[gimnasta.id] = {
-    id: gimnasta.id,
-    nombre: `${gimnasta.apellido}, ${gimnasta.nombre}`,
-    club: gimnasta.club || '',
-    nivel: gimnasta.niveles?.nombre || '',
-    categoria: gimnasta.categorias?.nombre || '',
-    Suelo: 0,
-    Salto: 0,
-    Viga: 0,
-    Paralelas: 0,
-    total: 0
-  }
-})
+      agrupados[gimnasta.id] = {
+        id: gimnasta.id,
+        nombre: `${gimnasta.apellido}, ${gimnasta.nombre}`,
+        club: gimnasta.club || '',
+        nivel: gimnasta.niveles?.nombre || '',
+        categoria: gimnasta.categorias?.nombre || '',
+        Suelo: 0,
+        Salto: 0,
+        Viga: 0,
+        Paralelas: 0,
+        total: 0
+      }
+    })
 
     puntajesData.forEach((item) => {
       const gimnasta = item.gimnastas
@@ -149,27 +169,13 @@ const torneoId = torneoActivo.id
 
       if (!gimnasta || !aparato) return
 
-      if (!agrupados[gimnasta.id]) {
-        agrupados[gimnasta.id] = {
-          id: gimnasta.id,
-          nombre: `${gimnasta.apellido}, ${gimnasta.nombre}`,
-          club: gimnasta.club || '',
-          nivel: gimnasta.niveles?.nombre || '',
-          categoria: gimnasta.categorias?.nombre || '',
-          Suelo: 0,
-          Salto: 0,
-          Viga: 0,
-          Paralelas: 0,
-          total: 0
-        }
-      }
+      if (!agrupados[gimnasta.id]) return
 
       agrupados[gimnasta.id][aparato] = Number(item.puntaje)
       agrupados[gimnasta.id].total += Number(item.puntaje)
     })
 
     const resultadosFinales = Object.values(agrupados)
-    setResultados(resultadosFinales)
 
     const grupos = {}
 
@@ -193,10 +199,11 @@ const torneoId = torneoActivo.id
       const tipo = regla?.tipo || 'ranking_completo'
 
       return {
+        clave,
         nivel,
         categoria,
         tipo,
-        gimnastas: calcularPuestos(gimnastas, tipo)
+        gimnastas: calcularPuestos(gimnastas, tipo, categoria)
       }
     })
 
@@ -224,6 +231,20 @@ const torneoId = torneoActivo.id
       supabase.removeChannel(canal)
     }
   }, [])
+
+  const podiosFiltrados = podios
+    .map((grupo) => {
+      const gimnastasFiltradas = grupo.gimnastas.filter((g) => {
+        const texto = `${g.nombre} ${g.club}`.toLowerCase()
+        return texto.includes(busqueda.toLowerCase())
+      })
+
+      return {
+        ...grupo,
+        gimnastas: gimnastasFiltradas
+      }
+    })
+    .filter((grupo) => grupo.gimnastas.length > 0)
 
   if (cargando) {
     return (
@@ -255,90 +276,84 @@ const torneoId = torneoActivo.id
       <h1>{torneo.nombre}</h1>
       <p>Resultados en vivo</p>
 
-      <h2 style={{ marginTop: '30px' }}>Tabla general</h2>
-
-      <div style={{ overflowX: 'auto', marginTop: '20px', width: '100%' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white' }}>
-          <thead>
-            <tr>
-              <th>Gimnasta</th>
-              <th>Club</th>
-              <th>Nivel</th>
-              <th>Categoría</th>
-              <th>Suelo</th>
-              <th>Salto</th>
-              <th>Viga</th>
-              <th>Paralelas</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {resultados.map((r) => (
-              <tr key={r.id}>
-                <td>{r.nombre}</td>
-                <td>{r.club}</td>
-                <td>{r.nivel}</td>
-                <td>{r.categoria}</td>
-                <td>{r.Suelo}</td>
-                <td>{r.Salto}</td>
-                <td>{r.Viga}</td>
-                <td>{r.Paralelas}</td>
-                <td><strong>{r.total}</strong></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="results-search-box">
+        <input
+          type="text"
+          placeholder="Buscar gimnasta por nombre, apellido o club..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
       </div>
 
-      <h2 style={{ marginTop: '40px' }}>Podios</h2>
+      {podiosFiltrados.map((grupo) => {
+        const abierta = categoriasAbiertas[grupo.clave]
 
-      {podios.map((grupo) => (
-        <div
-          key={`${grupo.nivel}-${grupo.categoria}`}
-          style={{
-            background: 'white',
-            padding: '20px',
-            borderRadius: '14px',
-            marginTop: '20px',
-            width: '100%'
-          }}
-        >
-          <h3>{grupo.nivel} - {grupo.categoria}</h3>
-          
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th>Puesto</th>
-                  <th>Gimnasta</th>
-                  <th>Club</th>
-                  <th>Suelo</th>
-                  <th>Salto</th>
-                  <th>Viga</th>
-                  <th>Paralelas</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
+        return (
+          <div
+            key={grupo.clave}
+            className="result-category-card"
+          >
+            <button
+              className="result-category-header"
+              onClick={() => toggleCategoria(grupo.clave)}
+            >
+              <span>
+                {abierta ? '−' : '+'}
+              </span>
 
-              <tbody>
-                {grupo.gimnastas.map((g) => (
-                  <tr key={g.id}>
-                    <td><strong>{g.puesto}</strong></td>
-                    <td>{g.nombre}</td>
-                    <td>{g.club}</td>
-                    <td>{g.Suelo}</td>
-                    <td>{g.Salto}</td>
-                    <td>{g.Viga}</td>
-                    <td>{g.Paralelas}</td>
-                    <td><strong>{g.total}</strong></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              <strong>
+                {grupo.nivel} - {grupo.categoria}
+              </strong>
+
+              <small>
+                {grupo.gimnastas.length} gimnasta(s)
+              </small>
+            </button>
+
+            {abierta && (
+              <div className="table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Puesto</th>
+                      <th>Gimnasta</th>
+                      <th>Club</th>
+                      <th>Suelo</th>
+                      <th>Salto</th>
+                      <th>Viga</th>
+                      <th>Paralelas</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {grupo.gimnastas.map((g) => (
+                      <tr key={g.id}>
+                        <td><strong>{g.puesto}</strong></td>
+                        <td>{g.nombre}</td>
+                        <td>{g.club}</td>
+                        <td>{mostrarPuntaje(g.Suelo, grupo.categoria)}</td>
+                        <td>{mostrarPuntaje(g.Salto, grupo.categoria)}</td>
+                        <td>{mostrarPuntaje(g.Viga, grupo.categoria)}</td>
+                        <td>{mostrarPuntaje(g.Paralelas, grupo.categoria)}</td>
+                        <td>
+                          <strong>
+                            {esMiniaturas(grupo.categoria) ? '🙂' : g.total}
+                          </strong>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        )
+      })}
+
+      {podiosFiltrados.length === 0 && (
+        <p>No se encontraron gimnastas con esa búsqueda.</p>
+      )}
     </div>
   )
 }
