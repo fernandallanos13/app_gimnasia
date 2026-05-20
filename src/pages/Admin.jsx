@@ -201,10 +201,32 @@ function Admin() {
       const workbook = XLSX.read(datos, { type: 'array' })
       const hoja = workbook.Sheets[workbook.SheetNames[0]]
 
-      const filas = XLSX.utils.sheet_to_json(hoja, {
-        defval: '',
-        range: 2
-      })
+     const todasLasFilas = XLSX.utils.sheet_to_json(hoja, {
+  header: 1,
+  defval: ''
+})
+
+const filaEncabezadosIndex = todasLasFilas.findIndex((fila) => {
+  const textos = fila.map((celda) =>
+    String(celda || '').toLowerCase().trim()
+  )
+
+  return (
+    textos.includes('nombre') &&
+    textos.includes('apellido') &&
+    textos.includes('nivel')
+  )
+})
+
+if (filaEncabezadosIndex === -1) {
+  alert('No se encontraron encabezados válidos. Revisá que el Excel tenga columnas: Nombre, Apellido, Nivel y Categoría.')
+  return
+}
+
+const filas = XLSX.utils.sheet_to_json(hoja, {
+  defval: '',
+  range: filaEncabezadosIndex
+})
 
       let cargadas = 0
       let omitidas = 0
