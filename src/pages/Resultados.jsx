@@ -23,22 +23,22 @@ function Resultados() {
   }
 
   function mostrarTotal(g, categoria) {
-    if (esMiniatura(categoria)) {
-      return Number(g.total) > 0 ? '🙂' : ''
-    }
-
-    return g.total
+  if (esMiniatura(categoria)) {
+    return '🙂'
   }
 
-  function calcularPuestos(lista, categoria, nivel) {
-    const ordenados = [...lista].sort((a, b) => b.total - a.total)
+  return g.total
+}
 
-    if (esMiniatura(categoria)) {
-      return ordenados.map((g) => ({
-        ...g,
-        puesto: Number(g.total) > 0 ? '🙂' : ''
-      }))
-    }
+function calcularPuestos(lista, categoria, nivel) {
+  const ordenados = [...lista].sort((a, b) => b.total - a.total)
+
+  if (esMiniatura(categoria)) {
+    return ordenados.map((g) => ({
+      ...g,
+      puesto: '🙂'
+    }))
+  }
 
     const nivelTexto = String(nivel || '').toUpperCase().trim()
 
