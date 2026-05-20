@@ -801,15 +801,16 @@ function Admin() {
                       cerrarTorneo(torneo.id)
                     }}
                   >
-                    Cerrar torneo
-                  </button>
-                  style={{
+                    style={{
   background: '#b00020',
   color: 'white',
   width: '220px',
   height: '60px',
   alignSelf: 'flex-start'
 }}
+                    Cerrar torneo
+                  </button>
+                  
                 )}
               </div>
             </div>
