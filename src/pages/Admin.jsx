@@ -37,6 +37,7 @@ const [puntajesCargados, setPuntajesCargados] = useState([])
 const [puntajeEditandoId, setPuntajeEditandoId] = useState(null)
 const [editPuntaje, setEditPuntaje] = useState('')
 const [vistaAdmin, setVistaAdmin] = useState('gimnastas')
+const [mostrarHistoricos, setMostrarHistoricos] = useState(false)
 const [ordenGimnastas, setOrdenGimnastas] = useState('apellido')
 
 
@@ -653,6 +654,10 @@ const torneosHistoricos = torneos.filter(
         Cerrar sesión
       </button>
 
+      <button onClick={() => setMostrarHistoricos(!mostrarHistoricos)}>
+  {mostrarHistoricos ? 'Ocultar torneos históricos' : 'Ver torneos históricos'}
+</button>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', width: '300px', marginTop: '30px' }}>
         <h2>Crear torneo</h2>
 
@@ -675,10 +680,11 @@ const torneosHistoricos = torneos.filter(
         </button>
       </div>
 
+        
       <div style={{ marginTop: '40px', width: '90%', maxWidth: '700px' }}>
-  <h2>Torneos</h2>
+      <h2>Torneos</h2>
 
-  {torneosActivos.map((torneo) => (
+      {torneosActivos.map((torneo) => (
     <div
       key={torneo.id}
       onClick={() => {
@@ -767,7 +773,7 @@ const torneosHistoricos = torneos.filter(
     </div>
   ))}
 </div>
-
+{mostrarHistoricos && (
 <div style={{ marginTop: '40px', width: '90%', maxWidth: '700px' }}>
   <h2>Torneos históricos</h2>
 
@@ -802,10 +808,11 @@ const torneosHistoricos = torneos.filter(
         >
           Copiar link histórico
         </button>
-      </div>
-    ))
-  )}
-</div>
+        </div>
+      ))
+    )}
+  </div>
+)}
 
       {torneoSeleccionado && (
         <div style={{ marginTop: '40px', background: '#fff', padding: '20px', borderRadius: '14px', width: '90%', maxWidth: '700px' }}>
