@@ -560,6 +560,9 @@ async function cerrarTorneo(torneoId) {
   }
 
   alert('Torneo cerrado')
+  setTorneoSeleccionado(null)
+setGimnastasInscriptas([])
+setPuntajesCargados([])
 
   obtenerTorneos()
 }
@@ -630,7 +633,13 @@ function descargarQR(torneoNombre) {
       return categoriaA.localeCompare(categoriaB)
     }
   }
+const torneosActivos = torneos.filter(
+  (torneo) => torneo.estado !== 'cerrado'
+)
 
+const torneosHistoricos = torneos.filter(
+  (torneo) => torneo.estado === 'cerrado'
+)
   const apellidoA = ga?.apellido || ''
   const apellidoB = gb?.apellido || ''
 
@@ -670,7 +679,7 @@ function descargarQR(torneoNombre) {
       <div style={{ marginTop: '40px', width: '90%', maxWidth: '700px' }}>
   <h2>Torneos</h2>
 
-  {torneos.map((torneo) => (
+  {torneosActivos.map((torneo) => (
     <div
       key={torneo.id}
       onClick={() => {
@@ -758,6 +767,45 @@ function descargarQR(torneoNombre) {
       </div>
     </div>
   ))}
+</div>
+
+<div style={{ marginTop: '40px', width: '90%', maxWidth: '700px' }}>
+  <h2>Torneos históricos</h2>
+
+  {torneosHistoricos.length === 0 ? (
+    <p>No hay torneos cerrados todavía.</p>
+  ) : (
+    torneosHistoricos.map((torneo) => (
+      <div
+        key={torneo.id}
+        onClick={() => {
+          setTorneoSeleccionado(torneo)
+          obtenerGimnastasInscriptas(torneo.id)
+          obtenerPuntajesCargados(torneo.id)
+        }}
+        style={{
+          background: '#f5f5f5',
+          padding: '20px',
+          borderRadius: '14px',
+          marginTop: '15px',
+          cursor: 'pointer',
+          border: '1px solid #ccc'
+        }}
+      >
+        <h3>{torneo.nombre}</h3>
+        <p>Estado: cerrado</p>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            copiarLinkPublico(torneo.id)
+          }}
+        >
+          Copiar link histórico
+        </button>
+      </div>
+    ))
+  )}
 </div>
 
       {torneoSeleccionado && (
@@ -885,7 +933,6 @@ function descargarQR(torneoNombre) {
 </select>
 
           
-
           {gimnastasInscriptas.length === 0 ? (
             <p>No hay gimnastas inscriptas en este torneo.</p>
           ) : (
