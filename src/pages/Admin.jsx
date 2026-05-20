@@ -37,6 +37,7 @@ const [puntajesCargados, setPuntajesCargados] = useState([])
 const [puntajeEditandoId, setPuntajeEditandoId] = useState(null)
 const [editPuntaje, setEditPuntaje] = useState('')
 const [vistaAdmin, setVistaAdmin] = useState('gimnastas')
+const [ordenGimnastas, setOrdenGimnastas] = useState('apellido')
 
 
   async function obtenerTorneos() {
@@ -622,17 +623,20 @@ function descargarQR(torneoNombre) {
   const gb = b.gimnastas
 
   if (ordenGimnastas === 'categoria-apellido') {
-
-    const categoriaA =
-      ga?.categorias?.nombre || ''
-
-    const categoriaB =
-      gb?.categorias?.nombre || ''
+    const categoriaA = ga?.categorias?.nombre || ''
+    const categoriaB = gb?.categorias?.nombre || ''
 
     if (categoriaA !== categoriaB) {
       return categoriaA.localeCompare(categoriaB)
     }
   }
+
+  const apellidoA = ga?.apellido || ''
+  const apellidoB = gb?.apellido || ''
+
+  return apellidoA.localeCompare(apellidoB)
+})
+
 const torneosActivos = torneos.filter(
   (torneo) => torneo.estado !== 'cerrado'
 )
@@ -640,11 +644,6 @@ const torneosActivos = torneos.filter(
 const torneosHistoricos = torneos.filter(
   (torneo) => torneo.estado === 'cerrado'
 )
-  const apellidoA = ga?.apellido || ''
-  const apellidoB = gb?.apellido || ''
-
-  return apellidoA.localeCompare(apellidoB)
-})
 
   return (
     <div className="container">
