@@ -37,11 +37,12 @@ function Admin() {
   const [puntajeEditandoId, setPuntajeEditandoId] = useState(null)
   const [editPuntaje, setEditPuntaje] = useState('')
 
-  const [vistaAdmin, setVistaAdmin] = useState('gimnastas')
+  const [vistaAdmin, setVistaAdmin] = useState('puntajes')
+  const [mostrarInscriptas, setMostrarInscriptas] = useState(false)
   const [mostrarHistoricos, setMostrarHistoricos] = useState(false)
   const [ordenGimnastas, setOrdenGimnastas] = useState('apellido')
   const [archivoExcel, setArchivoExcel] = useState(null)
-const [importandoExcel, setImportandoExcel] = useState(false)
+  const [importandoExcel, setImportandoExcel] = useState(false)
 
   async function obtenerTorneos() {
     const { data, error } = await supabase
@@ -121,9 +122,31 @@ const [importandoExcel, setImportandoExcel] = useState(false)
     }
   }
 
+  const normalizarTexto = (texto) =>
+    String(texto || '')
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+
+  function existeGimnastaEnTorneo({ nombre, apellido, nivelId, categoriaId, ignorarGimnastaId = null }) {
+    return gimnastasInscriptas.some((inscripcion) => {
+      const g = inscripcion.gimnastas
+
+      if (!g || g.id === ignorarGimnastaId) return false
+
+      return (
+        normalizarTexto(g.nombre) === normalizarTexto(nombre) &&
+        normalizarTexto(g.apellido) === normalizarTexto(apellido) &&
+        Number(g.nivel_id) === Number(nivelId) &&
+        Number(g.categoria_id) === Number(categoriaId)
+      )
+    })
+  }
+
   async function cargarGimnasta() {
     if (!torneoSeleccionado) {
-      alert('Primero seleccioná un torneo')
+      alert('No hay un torneo activo seleccionado')
       return
     }
 
@@ -132,14 +155,26 @@ const [importandoExcel, setImportandoExcel] = useState(false)
       return
     }
 
+    const duplicada = existeGimnastaEnTorneo({
+      nombre: nombreGimnasta,
+      apellido: apellidoGimnasta,
+      nivelId,
+      categoriaId
+    })
+
+    if (duplicada) {
+      alert('Esa gimnasta ya está cargada en este torneo con el mismo nivel y categoría.')
+      return
+    }
+
     const { data: gimnastaCreada, error: errorGimnasta } = await supabase
       .from('gimnastas')
       .insert([
         {
-          nombre: nombreGimnasta,
-          apellido: apellidoGimnasta,
-          club,
-          profe,
+          nombre: nombreGimnasta.trim(),
+          apellido: apellidoGimnasta.trim(),
+          club: club.trim(),
+          profe: profe.trim(),
           nivel_id: Number(nivelId),
           categoria_id: Number(categoriaId)
         }
@@ -406,13 +441,31 @@ setImportandoExcel(false)
   }
 
   async function guardarEdicionGimnasta(gimnastaId) {
+    if (!editNombre || !editApellido || !editNivelId || !editCategoriaId) {
+      alert('Completá nombre, apellido, nivel y categoría')
+      return
+    }
+
+    const duplicada = existeGimnastaEnTorneo({
+      nombre: editNombre,
+      apellido: editApellido,
+      nivelId: editNivelId,
+      categoriaId: editCategoriaId,
+      ignorarGimnastaId: gimnastaId
+    })
+
+    if (duplicada) {
+      alert('Ya existe otra gimnasta con ese nombre, apellido, nivel y categoría en este torneo.')
+      return
+    }
+
     const { error } = await supabase
       .from('gimnastas')
       .update({
-        nombre: editNombre,
-        apellido: editApellido,
-        club: editClub,
-        profe: editProfe,
+        nombre: editNombre.trim(),
+        apellido: editApellido.trim(),
+        club: editClub.trim(),
+        profe: editProfe.trim(),
         nivel_id: Number(editNivelId),
         categoria_id: Number(editCategoriaId)
       })
@@ -427,6 +480,56 @@ setImportandoExcel(false)
     alert('Gimnasta editada')
     setGimnastaEditandoId(null)
     obtenerGimnastasInscriptas(torneoSeleccionado.id)
+  }
+
+  async function eliminarGimnasta(inscripcion) {
+    const g = inscripcion.gimnastas
+
+    if (!g) return
+
+    const confirmar = window.confirm(
+      `¿Eliminar a ${g.apellido}, ${g.nombre} del torneo? También se borrarán sus puntajes cargados.`
+    )
+
+    if (!confirmar) return
+
+    const { error: errorPuntajes } = await supabase
+      .from('puntajes')
+      .delete()
+      .eq('torneo_id', torneoSeleccionado.id)
+      .eq('gimnasta_id', g.id)
+
+    if (errorPuntajes) {
+      console.log(errorPuntajes)
+      alert('Error al eliminar los puntajes de la gimnasta')
+      return
+    }
+
+    const { error: errorInscripcion } = await supabase
+      .from('inscripciones')
+      .delete()
+      .eq('id', inscripcion.id)
+
+    if (errorInscripcion) {
+      console.log(errorInscripcion)
+      alert('Error al eliminar la inscripción')
+      return
+    }
+
+    const { error: errorGimnasta } = await supabase
+      .from('gimnastas')
+      .delete()
+      .eq('id', g.id)
+
+    if (errorGimnasta) {
+      console.log(errorGimnasta)
+      alert('La inscripción se eliminó, pero hubo error al borrar la gimnasta')
+      return
+    }
+
+    alert('Gimnasta eliminada')
+    obtenerGimnastasInscriptas(torneoSeleccionado.id)
+    obtenerPuntajesCargados(torneoSeleccionado.id)
   }
 
   async function obtenerPuntajesCargados(torneoId) {
@@ -643,6 +746,21 @@ setImportandoExcel(false)
     obtenerNivelesYCategorias()
   }, [])
 
+  useEffect(() => {
+    const torneoActivo = torneos.find((torneo) => torneo.estado !== 'cerrado')
+
+    if (!torneoActivo) {
+      setTorneoSeleccionado(null)
+      return
+    }
+
+    if (torneoSeleccionado?.id === torneoActivo.id) return
+
+    setTorneoSeleccionado(torneoActivo)
+    obtenerGimnastasInscriptas(torneoActivo.id)
+    obtenerPuntajesCargados(torneoActivo.id)
+  }, [torneos, torneoSeleccionado?.id])
+
   const gimnastasOrdenadas = [...gimnastasInscriptas].sort((a, b) => {
     const ga = a.gimnastas
     const gb = b.gimnastas
@@ -710,378 +828,330 @@ setImportandoExcel(false)
         </div>
       )}
 
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '15px',
-          width: '300px',
-          marginTop: '30px'
-        }}
-      >
-        <h2>Crear torneo</h2>
+      <div className="admin-top-grid">
+        <div className="card admin-create-card">
+          <h2>Crear torneo</h2>
 
-        <input
-          type="text"
-          placeholder="Nombre torneo"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-        />
+          <input
+            type="text"
+            placeholder="Nombre torneo"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+          />
 
-        <input
-          type="text"
-          placeholder="Código torneo"
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
-        />
+          <input
+            type="text"
+            placeholder="Código torneo"
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value)}
+          />
 
-        <button onClick={crearTorneo}>
-          Crear torneo
-        </button>
-      </div>
+          <button onClick={crearTorneo}>Crear torneo</button>
+        </div>
 
-      <div style={{ marginTop: '40px', width: '90%', maxWidth: '700px' }}>
-        <h2>Torneos activos</h2>
+        <div className="card admin-active-card">
+          <h2>Torneo activo</h2>
 
-        {torneosActivos.length === 0 ? (
-          <p>No hay torneos activos.</p>
-        ) : (
-          torneosActivos.map((torneo) => (
-            <div
-              key={torneo.id}
-              onClick={() => {
-                setTorneoSeleccionado(torneo)
-                obtenerGimnastasInscriptas(torneo.id)
-                obtenerPuntajesCargados(torneo.id)
-              }}
-              style={{
-                background:
-                  torneoSeleccionado?.id === torneo.id ? '#d4edda' : 'white',
-                padding: '20px',
-                borderRadius: '14px',
-                marginTop: '15px',
-                cursor: 'pointer',
-                border:
-                  torneoSeleccionado?.id === torneo.id
-                    ? '3px solid green'
-                    : '1px solid #ccc'
-              }}
-            >
-              <h3>{torneo.nombre}</h3>
-
-              <p>Estado: {torneo.estado}</p>
-
+          {torneosActivos.length === 0 ? (
+            <p>No hay torneos activos.</p>
+          ) : (
+            <>
+              <h3>{torneoSeleccionado?.nombre}</h3>
+              <p><strong>Código:</strong> {torneoSeleccionado?.codigo}</p>
+              <p><strong>Estado:</strong> {torneoSeleccionado?.estado}</p>
               <p>
-                Resultados públicos:{' '}
-                {torneo.resultados_publicos ? 'Sí' : 'No'}
+                <strong>Resultados públicos:</strong>{' '}
+                {torneoSeleccionado?.resultados_publicos ? 'Sí' : 'No'}
               </p>
 
               <div className="actions">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
+                  onClick={() =>
                     toggleResultadosPublicos(
-                      torneo.id,
-                      torneo.resultados_publicos
+                      torneoSeleccionado.id,
+                      torneoSeleccionado.resultados_publicos
                     )
-                  }}
+                  }
                 >
-                  {torneo.resultados_publicos
+                  {torneoSeleccionado?.resultados_publicos
                     ? 'Ocultar resultados'
                     : 'Publicar resultados'}
                 </button>
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    copiarLinkPublico()
-                  }}
-                >
-                  Copiar link público
+                <button onClick={copiarLinkPublico}>Copiar link público</button>
+
+                <button onClick={exportarResultadosExcel}>
+                  Exportar resultados
                 </button>
 
-                <div className="qr-box">
-                  <p>Escaneá para ver resultados</p>
-
-                  <QRCodeCanvas
-                    value={`${window.location.origin}/resultados`}
-                    size={140}
-                  />
-
+                {torneoSeleccionado?.estado !== 'cerrado' && (
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      descargarQR(torneo.nombre)
-                    }}
+                    className="danger"
+                    onClick={() => cerrarTorneo(torneoSeleccionado.id)}
                   >
-                    Descargar QR
+                    Cerrar torneo
                   </button>
-                </div>
-
-               {torneo.estado !== 'cerrado' && (
-  <button
-    className="danger"
-    onClick={(e) => {
-      e.stopPropagation()
-      cerrarTorneo(torneo.id)
-    }}
-    style={{
-      background: '#b00020',
-      color: 'white',
-      width: '220px',
-      padding: '14px 20px',
-      alignSelf: 'flex-start'
-    }}
-  >
-    Cerrar torneo
-  </button>
-)}
+                )}
               </div>
-            </div>
-          ))
-        )}
+
+              <div className="qr-box">
+                <p>Escaneá para ver resultados</p>
+
+                <QRCodeCanvas
+                  value={`${window.location.origin}/resultados`}
+                  size={140}
+                />
+
+                <button onClick={() => descargarQR(torneoSeleccionado.nombre)}>
+                  Descargar QR
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {torneoSeleccionado && (
-        <div
-          style={{
-            marginTop: '40px',
-            background: '#fff',
-            padding: '20px',
-            borderRadius: '14px',
-            width: '90%',
-            maxWidth: '1000px'
-          }}
-        >
-          <h2>Torneo seleccionado</h2>
-          <p>{torneoSeleccionado.nombre}</p>
-          <p>Código: {torneoSeleccionado.codigo}</p>
+        <div className="card admin-dashboard-card">
+          <div className="admin-dashboard-header">
+            <div>
+              <h2>Gestión de inscripciones</h2>
+              <p>
+                {gimnastasInscriptas.length} gimnasta(s) inscripta(s) en este torneo.
+              </p>
+            </div>
 
-          <button onClick={exportarResultadosExcel}>
-            Exportar resultados a Excel
-          </button>
-
-          <hr style={{ margin: '25px 0' }} />
-
-          <h2>Importar desde Excel</h2>
-
-          <input
-  type="file"
-  accept=".xlsx, .xls"
-  onChange={(e) => setArchivoExcel(e.target.files[0])}
-/>
-
-{archivoExcel && (
-  <p style={{ marginTop: '10px' }}>
-    Archivo seleccionado: {archivoExcel.name}
-  </p>
-)}
-
-<button
-  onClick={importarExcel}
-  disabled={importandoExcel}
-  style={{ marginTop: '10px' }}
->
-  {importandoExcel ? 'Importando...' : 'Cargar Excel'}
-</button>
-
-          <hr style={{ margin: '25px 0' }} />
-
-          <h2>Cargar gimnasta</h2>
-
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '15px'
-            }}
-          >
-            <input
-              type="text"
-              placeholder="Nombre"
-              value={nombreGimnasta}
-              onChange={(e) => setNombreGimnasta(e.target.value)}
-            />
-
-            <input
-              type="text"
-              placeholder="Apellido"
-              value={apellidoGimnasta}
-              onChange={(e) => setApellidoGimnasta(e.target.value)}
-            />
-
-            <input
-              type="text"
-              placeholder="Club"
-              value={club}
-              onChange={(e) => setClub(e.target.value)}
-            />
-
-            <input
-              type="text"
-              placeholder="Profe"
-              value={profe}
-              onChange={(e) => setProfe(e.target.value)}
-            />
-
-            <select value={nivelId} onChange={(e) => setNivelId(e.target.value)}>
-              <option value="">Seleccionar nivel</option>
-              {niveles.map((nivel) => (
-                <option key={nivel.id} value={nivel.id}>
-                  {nivel.nombre}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={categoriaId}
-              onChange={(e) => setCategoriaId(e.target.value)}
+            <button
+              onClick={() => setMostrarInscriptas(!mostrarInscriptas)}
+              className="secondary-button"
             >
-              <option value="">Seleccionar categoría</option>
-              {categorias.map((categoria) => (
-                <option key={categoria.id} value={categoria.id}>
-                  {categoria.nombre}
-                </option>
-              ))}
-            </select>
-
-            <button onClick={cargarGimnasta}>
-              Cargar gimnasta
+              {mostrarInscriptas ? 'Ocultar inscriptas' : 'Ver/editar inscriptas'}
             </button>
           </div>
+
+          <div className="admin-form-grid">
+            <section className="admin-form-box">
+              <h2>Cargar gimnasta</h2>
+
+              <input
+                type="text"
+                placeholder="Nombre"
+                value={nombreGimnasta}
+                onChange={(e) => setNombreGimnasta(e.target.value)}
+              />
+
+              <input
+                type="text"
+                placeholder="Apellido"
+                value={apellidoGimnasta}
+                onChange={(e) => setApellidoGimnasta(e.target.value)}
+              />
+
+              <input
+                type="text"
+                placeholder="Club"
+                value={club}
+                onChange={(e) => setClub(e.target.value)}
+              />
+
+              <input
+                type="text"
+                placeholder="Profe"
+                value={profe}
+                onChange={(e) => setProfe(e.target.value)}
+              />
+
+              <select value={nivelId} onChange={(e) => setNivelId(e.target.value)}>
+                <option value="">Seleccionar nivel</option>
+                {niveles.map((nivel) => (
+                  <option key={nivel.id} value={nivel.id}>
+                    {nivel.nombre}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={categoriaId}
+                onChange={(e) => setCategoriaId(e.target.value)}
+              >
+                <option value="">Seleccionar categoría</option>
+                {categorias.map((categoria) => (
+                  <option key={categoria.id} value={categoria.id}>
+                    {categoria.nombre}
+                  </option>
+                ))}
+              </select>
+
+              <button onClick={cargarGimnasta}>Cargar gimnasta</button>
+            </section>
+
+            <section className="admin-form-box">
+              <h2>Importar desde Excel</h2>
+              <p className="helper-text">
+                Primero seleccioná el archivo y después tocá Cargar Excel.
+              </p>
+
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={(e) => setArchivoExcel(e.target.files[0])}
+              />
+
+              {archivoExcel && (
+                <p className="helper-text">
+                  Archivo seleccionado: <strong>{archivoExcel.name}</strong>
+                </p>
+              )}
+
+              <button onClick={importarExcel} disabled={importandoExcel}>
+                {importandoExcel ? 'Importando...' : 'Cargar Excel'}
+              </button>
+            </section>
+          </div>
+
+          {mostrarInscriptas && (
+            <section className="inscriptas-panel">
+              <div className="inscriptas-header">
+                <h2>Gimnastas inscriptas</h2>
+
+                <select
+                  value={ordenGimnastas}
+                  onChange={(e) => setOrdenGimnastas(e.target.value)}
+                >
+                  <option value="apellido">Ordenar por apellido</option>
+                  <option value="nivel-apellido">Ordenar por nivel + apellido</option>
+                </select>
+              </div>
+
+              {gimnastasInscriptas.length === 0 ? (
+                <p>No hay gimnastas inscriptas en este torneo.</p>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Apellido</th>
+                        <th>Nombre</th>
+                        <th>Club</th>
+                        <th>Profe</th>
+                        <th>Nivel</th>
+                        <th>Categoría</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {gimnastasOrdenadas.map((inscripcion) => (
+                        <tr key={inscripcion.id}>
+                          {gimnastaEditandoId === inscripcion.gimnastas.id ? (
+                            <>
+                              <td>
+                                <input
+                                  value={editApellido}
+                                  onChange={(e) => setEditApellido(e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  value={editNombre}
+                                  onChange={(e) => setEditNombre(e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  value={editClub}
+                                  onChange={(e) => setEditClub(e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  value={editProfe}
+                                  onChange={(e) => setEditProfe(e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <select
+                                  value={editNivelId}
+                                  onChange={(e) => setEditNivelId(e.target.value)}
+                                >
+                                  {niveles.map((nivel) => (
+                                    <option key={nivel.id} value={nivel.id}>
+                                      {nivel.nombre}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <select
+                                  value={editCategoriaId}
+                                  onChange={(e) => setEditCategoriaId(e.target.value)}
+                                >
+                                  {categorias.map((categoria) => (
+                                    <option key={categoria.id} value={categoria.id}>
+                                      {categoria.nombre}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <div className="row-actions">
+                                  <button
+                                    onClick={() =>
+                                      guardarEdicionGimnasta(inscripcion.gimnastas.id)
+                                    }
+                                  >
+                                    Guardar
+                                  </button>
+                                  <button
+                                    className="secondary-button"
+                                    onClick={cancelarEdicion}
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td>{inscripcion.gimnastas.apellido}</td>
+                              <td>{inscripcion.gimnastas.nombre}</td>
+                              <td>{inscripcion.gimnastas.club}</td>
+                              <td>{inscripcion.gimnastas.profe}</td>
+                              <td>{inscripcion.gimnastas.niveles?.nombre}</td>
+                              <td>{inscripcion.gimnastas.categorias?.nombre}</td>
+                              <td>
+                                <div className="row-actions">
+                                  <button onClick={() => iniciarEdicion(inscripcion)}>
+                                    Editar
+                                  </button>
+                                  <button
+                                    className="danger"
+                                    onClick={() => eliminarGimnasta(inscripcion)}
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
 
           <hr style={{ margin: '25px 0' }} />
 
           <div className="mobile-tabs">
-            <button onClick={() => setVistaAdmin('gimnastas')}>
-              Ver/editar gimnastas
-            </button>
-
             <button onClick={() => setVistaAdmin('puntajes')}>
               Ver/editar puntajes
             </button>
           </div>
 
           <div className="admin-grid">
-            <div
-              className={
-                vistaAdmin === 'gimnastas'
-                  ? 'admin-section active'
-                  : 'admin-section'
-              }
-            >
-              <h2>Gimnastas inscriptas</h2>
-
-              <select
-                value={ordenGimnastas}
-                onChange={(e) => setOrdenGimnastas(e.target.value)}
-                style={{
-                  marginTop: '10px',
-                  marginBottom: '15px'
-                }}
-              >
-                <option value="apellido">
-                  Ordenar por apellido
-                </option>
-
-                <option value="nivel-apellido">
-                  Ordenar por nivel + apellido
-                </option>
-              </select>
-
-              {gimnastasInscriptas.length === 0 ? (
-                <p>No hay gimnastas inscriptas en este torneo.</p>
-              ) : (
-                gimnastasOrdenadas.map((inscripcion) => (
-                  <div
-                    key={inscripcion.id}
-                    style={{
-                      background: '#f5f5f5',
-                      padding: '15px',
-                      borderRadius: '12px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    {gimnastaEditandoId === inscripcion.gimnastas.id ? (
-                      <>
-                        <input
-                          value={editNombre}
-                          onChange={(e) => setEditNombre(e.target.value)}
-                        />
-
-                        <input
-                          value={editApellido}
-                          onChange={(e) => setEditApellido(e.target.value)}
-                        />
-
-                        <input
-                          value={editClub}
-                          onChange={(e) => setEditClub(e.target.value)}
-                        />
-
-                        <input
-                          value={editProfe}
-                          onChange={(e) => setEditProfe(e.target.value)}
-                        />
-
-                        <select
-                          value={editNivelId}
-                          onChange={(e) => setEditNivelId(e.target.value)}
-                        >
-                          {niveles.map((nivel) => (
-                            <option key={nivel.id} value={nivel.id}>
-                              {nivel.nombre}
-                            </option>
-                          ))}
-                        </select>
-
-                        <select
-                          value={editCategoriaId}
-                          onChange={(e) => setEditCategoriaId(e.target.value)}
-                        >
-                          {categorias.map((categoria) => (
-                            <option key={categoria.id} value={categoria.id}>
-                              {categoria.nombre}
-                            </option>
-                          ))}
-                        </select>
-
-                        <button
-                          onClick={() =>
-                            guardarEdicionGimnasta(inscripcion.gimnastas.id)
-                          }
-                        >
-                          Guardar cambios
-                        </button>
-
-                        <button onClick={cancelarEdicion}>
-                          Cancelar
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <h3>
-                          {inscripcion.gimnastas.apellido},{' '}
-                          {inscripcion.gimnastas.nombre}
-                        </h3>
-
-                        <p>Club: {inscripcion.gimnastas.club}</p>
-                        <p>Profe: {inscripcion.gimnastas.profe}</p>
-                        <p>Nivel: {inscripcion.gimnastas.niveles?.nombre}</p>
-                        <p>
-                          Categoría:{' '}
-                          {inscripcion.gimnastas.categorias?.nombre}
-                        </p>
-
-                        <button onClick={() => iniciarEdicion(inscripcion)}>
-                          Editar
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
 
             <div
               className={
