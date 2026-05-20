@@ -877,12 +877,15 @@ setImportandoExcel(false)
 />
 
 {archivoExcel && (
-  <p>Archivo seleccionado: {archivoExcel.name}</p>
+  <p style={{ marginTop: '10px' }}>
+    Archivo seleccionado: {archivoExcel.name}
+  </p>
 )}
 
 <button
   onClick={importarExcel}
   disabled={importandoExcel}
+  style={{ marginTop: '10px' }}
 >
   {importandoExcel ? 'Importando...' : 'Cargar Excel'}
 </button>
