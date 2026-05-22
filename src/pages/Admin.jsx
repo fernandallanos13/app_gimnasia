@@ -145,93 +145,101 @@ function Admin() {
   }
 
   async function cargarGimnasta() {
-    if (!torneoSeleccionado) {
-      alert('No hay un torneo activo seleccionado')
-      return
-    }
-
-    if (!nombreGimnasta || !apellidoGimnasta || !nivelId || !categoriaId) {
-      alert('Completá nombre, apellido, nivel y categoría')
-      return
-    }
-
-    const duplicada = existeGimnastaEnTorneo({
-      nombre: nombreGimnasta,
-      apellido: apellidoGimnasta,
-      nivelId,
-      categoriaId
-    })
-
-    if (duplicada) {
-      alert('Esa gimnasta ya está cargada en este torneo con el mismo nivel y categoría.')
-      return
-    }
-
-    const { data: gimnastaCreada, error: errorGimnasta } = await supabase
-      .from('gimnastas')
-      .insert([
-        {
-          nombre: nombreGimnasta.trim(),
-          apellido: apellidoGimnasta.trim(),
-          club: club.trim(),
-          profe: profe.trim(),
-          nivel_id: Number(nivelId),
-          categoria_id: Number(categoriaId)
-        }
-      ])
-      .select()
-      .single()
-
-    if (errorGimnasta) {
-      console.log(errorGimnasta)
-      alert('Error al cargar gimnasta')
-      return
-    }
-
-    const { error: errorInscripcion } = await supabase
-      .from('inscripciones')
-      .insert([
-        {
-          torneo_id: torneoSeleccionado.id,
-          gimnasta_id: gimnastaCreada.id
-        }
-      ])
-
-    if (errorInscripcion) {
-      console.log(errorInscripcion)
-      alert('La gimnasta se creó, pero hubo error al inscribirla')
-      return
-    }
-
-    const nivelNombre = niveles.find((n) => String(n.id) === String(nivelId))?.nombre || ''
-const categoriaNombre = categorias.find((c) => String(c.id) === String(categoriaId))?.nombre || ''
-
-await supabase
-  .from('cargas_manuales')
-  .insert([
-    {
-      torneo_id: torneoSeleccionado.id,
-      gimnasta_id: gimnastaCreada.id,
-      nombre: nombreGimnasta.trim(),
-      apellido: apellidoGimnasta.trim(),
-      club: club.trim(),
-      profe: profe.trim(),
-      nivel: nivelNombre,
-      categoria: categoriaNombre
-    }
-  ])
-
-    alert('Gimnasta cargada e inscripta')
-
-    setNombreGimnasta('')
-    setApellidoGimnasta('')
-    setClub('')
-    setProfe('')
-    setNivelId('')
-    setCategoriaId('')
-
-    obtenerGimnastasInscriptas(torneoSeleccionado.id)
+  if (!torneoSeleccionado) {
+    alert('No hay un torneo activo seleccionado')
+    return
   }
+
+  if (!nombreGimnasta || !apellidoGimnasta || !nivelId || !categoriaId) {
+    alert('Completá nombre, apellido, nivel y categoría')
+    return
+  }
+
+  const duplicada = existeGimnastaEnTorneo({
+    nombre: nombreGimnasta,
+    apellido: apellidoGimnasta,
+    nivelId,
+    categoriaId
+  })
+
+  if (duplicada) {
+    alert('Esa gimnasta ya está cargada en este torneo con el mismo nivel y categoría.')
+    return
+  }
+
+  const { data: gimnastaCreada, error: errorGimnasta } = await supabase
+    .from('gimnastas')
+    .insert([
+      {
+        nombre: nombreGimnasta.trim(),
+        apellido: apellidoGimnasta.trim(),
+        club: club.trim(),
+        profe: profe.trim(),
+        nivel_id: Number(nivelId),
+        categoria_id: Number(categoriaId)
+      }
+    ])
+    .select()
+    .single()
+
+  if (errorGimnasta) {
+    console.log(errorGimnasta)
+    alert('Error al cargar gimnasta')
+    return
+  }
+
+  const { error: errorInscripcion } = await supabase
+    .from('inscripciones')
+    .insert([
+      {
+        torneo_id: torneoSeleccionado.id,
+        gimnasta_id: gimnastaCreada.id
+      }
+    ])
+
+  if (errorInscripcion) {
+    console.log(errorInscripcion)
+    alert('La gimnasta se creó, pero hubo error al inscribirla')
+    return
+  }
+
+  const nivelNombre =
+    niveles.find((n) => String(n.id) === String(nivelId))?.nombre || ''
+
+  const categoriaNombre =
+    categorias.find((c) => String(c.id) === String(categoriaId))?.nombre || ''
+
+  const { error: errorCargaManual } = await supabase
+    .from('cargas_manuales')
+    .insert([
+      {
+        torneo_id: torneoSeleccionado.id,
+        gimnasta_id: gimnastaCreada.id,
+        nombre: nombreGimnasta.trim(),
+        apellido: apellidoGimnasta.trim(),
+        club: club.trim(),
+        profe: profe.trim(),
+        nivel: nivelNombre,
+        categoria: categoriaNombre
+      }
+    ])
+
+  if (errorCargaManual) {
+    console.log(errorCargaManual)
+    alert('La gimnasta se cargó, pero NO se registró como carga manual')
+  } else {
+    alert('Gimnasta cargada e inscripta')
+  }
+
+  setNombreGimnasta('')
+  setApellidoGimnasta('')
+  setClub('')
+  setProfe('')
+  setNivelId('')
+  setCategoriaId('')
+
+  obtenerGimnastasInscriptas(torneoSeleccionado.id)
+}
 
   async function importarExcel() {
     if (!archivoExcel) {
@@ -459,96 +467,119 @@ setImportandoExcel(false)
   }
 
   async function guardarEdicionGimnasta(gimnastaId) {
-    if (!editNombre || !editApellido || !editNivelId || !editCategoriaId) {
-      alert('Completá nombre, apellido, nivel y categoría')
-      return
-    }
-
-    const duplicada = existeGimnastaEnTorneo({
-      nombre: editNombre,
-      apellido: editApellido,
-      nivelId: editNivelId,
-      categoriaId: editCategoriaId,
-      ignorarGimnastaId: gimnastaId
-    })
-
-    if (duplicada) {
-      alert('Ya existe otra gimnasta con ese nombre, apellido, nivel y categoría en este torneo.')
-      return
-    }
-
-    const { error } = await supabase
-      .from('gimnastas')
-      .update({
-        nombre: editNombre.trim(),
-        apellido: editApellido.trim(),
-        club: editClub.trim(),
-        profe: editProfe.trim(),
-        nivel_id: Number(editNivelId),
-        categoria_id: Number(editCategoriaId)
-      })
-      .eq('id', gimnastaId)
-
-    if (error) {
-      console.log(error)
-      alert('Error al editar gimnasta')
-      return
-    }
-
-    alert('Gimnasta editada')
-    setGimnastaEditandoId(null)
-    obtenerGimnastasInscriptas(torneoSeleccionado.id)
+  if (!editNombre || !editApellido || !editNivelId || !editCategoriaId) {
+    alert('Completá nombre, apellido, nivel y categoría')
+    return
   }
+
+  const duplicada = existeGimnastaEnTorneo({
+    nombre: editNombre,
+    apellido: editApellido,
+    nivelId: editNivelId,
+    categoriaId: editCategoriaId,
+    ignorarGimnastaId: gimnastaId
+  })
+
+  if (duplicada) {
+    alert('Ya existe otra gimnasta con ese nombre, apellido, nivel y categoría en este torneo.')
+    return
+  }
+
+  const { error } = await supabase
+    .from('gimnastas')
+    .update({
+      nombre: editNombre.trim(),
+      apellido: editApellido.trim(),
+      club: editClub.trim(),
+      profe: editProfe.trim(),
+      nivel_id: Number(editNivelId),
+      categoria_id: Number(editCategoriaId)
+    })
+    .eq('id', gimnastaId)
+
+  if (error) {
+    console.log(error)
+    alert('Error al editar gimnasta')
+    return
+  }
+
+  const nivelNombre =
+    niveles.find((n) => String(n.id) === String(editNivelId))?.nombre || ''
+
+  const categoriaNombre =
+    categorias.find((c) => String(c.id) === String(editCategoriaId))?.nombre || ''
+
+  await supabase
+    .from('cargas_manuales')
+    .update({
+      nombre: editNombre.trim(),
+      apellido: editApellido.trim(),
+      club: editClub.trim(),
+      profe: editProfe.trim(),
+      nivel: nivelNombre,
+      categoria: categoriaNombre
+    })
+    .eq('gimnasta_id', gimnastaId)
+
+  alert('Gimnasta editada')
+  setGimnastaEditandoId(null)
+  obtenerGimnastasInscriptas(torneoSeleccionado.id)
+}
 
   async function eliminarGimnasta(inscripcion) {
-    const g = inscripcion.gimnastas
+  const g = inscripcion.gimnastas
 
-    if (!g) return
+  if (!g) return
 
-    const confirmar = window.confirm(
-      `¿Eliminar a ${g.apellido}, ${g.nombre} del torneo? También se borrarán sus puntajes cargados.`
-    )
+  const confirmar = window.confirm(
+    `¿Eliminar a ${g.apellido}, ${g.nombre} del torneo? También se borrarán sus puntajes cargados.`
+  )
 
-    if (!confirmar) return
+  if (!confirmar) return
 
-    const { error: errorPuntajes } = await supabase
-      .from('puntajes')
-      .delete()
-      .eq('torneo_id', torneoSeleccionado.id)
-      .eq('gimnasta_id', g.id)
+  const { error: errorPuntajes } = await supabase
+    .from('puntajes')
+    .delete()
+    .eq('torneo_id', torneoSeleccionado.id)
+    .eq('gimnasta_id', g.id)
 
-    if (errorPuntajes) {
-      console.log(errorPuntajes)
-      alert('Error al eliminar los puntajes de la gimnasta')
-      return
-    }
-
-    const { error: errorInscripcion } = await supabase
-      .from('inscripciones')
-      .delete()
-      .eq('id', inscripcion.id)
-
-    if (errorInscripcion) {
-      console.log(errorInscripcion)
-      alert('Error al eliminar la inscripción')
-      return
-    }
-
-    const { error: errorGimnasta } = await supabase
-      .from('gimnastas')
-      .delete()
-      .eq('id', g.id)
-
-    if (errorGimnasta) {
-      console.log(errorGimnasta)
-      alert('La inscripción se eliminó, pero hubo error al borrar la gimnasta')
-      return
-    }
-
-    alert('Gimnasta eliminada')
-    obtenerGimnastasInscriptas(torneoSeleccionado.id)
-    obtenerPuntajesCargados(torneoSeleccionado.id)
+  if (errorPuntajes) {
+    console.log(errorPuntajes)
+    alert('Error al eliminar los puntajes de la gimnasta')
+    return
   }
+
+  await supabase
+    .from('cargas_manuales')
+    .delete()
+    .eq('gimnasta_id', g.id)
+
+  const { error: errorInscripcion } = await supabase
+    .from('inscripciones')
+    .delete()
+    .eq('id', inscripcion.id)
+
+  if (errorInscripcion) {
+    console.log(errorInscripcion)
+    alert('Error al eliminar la inscripción')
+    return
+  }
+
+  const { error: errorGimnasta } = await supabase
+    .from('gimnastas')
+    .delete()
+    .eq('id', g.id)
+
+  if (errorGimnasta) {
+    console.log(errorGimnasta)
+    alert('La inscripción se eliminó, pero hubo error al borrar la gimnasta')
+    return
+  }
+
+  alert('Gimnasta eliminada')
+  obtenerGimnastasInscriptas(torneoSeleccionado.id)
+  obtenerPuntajesCargados(torneoSeleccionado.id)
+}
 
   async function obtenerPuntajesCargados(torneoId) {
     const { data, error } = await supabase
@@ -883,9 +914,37 @@ setImportandoExcel(false)
         <h2>Torneo activo</h2>
 
         {torneosActivos.length === 0 ? (
-          <p>No hay torneos activos.</p>
-        ) : (
-          <>
+  <p>No hay torneos activos.</p>
+) : torneosActivos.length > 1 ? (
+  <>
+    <p style={{ color: '#c1121f', fontWeight: 'bold' }}>
+      ⚠️ Hay más de un torneo activo. Cerrá los que no correspondan para evitar mezclar datos.
+    </p>
+
+    {torneosActivos.map((torneo) => (
+      <div
+        key={torneo.id}
+        style={{
+          background: 'white',
+          padding: '14px',
+          borderRadius: '14px',
+          marginTop: '12px'
+        }}
+      >
+        <h3>{torneo.nombre}</h3>
+        <p><strong>Código:</strong> {torneo.codigo}</p>
+
+        <button
+          className="danger"
+          onClick={() => cerrarTorneo(torneo.id)}
+        >
+          Cerrar este torneo
+        </button>
+      </div>
+    ))}
+  </>
+) : (
+  <>
             <h3>{torneoSeleccionado?.nombre}</h3>
 
             <p>
@@ -1100,6 +1159,8 @@ setImportandoExcel(false)
           </button>
 
         </section>
+
+        
 
         <section className="admin-box">
 
