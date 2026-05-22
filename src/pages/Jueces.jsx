@@ -29,7 +29,7 @@ function Jueces() {
     const { data: torneoEncontrado, error: errorTorneo } = await supabase
       .from('torneos')
       .select('*')
-      .ilike('codigo', codigoTorneo)
+      .ilike('codigo', codigoTorneo.trim())
       .eq('estado', 'activo')
       .single()
 

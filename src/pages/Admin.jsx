@@ -1103,7 +1103,8 @@ setImportandoExcel(false)
   onClick={() =>
     navigate('/admin/podios', {
       state: {
-        puntajesCargados
+        puntajesCargados,
+        gimnastasInscriptas
       }
     })
   }

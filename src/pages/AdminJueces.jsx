@@ -33,6 +33,9 @@ function AdminJueces() {
   return (
     <div className="container admin-page">
       <h1>Jueces logueados</h1>
+      <button onClick={obtenerJueces}>
+  Actualizar
+</button>
 
       <div className="admin-box">
         {grupos.length === 0 ? (

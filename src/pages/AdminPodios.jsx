@@ -6,7 +6,10 @@ import * as XLSX from 'xlsx'
 function AdminPodios() {
   const location = useLocation()
 
-  const { puntajesCargados = [] } = location.state || {}
+  const {
+  puntajesCargados = [],
+  gimnastasInscriptas = []
+} = location.state || {}
 
   const [busqueda, setBusqueda] = useState('')
   const [nivelFiltro, setNivelFiltro] = useState('')
@@ -17,32 +20,39 @@ function AdminPodios() {
   
   const agrupados = {}
 
-  puntajesCargados.forEach((p) => {
-    const g = p.gimnastas
-    const aparato = p.aparatos?.nombre
+gimnastasInscriptas.forEach((inscripcion) => {
+  const g = inscripcion.gimnastas
+  if (!g) return
 
-    if (!g || !aparato) return
+  const clave = `${g.apellido}-${g.nombre}-${g.club}`
 
-    const clave = `${g.apellido}-${g.nombre}-${g.club}`
+  agrupados[clave] = {
+    apellido: g.apellido,
+    nombre: g.nombre,
+    club: g.club || '',
+    nivel: g.niveles?.nombre || '',
+    categoria: g.categorias?.nombre || '',
+    Suelo: '',
+    Salto: '',
+    Viga: '',
+    Paralelas: '',
+    total: 0
+  }
+})
 
-    if (!agrupados[clave]) {
-      agrupados[clave] = {
-        apellido: g.apellido,
-        nombre: g.nombre,
-        club: g.club || '',
-        nivel: g.niveles?.nombre || '',
-        categoria: g.categorias?.nombre || '',
-        Suelo: '',
-        Salto: '',
-        Viga: '',
-        Paralelas: '',
-        total: 0
-      }
-    }
+puntajesCargados.forEach((p) => {
+  const g = p.gimnastas
+  const aparato = p.aparatos?.nombre
 
-    agrupados[clave][aparato] = p.puntaje
-    agrupados[clave].total += Number(p.puntaje)
-  })
+  if (!g || !aparato) return
+
+  const clave = `${g.apellido}-${g.nombre}-${g.club}`
+
+  if (!agrupados[clave]) return
+
+  agrupados[clave][aparato] = p.puntaje
+  agrupados[clave].total += Number(p.puntaje)
+})
 
   const filasBase = Object.values(agrupados)
 
