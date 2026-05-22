@@ -159,106 +159,115 @@ function Jueces() {
   }
 
   async function obtenerGimnastasDelGrupo(categoriaId) {
-    setCategoriaSeleccionada(categoriaId)
-    await supabase
-  .from('juez_grupos')
-  .upsert(
-    {
-      torneo_id: torneo.id,
-      juez_id: juez.id,
-      aparato_id: Number(aparatoSeleccionado),
-      nivel_id: Number(nivelSeleccionado),
-      categoria_id: Number(categoriaId),
-      finalizado: false
-    },
-    {
-      onConflict: 'torneo_id,juez_id,aparato_id,nivel_id,categoria_id'
-    }
-  )
-    setGimnastasGrupo([])
-    setPuntajes({})
-    const claveGrupo = `grupo-finalizado-${torneo?.id}-${juez?.id}-${aparatoSeleccionado}-${nivelSeleccionado}-${categoriaId}`
+  setCategoriaSeleccionada(categoriaId)
+  setGimnastasGrupo([])
+  setPuntajes({})
 
-if (localStorage.getItem(claveGrupo) === 'true') {
-  alert('Este grupo ya fue finalizado. Pedile al admin que edite los puntajes si hay un error.')
-  setCategoriaSeleccionada('')
-  return
-}
-
-    if (!aparatoSeleccionado) {
-      alert('Primero seleccioná un aparato')
-      return
-    }
-
-    const { data, error } = await supabase
-      .from('inscripciones')
-      .select(`
-        id,
-        gimnastas (
-          id,
-          nombre,
-          apellido,
-          club,
-          profe,
-          nivel_id,
-          categoria_id
-        )
-      `)
-      .eq('torneo_id', torneo.id)
-
-    if (error) {
-      console.log(error)
-      alert('Error al traer gimnastas')
-      return
-    }
-
-    const filtradas = data.filter((item) => {
-      const g = item.gimnastas
-
-      return (
-        String(g?.nivel_id) === String(nivelSeleccionado) &&
-        String(g?.categoria_id) === String(categoriaId)
-      )
-    })
-
-    const ordenadas = filtradas.sort((a, b) => {
-
-  const apellidoA =
-    a.gimnastas?.apellido?.toLowerCase() || ''
-
-  const apellidoB =
-    b.gimnastas?.apellido?.toLowerCase() || ''
-
-  return apellidoA.localeCompare(apellidoB)
-})
-
-setGimnastasGrupo(ordenadas)
-
-    const idsGimnastas = filtradas.map((item) => item.gimnastas.id)
-
-    if (idsGimnastas.length === 0) {
-      return
-    }
-
-    const { data: puntajesExistentes, error: errorPuntajes } = await supabase
-      .from('puntajes')
-      .select('*')
-      .eq('torneo_id', torneo.id)
-      .eq('juez_id', juez.id)
-      .eq('aparato_id', Number(aparatoSeleccionado))
-      .in('gimnasta_id', idsGimnastas)
-
-    if (!errorPuntajes && puntajesExistentes) {
-      const puntajesPrevios = {}
-
-      puntajesExistentes.forEach((p) => {
-        puntajesPrevios[p.gimnasta_id] = p.puntaje
-      })
-
-      setPuntajes(puntajesPrevios)
-    }
+  if (!aparatoSeleccionado) {
+    alert('Primero seleccioná un aparato')
+    setCategoriaSeleccionada('')
+    return
   }
 
+  if (!torneo?.id || !juez?.id || !nivelSeleccionado || !categoriaId) {
+    alert('Faltan datos para registrar el grupo del juez')
+    return
+  }
+
+  const claveGrupo = `grupo-finalizado-${torneo.id}-${juez.id}-${aparatoSeleccionado}-${nivelSeleccionado}-${categoriaId}`
+
+  if (localStorage.getItem(claveGrupo) === 'true') {
+    alert('Este grupo ya fue finalizado. Pedile al admin que edite los puntajes si hay un error.')
+    setCategoriaSeleccionada('')
+    return
+  }
+
+  const { error: errorGrupo } = await supabase
+    .from('juez_grupos')
+    .upsert(
+      {
+        torneo_id: torneo.id,
+        juez_id: juez.id,
+        aparato_id: Number(aparatoSeleccionado),
+        nivel_id: Number(nivelSeleccionado),
+        categoria_id: Number(categoriaId),
+        finalizado: false
+      },
+      {
+        onConflict: 'torneo_id,juez_id,aparato_id,nivel_id,categoria_id'
+      }
+    )
+
+  if (errorGrupo) {
+    console.log(errorGrupo)
+    alert('No se pudo registrar el grupo del juez')
+    return
+  }
+
+  const { data, error } = await supabase
+    .from('inscripciones')
+    .select(`
+      id,
+      gimnastas (
+        id,
+        nombre,
+        apellido,
+        club,
+        profe,
+        nivel_id,
+        categoria_id
+      )
+    `)
+    .eq('torneo_id', torneo.id)
+
+  if (error) {
+    console.log(error)
+    alert('Error al traer gimnastas')
+    return
+  }
+
+  const filtradas = data.filter((item) => {
+    const g = item.gimnastas
+
+    return (
+      String(g?.nivel_id) === String(nivelSeleccionado) &&
+      String(g?.categoria_id) === String(categoriaId)
+    )
+  })
+
+  const ordenadas = filtradas.sort((a, b) => {
+    const apellidoA = a.gimnastas?.apellido?.toLowerCase() || ''
+    const apellidoB = b.gimnastas?.apellido?.toLowerCase() || ''
+
+    return apellidoA.localeCompare(apellidoB)
+  })
+
+  setGimnastasGrupo(ordenadas)
+
+  const idsGimnastas = ordenadas.map((item) => item.gimnastas.id)
+
+  if (idsGimnastas.length === 0) {
+    return
+  }
+
+  const { data: puntajesExistentes, error: errorPuntajes } = await supabase
+    .from('puntajes')
+    .select('*')
+    .eq('torneo_id', torneo.id)
+    .eq('juez_id', juez.id)
+    .eq('aparato_id', Number(aparatoSeleccionado))
+    .in('gimnasta_id', idsGimnastas)
+
+  if (!errorPuntajes && puntajesExistentes) {
+    const puntajesPrevios = {}
+
+    puntajesExistentes.forEach((p) => {
+      puntajesPrevios[p.gimnasta_id] = p.puntaje
+    })
+
+    setPuntajes(puntajesPrevios)
+  }
+}
   async function guardarPuntajeIndividual(gimnastaId, valor) {
     if (!aparatoSeleccionado || !torneo || !juez) return
 
