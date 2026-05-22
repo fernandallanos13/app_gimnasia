@@ -209,7 +209,7 @@ function Admin() {
   const categoriaNombre =
     categorias.find((c) => String(c.id) === String(categoriaId))?.nombre || ''
 
-const { data: cargaManualCreada, error: errorCargaManual } = await supabase
+const { error: errorCargaManual } = await supabase
   .from('cargas_manuales')
   .insert([
     {
@@ -223,10 +223,16 @@ const { data: cargaManualCreada, error: errorCargaManual } = await supabase
       categoria: categoriaNombre
     }
   ])
-  .select()
 
-console.log('CARGA MANUAL CREADA:', cargaManualCreada)
 console.log('ERROR CARGA MANUAL:', errorCargaManual)
+
+if (errorCargaManual) {
+  alert('La gimnasta se cargó, pero NO se registró como carga manual.')
+  return
+}
+
+alert('Gimnasta cargada e inscripta')
+
 
 if (errorCargaManual) {
   alert('La gimnasta se cargó, pero NO se registró como carga manual. Mirá la consola.')
