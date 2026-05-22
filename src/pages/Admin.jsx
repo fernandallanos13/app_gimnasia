@@ -203,6 +203,24 @@ function Admin() {
       return
     }
 
+    const nivelNombre = niveles.find((n) => String(n.id) === String(nivelId))?.nombre || ''
+const categoriaNombre = categorias.find((c) => String(c.id) === String(categoriaId))?.nombre || ''
+
+await supabase
+  .from('cargas_manuales')
+  .insert([
+    {
+      torneo_id: torneoSeleccionado.id,
+      gimnasta_id: gimnastaCreada.id,
+      nombre: nombreGimnasta.trim(),
+      apellido: apellidoGimnasta.trim(),
+      club: club.trim(),
+      profe: profe.trim(),
+      nivel: nivelNombre,
+      categoria: categoriaNombre
+    }
+  ])
+
     alert('Gimnasta cargada e inscripta')
 
     setNombreGimnasta('')
@@ -972,6 +990,10 @@ setImportandoExcel(false)
           <h3 style={{ marginTop: '20px' }}>
             Importar desde Excel
           </h3>
+
+          <button onClick={() => navigate('/admin/cargas-manuales')}>
+  Ver cargas manuales
+</button>
 
           <input
             type="file"
