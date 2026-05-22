@@ -187,16 +187,25 @@ function Jueces() {
     .upsert(
       {
         torneo_id: torneo.id,
-        juez_id: juez.id,
-        aparato_id: Number(aparatoSeleccionado),
-        nivel_id: Number(nivelSeleccionado),
-        categoria_id: Number(categoriaId),
-        finalizado: false
-      },
-      {
-        onConflict: 'torneo_id,juez_id,aparato_id,nivel_id,categoria_id'
-      }
-    )
+      juez_id: juez.id,
+      aparato_id: Number(aparatoSeleccionado),
+      nivel_id: Number(nivelSeleccionado),
+      categoria_id: Number(categoriaId),
+      finalizado: false
+    },
+    {
+      onConflict: 'torneo_id,juez_id,aparato_id,nivel_id,categoria_id'
+    }
+  )
+
+console.log('ERROR GRUPO:', errorGrupo)
+console.log('DATOS GRUPO:', {
+  torneo_id: torneo.id,
+  juez_id: juez.id,
+  aparato_id: Number(aparatoSeleccionado),
+  nivel_id: Number(nivelSeleccionado),
+  categoria_id: Number(categoriaId)
+})
 
   if (errorGrupo) {
     console.log(errorGrupo)
