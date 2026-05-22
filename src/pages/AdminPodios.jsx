@@ -1,5 +1,7 @@
 import { useLocation } from 'react-router-dom'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import * as XLSX from 'xlsx'
 
 function AdminPodios() {
   const location = useLocation()
@@ -10,7 +12,9 @@ function AdminPodios() {
   const [nivelFiltro, setNivelFiltro] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('')
   const [clubFiltro, setClubFiltro] = useState('')
-
+  const navigate = useNavigate() 
+  const [gruposAbiertos, setGruposAbiertos] = useState({})
+  
   const agrupados = {}
 
   puntajesCargados.forEach((p) => {
@@ -122,9 +126,47 @@ function calcularPuestoAdmin(index, total, nivel, categoria) {
 
   return `${index + 1}°`
 }
+
+function numeroNivel(nivel) {
+  const match = String(nivel || '').match(/\d+/)
+  return match ? Number(match[0]) : 999
+}
+
+function toggleGrupo(grupo) {
+  setGruposAbiertos({
+    ...gruposAbiertos,
+    [grupo]: !gruposAbiertos[grupo]
+  })
+}
+
+function exportarPodiosExcel() {
+  const datosExcel = filasFiltradas.map((g, index) => ({
+    Puesto: calcularPuestoAdmin(index, filasFiltradas.length, g.nivel, g.categoria),
+    Apellido: g.apellido,
+    Nombre: g.nombre,
+    Club: g.club,
+    Nivel: g.nivel,
+    Categoria: g.categoria,
+    Suelo: mostrarPuntaje(g.Suelo, g.categoria),
+    Salto: mostrarPuntaje(g.Salto, g.categoria),
+    Viga: mostrarPuntaje(g.Viga, g.categoria),
+    Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
+    Total: esMiniatura(g.categoria) ? '🙂' : g.total
+  }))
+
+  const hoja = XLSX.utils.json_to_sheet(datosExcel)
+  const libro = XLSX.utils.book_new()
+
+  XLSX.utils.book_append_sheet(libro, hoja, 'Podios')
+
+  XLSX.writeFile(libro, 'podios-resultados.xlsx')
+}
   return (
     <div className="container admin-page">
       <h1>Podios y resultados</h1>
+      <button onClick={() => navigate('/admin/puntajes')}>
+  Editar puntajes
+</button>
 
       <div className="admin-box">
         <input
@@ -163,13 +205,36 @@ function calcularPuestoAdmin(index, total, nivel, categoria) {
           </select>
 
           <button onClick={limpiarFiltros}>Limpiar filtros</button>
+          <button onClick={exportarPodiosExcel}>
+  Descargar Excel filtrado
+</button>
         </div>
       </div>
 
-      {Object.entries(grupos).map(([grupo, gimnastas]) => (
-        <div className="result-category-card" key={grupo}>
-          <h2>{grupo}</h2>
+      {Object.entries(grupos)
+  .sort(([grupoA, gimnastasA], [grupoB, gimnastasB]) => {
+    const nivelA = numeroNivel(gimnastasA[0]?.nivel)
+    const nivelB = numeroNivel(gimnastasB[0]?.nivel)
 
+    if (nivelA !== nivelB) return nivelA - nivelB
+
+    return grupoA.localeCompare(grupoB)
+  })
+  .map(([grupo, gimnastas]) => {
+    const abierto = gruposAbiertos[grupo]
+
+    return (
+      <div className="result-category-card" key={grupo}>
+        <button
+          className="result-category-header"
+          onClick={() => toggleGrupo(grupo)}
+        >
+          <span>{abierto ? '−' : '+'}</span>
+          <strong>{grupo}</strong>
+          <small>{gimnastas.length} gimnasta(s)</small>
+        </button>
+
+        {abierto && (
           <div className="table-wrapper">
             <table className="admin-table">
               <thead>
@@ -191,7 +256,12 @@ function calcularPuestoAdmin(index, total, nivel, categoria) {
                   <tr key={`${g.apellido}-${g.nombre}-${g.club}`}>
                     <td>
                       <strong>
-                        {calcularPuestoAdmin(index, gimnastas.length, g.nivel, g.categoria)}
+                        {calcularPuestoAdmin(
+                          index,
+                          gimnastas.length,
+                          g.nivel,
+                          g.categoria
+                        )}
                       </strong>
                     </td>
                     <td>{g.apellido}</td>
@@ -202,16 +272,19 @@ function calcularPuestoAdmin(index, total, nivel, categoria) {
                     <td>{mostrarPuntaje(g.Viga, g.categoria)}</td>
                     <td>{mostrarPuntaje(g.Paralelas, g.categoria)}</td>
                     <td>
-                      <strong>{esMiniatura(g.categoria) ? '🙂' : g.total}</strong>
+                      <strong>
+                        {esMiniatura(g.categoria) ? '🙂' : g.total}
+                      </strong>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
-      ))}
-
+        )}
+      </div>
+    )
+  })}
       {Object.keys(grupos).length === 0 && (
         <p>No hay resultados para mostrar con esos filtros.</p>
       )}

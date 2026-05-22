@@ -646,3 +646,44 @@ table th {
   font-weight: bold;
   margin-top: 8px;
 }
+
+.totales-box {
+  width: 100%;
+  background: white;
+  border-radius: 18px;
+  padding: 18px;
+  margin-top: 24px;
+  overflow-x: auto;
+}
+
+.totales-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+  background: white;
+}
+
+.totales-table th,
+.totales-table td {
+  border: 2px solid #111;
+  padding: 8px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.totales-table th {
+  color: #0069a8;
+  background: #f8f8f8;
+}
+
+.totales-table td:first-child,
+.totales-table th:first-child {
+  color: #0069a8;
+  font-weight: bold;
+  text-align: left;
+}
+
+.total-red {
+  color: red;
+  font-weight: bold;
+}

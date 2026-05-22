@@ -894,10 +894,6 @@ setImportandoExcel(false)
                 Copiar link público
               </button>
 
-              <button onClick={exportarResultadosExcel}>
-                Exportar resultados
-              </button>
-
               <button
                 className="danger"
                 onClick={() =>
@@ -958,6 +954,18 @@ setImportandoExcel(false)
             >
               Ver inscriptas
             </button>
+
+            <button
+  onClick={() =>
+    navigate('/admin/totales', {
+      state: {
+        gimnastasInscriptas
+      }
+    })
+  }
+>
+  Ver totales por categoría
+</button>
 
           </div>
 
@@ -1101,6 +1109,10 @@ setImportandoExcel(false)
   }
 >
   Ver podios
+</button>
+
+<button onClick={() => navigate('/admin/jueces')}>
+  Ver jueces logueados
 </button>
 
         </section>

@@ -29,7 +29,7 @@ function Jueces() {
     const { data: torneoEncontrado, error: errorTorneo } = await supabase
       .from('torneos')
       .select('*')
-      .eq('codigo', codigoTorneo)
+      .ilike('codigo', codigoTorneo)
       .eq('estado', 'activo')
       .single()
 
@@ -160,8 +160,30 @@ function Jueces() {
 
   async function obtenerGimnastasDelGrupo(categoriaId) {
     setCategoriaSeleccionada(categoriaId)
+    await supabase
+  .from('juez_grupos')
+  .upsert(
+    {
+      torneo_id: torneo.id,
+      juez_id: juez.id,
+      aparato_id: Number(aparatoSeleccionado),
+      nivel_id: Number(nivelSeleccionado),
+      categoria_id: Number(categoriaId),
+      finalizado: false
+    },
+    {
+      onConflict: 'torneo_id,juez_id,aparato_id,nivel_id,categoria_id'
+    }
+  )
     setGimnastasGrupo([])
     setPuntajes({})
+    const claveGrupo = `grupo-finalizado-${torneo?.id}-${juez?.id}-${aparatoSeleccionado}-${nivelSeleccionado}-${categoriaId}`
+
+if (localStorage.getItem(claveGrupo) === 'true') {
+  alert('Este grupo ya fue finalizado. Pedile al admin que edite los puntajes si hay un error.')
+  setCategoriaSeleccionada('')
+  return
+}
 
     if (!aparatoSeleccionado) {
       alert('Primero seleccioná un aparato')
@@ -271,6 +293,11 @@ setGimnastasGrupo(ordenadas)
       return
     }
 
+    if (grupoEstaFinalizado()) {
+  alert('Este grupo ya fue finalizado. No podés modificar los puntajes.')
+  return
+}
+
     setPuntajes({
       ...puntajes,
       [gimnastaId]: valor
@@ -279,13 +306,34 @@ setGimnastasGrupo(ordenadas)
     guardarPuntajeIndividual(gimnastaId, valor)
   }
 
-  function cargarOtroGrupo() {
-    setNivelSeleccionado('')
-    setCategoriaSeleccionada('')
-    setCategorias([])
-    setGimnastasGrupo([])
-    setPuntajes({})
+  function obtenerClaveGrupo() {
+  return `grupo-finalizado-${torneo?.id}-${juez?.id}-${aparatoSeleccionado}-${nivelSeleccionado}-${categoriaSeleccionada}`
+}
+
+function grupoEstaFinalizado() {
+  return localStorage.getItem(obtenerClaveGrupo()) === 'true'
+}
+
+async function cargarOtroGrupo() {
+  if (torneo && juez && aparatoSeleccionado && nivelSeleccionado && categoriaSeleccionada) {
+    localStorage.setItem(obtenerClaveGrupo(), 'true')
+
+    await supabase
+      .from('juez_grupos')
+      .update({ finalizado: true })
+      .eq('torneo_id', torneo.id)
+      .eq('juez_id', juez.id)
+      .eq('aparato_id', Number(aparatoSeleccionado))
+      .eq('nivel_id', Number(nivelSeleccionado))
+      .eq('categoria_id', Number(categoriaSeleccionada))
   }
+
+  setNivelSeleccionado('')
+  setCategoriaSeleccionada('')
+  setCategorias([])
+  setGimnastasGrupo([])
+  setPuntajes({})
+}
 
   function salirJuez() {
     localStorage.removeItem('juez')
