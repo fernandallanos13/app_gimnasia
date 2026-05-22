@@ -17,7 +17,10 @@ function AdminCargasManuales() {
       return
     }
 
-    setCargas(data)
+    console.log('DATOS CARGAS:', data)
+console.log('ERROR CARGAS:', error)
+
+setCargas(data || [])
   }
 
   useEffect(() => {
