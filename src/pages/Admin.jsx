@@ -392,7 +392,8 @@ const filas = XLSX.utils.sheet_to_json(hoja, {
               club,
               profe,
               nivel_id: nivelEncontrado.id,
-              categoria_id: categoriaEncontrada.id
+              categoria_id: categoriaEncontrada.id,
+              origen: 'manual'
             }
           ])
           .select()
