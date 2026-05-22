@@ -209,28 +209,29 @@ function Admin() {
   const categoriaNombre =
     categorias.find((c) => String(c.id) === String(categoriaId))?.nombre || ''
 
-  const { error: errorCargaManual } = await supabase
-    .from('cargas_manuales')
-    .insert([
-      {
-        torneo_id: torneoSeleccionado.id,
-        gimnasta_id: gimnastaCreada.id,
-        nombre: nombreGimnasta.trim(),
-        apellido: apellidoGimnasta.trim(),
-        club: club.trim(),
-        profe: profe.trim(),
-        nivel: nivelNombre,
-        categoria: categoriaNombre
-      }
-    ])
+const { data: cargaManualCreada, error: errorCargaManual } = await supabase
+  .from('cargas_manuales')
+  .insert([
+    {
+      torneo_id: torneoSeleccionado.id,
+      gimnasta_id: gimnastaCreada.id,
+      nombre: nombreGimnasta.trim(),
+      apellido: apellidoGimnasta.trim(),
+      club: club.trim(),
+      profe: profe.trim(),
+      nivel: nivelNombre,
+      categoria: categoriaNombre
+    }
+  ])
+  .select()
 
-  if (errorCargaManual) {
-    console.log(errorCargaManual)
-    alert('La gimnasta se cargó, pero NO se registró como carga manual')
-  } else {
-    alert('Gimnasta cargada e inscripta')
-  }
+console.log('CARGA MANUAL CREADA:', cargaManualCreada)
+console.log('ERROR CARGA MANUAL:', errorCargaManual)
 
+if (errorCargaManual) {
+  alert('La gimnasta se cargó, pero NO se registró como carga manual. Mirá la consola.')
+  return
+}
   setNombreGimnasta('')
   setApellidoGimnasta('')
   setClub('')
