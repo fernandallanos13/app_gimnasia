@@ -10,7 +10,7 @@
 }
 
 h1 {
-  color: #5b2c83;
+  color: #e72727;
 }
 
 .cards {
@@ -25,11 +25,11 @@ button {
   padding: 15px 30px;
   border: none;
   border-radius: 12px;
-  background-color: #5b2c83;
+  background-color: #e72727;
   color: white;
   cursor: pointer;
 }
 
 button:hover {
-  background-color: #7d3c98;
+  background-color: #e72727;
 }

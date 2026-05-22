@@ -672,13 +672,13 @@ table th {
 }
 
 .totales-table th {
-  color: #0069a8;
+  color: #000000;
   background: #f8f8f8;
 }
 
 .totales-table td:first-child,
 .totales-table th:first-child {
-  color: #0069a8;
+  color: #000000;
   font-weight: bold;
   text-align: left;
 }
