@@ -1,6 +1,5 @@
 import { useLocation } from 'react-router-dom'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 
 function AdminPodios() {
@@ -15,7 +14,6 @@ function AdminPodios() {
   const [nivelFiltro, setNivelFiltro] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('')
   const [clubFiltro, setClubFiltro] = useState('')
-  const navigate = useNavigate() 
   const [gruposAbiertos, setGruposAbiertos] = useState({})
   
   const agrupados = {}
@@ -150,33 +148,43 @@ function toggleGrupo(grupo) {
 }
 
 function exportarPodiosExcel() {
-  const datosExcel = filasFiltradas.map((g, index) => ({
-    Puesto: calcularPuestoAdmin(index, filasFiltradas.length, g.nivel, g.categoria),
-    Apellido: g.apellido,
-    Nombre: g.nombre,
-    Club: g.club,
-    Nivel: g.nivel,
-    Categoria: g.categoria,
-    Suelo: mostrarPuntaje(g.Suelo, g.categoria),
-    Salto: mostrarPuntaje(g.Salto, g.categoria),
-    Viga: mostrarPuntaje(g.Viga, g.categoria),
-    Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
-    Total: esMiniatura(g.categoria) ? '🙂' : g.total
-  }))
+  const datosExcel = [...filasFiltradas]
+    .sort((a, b) => {
+      const nivelA = numeroNivel(a.nivel)
+      const nivelB = numeroNivel(b.nivel)
+
+      if (nivelA !== nivelB) return nivelA - nivelB
+
+      if (a.categoria !== b.categoria) {
+        return String(a.categoria || '').localeCompare(String(b.categoria || ''))
+      }
+
+      return Number(b.total) - Number(a.total)
+    })
+    .map((g, index) => ({
+      Puesto: calcularPuestoAdmin(index, filasFiltradas.length, g.nivel, g.categoria),
+      Apellido: g.apellido,
+      Nombre: g.nombre,
+      Club: g.club,
+      Nivel: g.nivel,
+      Categoria: g.categoria,
+      Suelo: mostrarPuntaje(g.Suelo, g.categoria),
+      Salto: mostrarPuntaje(g.Salto, g.categoria),
+      Viga: mostrarPuntaje(g.Viga, g.categoria),
+      Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
+      Total: esMiniatura(g.categoria) ? '🙂' : g.total
+    }))
 
   const hoja = XLSX.utils.json_to_sheet(datosExcel)
   const libro = XLSX.utils.book_new()
 
   XLSX.utils.book_append_sheet(libro, hoja, 'Podios')
-
   XLSX.writeFile(libro, 'podios-resultados.xlsx')
 }
   return (
     <div className="container admin-page">
       <h1>Podios y resultados</h1>
-      <button onClick={() => navigate('/admin/puntajes')}>
-  Editar puntajes
-</button>
+      
 
       <div className="admin-box">
         <input
