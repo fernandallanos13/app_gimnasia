@@ -15,6 +15,7 @@ function AdminTurnos() {
   const [filtroNivel, setFiltroNivel] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [seleccionadas, setSeleccionadas] = useState([])
+const [ordenManual, setOrdenManual] = useState([])
   const [turnos, setTurnos] = useState([])
 
   async function obtenerTurnos() {
@@ -147,15 +148,25 @@ function AdminTurnos() {
     })
 
   function toggleSeleccion(gimnastaId) {
-    setSeleccionadas((prev) => {
-      if (prev.includes(gimnastaId)) {
-        return prev.filter((id) => id !== gimnastaId)
-      }
+  setSeleccionadas((prev) => {
+    if (prev.includes(gimnastaId)) {
+      setOrdenManual((ordenPrev) =>
+        ordenPrev.filter((id) => id !== gimnastaId)
+      )
 
-      return [...prev, gimnastaId]
-    })
-  }
+      return prev.filter((id) => id !== gimnastaId)
+    }
 
+    setOrdenManual((ordenPrev) => [
+      ...ordenPrev,
+      gimnastaId
+    ])
+
+    return [...prev, gimnastaId]
+  })
+}
+
+   
   async function crearTurno() {
     if (!nombreTurno.trim()) {
       alert('Poné un nombre al turno')
@@ -184,12 +195,14 @@ function AdminTurnos() {
       return
     }
 
-    const registros = seleccionadas.map((gimnastaId) => ({
-      turno_id: turnoCreado.id,
-      torneo_id: torneoSeleccionado.id,
-      gimnasta_id: gimnastaId
-    }))
-
+    const registros = ordenManual.map(
+  (gimnastaId, index) => ({
+    turno_id: turnoCreado.id,
+    torneo_id: torneoSeleccionado.id,
+    gimnasta_id: gimnastaId,
+    orden: index + 1
+  })
+)
     const { error: errorRelaciones } = await supabase
       .from('turno_gimnastas')
       .insert(registros)
@@ -207,6 +220,38 @@ function AdminTurnos() {
 
     obtenerTurnos()
   }
+
+  function moverArriba(index) {
+  if (index === 0) return
+
+  const nuevoOrden = [...ordenManual]
+
+  ;[
+    nuevoOrden[index - 1],
+    nuevoOrden[index]
+  ] = [
+    nuevoOrden[index],
+    nuevoOrden[index - 1]
+  ]
+
+  setOrdenManual(nuevoOrden)
+}
+
+function moverAbajo(index) {
+  if (index === ordenManual.length - 1) return
+
+  const nuevoOrden = [...ordenManual]
+
+  ;[
+    nuevoOrden[index + 1],
+    nuevoOrden[index]
+  ] = [
+    nuevoOrden[index],
+    nuevoOrden[index + 1]
+  ]
+
+  setOrdenManual(nuevoOrden)
+}
 
   return (
     <div className="container admin-page">
@@ -256,6 +301,44 @@ function AdminTurnos() {
         <p>
           Seleccionadas: <strong>{seleccionadas.length}</strong>
         </p>
+
+        <div className="admin-box">
+  <h3>Orden manual</h3>
+
+  {ordenManual.map((id, index) => {
+    const gimnasta = gimnastasInscriptas.find(
+      (i) => i.gimnastas?.id === id
+    )?.gimnastas
+
+    if (!gimnasta) return null
+
+    return (
+      <div
+        key={id}
+        style={{
+          display: 'flex',
+          gap: '10px',
+          alignItems: 'center',
+          marginBottom: '6px'
+        }}
+      >
+        <strong>{index + 1}.</strong>
+
+        <span>
+          {gimnasta.apellido} {gimnasta.nombre}
+        </span>
+
+        <button onClick={() => moverArriba(index)}>
+          ↑
+        </button>
+
+        <button onClick={() => moverAbajo(index)}>
+          ↓
+        </button>
+      </div>
+    )
+  })}
+</div>
 
         <button onClick={crearTurno}>
           Crear turno

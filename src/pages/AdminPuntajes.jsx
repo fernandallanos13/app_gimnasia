@@ -201,7 +201,7 @@ aparato_id: aparatoId,
   inputMode="decimal"
   style={{
     width: '38px',
-    fontSize: '9px',
+    fontSize: '10px',
     padding: '1px',
     textAlign: 'center'
   }}
