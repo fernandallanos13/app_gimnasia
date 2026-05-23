@@ -33,3 +33,37 @@ button {
 button:hover {
   background-color: #e72727;
 }
+
+.admin-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-table {
+  min-width: 1400px;
+}
+
+.container.admin-page {
+  width: 95% !important;
+  max-width: 1900px !important;
+}
+
+.container.admin-page .admin-box {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.container.admin-page .table-wrapper {
+  width: 100% !important;
+  overflow-x: auto !important;
+}
+
+.container.admin-page .admin-table {
+  width: 100% !important;
+  min-width: 1700px !important;
+}
