@@ -216,3 +216,22 @@ button:hover {
 .admin-table input::placeholder {
   font-size: 9px !important;
 }
+
+.admin-table {
+  width: auto !important;
+  table-layout: auto !important;
+}
+
+.admin-table th,
+.admin-table td {
+  width: 1% !important;
+  white-space: nowrap !important;
+  padding: 2px 4px !important;
+}
+
+.admin-table td:nth-child(1),
+.admin-table td:nth-child(2),
+.admin-table td:nth-child(3),
+.admin-table td:nth-child(5) {
+  white-space: normal !important;
+}
