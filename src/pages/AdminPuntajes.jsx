@@ -26,6 +26,9 @@ function AdminPuntajes() {
         apellido: g.apellido,
         nombre: g.nombre,
         club: g.club,
+        nivel: g.niveles?.nombre || '',
+categoria: g.categorias?.nombre || '',
+
         Suelo: '',
         Salto: '',
         Viga: '',
@@ -111,6 +114,8 @@ function AdminPuntajes() {
                 <th>Apellido</th>
                 <th>Nombre</th>
                 <th>Club</th>
+                <th>Nivel</th>
+<th>Categoría</th>
                 <th>Suelo</th>
                 <th>Salto</th>
                 <th>Viga</th>
@@ -130,6 +135,8 @@ function AdminPuntajes() {
                     <td>{g.apellido}</td>
                     <td>{g.nombre}</td>
                     <td>{g.club}</td>
+                    <td>{g.nivel}</td>
+<td>{g.categoria}</td>
 
                     {['Suelo', 'Salto', 'Viga', 'Paralelas'].map((aparato) => (
                       <td key={aparato}>
