@@ -39,6 +39,8 @@ categoria: g.categorias?.nombre || '',
     }
 
     agrupados[clave][aparato] = p.puntaje
+    agrupados[clave][`${aparato}_admin`] =
+  p.nota_admin ?? p.puntaje
     agrupados[clave].puntajesIds[aparato] = p.id
     agrupados[clave].total = Number(
   (
@@ -57,10 +59,10 @@ categoria: g.categorias?.nombre || '',
     setEditando(clave)
 
     setValoresEditados({
-      Suelo: g.Suelo,
-      Salto: g.Salto,
-      Viga: g.Viga,
-      Paralelas: g.Paralelas
+      Suelo: g.Suelo_admin || g.Suelo,
+Salto: g.Salto_admin || g.Salto,
+Viga: g.Viga_admin || g.Viga,
+Paralelas: g.Paralelas_admin || g.Paralelas
     })
   }
 
@@ -85,7 +87,9 @@ categoria: g.categorias?.nombre || '',
 
       const { error } = await supabase
         .from('puntajes')
-        .update({ puntaje: Number(valor) })
+        .update({
+  nota_admin: Number(valor)
+})
         .eq('id', puntajeId)
 
       if (error) {
