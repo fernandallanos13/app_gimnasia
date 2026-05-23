@@ -344,7 +344,9 @@ function Jueces() {
           gimnasta_id: gimnastaId,
           juez_id: juez.id,
           aparato_id: Number(aparatoSeleccionado),
-          puntaje: Number(valor)
+          puntaje: Number(
+  String(valor).replace(',', '.')
+)
         },
         {
           onConflict: 'torneo_id,gimnasta_id,juez_id,aparato_id'
@@ -363,14 +365,19 @@ function Jueces() {
       return
     }
 
-    if (valor !== '' && (Number(valor) < 0 || Number(valor) > 99)) {
+    const valorNormalizado = String(valor).replace(',', '.')
+
+if (
+  valorNormalizado !== '' &&
+  (Number(valorNormalizado) < 0 || Number(valorNormalizado) > 99)
+) {
       alert('El puntaje debe ser entre 0 y 99')
       return
     }
 
     setPuntajes({
       ...puntajes,
-      [gimnastaId]: valor
+      [gimnastaId]: valorNormalizado
     })
 
     guardarPuntajeIndividual(gimnastaId, valor)
@@ -640,9 +647,8 @@ function Jueces() {
                     </button>
                   ) : (
                     <input
-                      type="number"
-                      min="0"
-                      max="99"
+  type="text"
+  inputMode="decimal"
                       placeholder="0-99"
                       value={puntajes[item.gimnastas.id] || ''}
                       onChange={(e) =>
