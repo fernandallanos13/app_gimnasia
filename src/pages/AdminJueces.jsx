@@ -30,6 +30,28 @@ function AdminJueces() {
     obtenerJueces()
   }, [])
 
+  async function reabrirGrupo(grupo) {
+  const confirmar = window.confirm(
+    `¿Reabrir el grupo de ${grupo.jueces?.nombre}?`
+  )
+
+  if (!confirmar) return
+
+  const { error } = await supabase
+    .from('juez_grupos')
+    .update({ finalizado: false })
+    .eq('id', grupo.id)
+
+  if (error) {
+    console.log(error)
+    alert('No se pudo reabrir el grupo')
+    return
+  }
+
+  alert('Grupo reabierto. La jueza debe salir y volver a entrar al grupo.')
+  obtenerJueces()
+}
+
   return (
     <div className="container admin-page">
       <h1>Jueces logueados</h1>
@@ -50,6 +72,7 @@ function AdminJueces() {
                   <th>Nivel</th>
                   <th>Categoría</th>
                   <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
 
@@ -63,6 +86,15 @@ function AdminJueces() {
                     <td>
                       {grupo.finalizado ? 'Finalizado' : 'Cargando'}
                     </td>
+                    <td>
+  {grupo.finalizado ? (
+    <button onClick={() => reabrirGrupo(grupo)}>
+      Reabrir grupo
+    </button>
+  ) : (
+    <span>Activo</span>
+  )}
+</td>
                   </tr>
                 ))}
               </tbody>
