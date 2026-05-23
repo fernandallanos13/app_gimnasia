@@ -12,7 +12,6 @@ import AdminJueces from './pages/AdminJueces'
 import AdminTotales from './pages/AdminTotales'
 import AdminCargasManuales from './pages/AdminCargasManuales'
 import AdminTurnos from './pages/AdminTurnos'
-import AdminTurnos from './pages/AdminTurnos'
 
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -47,7 +46,7 @@ function App() {
 <Route path="/admin/totales" element={<AdminTotales />} />
 <Route path="/admin/cargas-manuales" element={<AdminCargasManuales />} />
 <Route path="/admin/turnos" element={<AdminTurnos />} />
-<Route path="/admin/turnos" element={<AdminTurnos />} />
+
 
       </Routes>
     </BrowserRouter>
