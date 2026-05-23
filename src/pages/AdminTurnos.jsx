@@ -13,10 +13,8 @@ function AdminTurnos() {
   const [nombreTurno, setNombreTurno] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [filtroNivel, setFiltroNivel] = useState('')
-const [filtroCategoria, setFiltroCategoria] = useState('')
-
+  const [filtroCategoria, setFiltroCategoria] = useState('')
   const [seleccionadas, setSeleccionadas] = useState([])
-
   const [turnos, setTurnos] = useState([])
 
   async function obtenerTurnos() {
@@ -31,7 +29,24 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
       return
     }
 
-    setTurnos(data || [])
+    const turnosConTotales = await Promise.all(
+      (data || []).map(async (turno) => {
+        const { count } = await supabase
+          .from('turno_gimnastas')
+          .select('*', {
+            count: 'exact',
+            head: true
+          })
+          .eq('turno_id', turno.id)
+
+        return {
+          ...turno,
+          total_gimnastas: count || 0
+        }
+      })
+    )
+
+    setTurnos(turnosConTotales)
   }
 
   useEffect(() => {
@@ -40,40 +55,78 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
     }
   }, [])
 
+  const nivelesDisponibles = [
+    ...new Map(
+      gimnastasInscriptas
+        .map((i) => i.gimnastas?.niveles)
+        .filter(Boolean)
+        .map((nivel) => [nivel.id, nivel])
+    ).values()
+  ]
+
+  const categoriasDisponibles = [
+    ...new Map(
+      gimnastasInscriptas
+        .map((i) => i.gimnastas?.categorias)
+        .filter(Boolean)
+        .map((categoria) => [categoria.id, categoria])
+    ).values()
+  ]
+
   const filtradas = [...gimnastasInscriptas]
-  .filter((inscripcion) => {
-    const g = inscripcion.gimnastas
+    .filter((inscripcion) => {
+      const g = inscripcion.gimnastas
 
-    const texto =
-      `${g?.apellido} ${g?.nombre} ${g?.club}`
-        .toLowerCase()
+      const texto =
+        `${g?.apellido} ${g?.nombre} ${g?.club}`
+          .toLowerCase()
 
-    return texto.includes(busqueda.toLowerCase())
-  })
-  .sort((a, b) => {
-    const nivelA = a.gimnastas?.niveles?.nombre || ''
-    const nivelB = b.gimnastas?.niveles?.nombre || ''
+      const coincideBusqueda =
+        texto.includes(busqueda.toLowerCase())
 
-    const numeroNivelA = Number(
-      nivelA.replace(/\D/g, '')
-    )
+      const coincideNivel =
+        !filtroNivel ||
+        String(g?.nivel_id) === String(filtroNivel)
 
-    const numeroNivelB = Number(
-      nivelB.replace(/\D/g, '')
-    )
+      const coincideCategoria =
+        !filtroCategoria ||
+        String(g?.categoria_id) === String(filtroCategoria)
 
-    if (numeroNivelA !== numeroNivelB) {
-      return numeroNivelA - numeroNivelB
-    }
+      return (
+        coincideBusqueda &&
+        coincideNivel &&
+        coincideCategoria
+      )
+    })
+    .sort((a, b) => {
+      const nivelA = a.gimnastas?.niveles?.nombre || ''
+      const nivelB = b.gimnastas?.niveles?.nombre || ''
 
-    const apellidoA =
-      a.gimnastas?.apellido?.toLowerCase() || ''
+      const numeroNivelA = Number(nivelA.replace(/\D/g, ''))
+      const numeroNivelB = Number(nivelB.replace(/\D/g, ''))
 
-    const apellidoB =
-      b.gimnastas?.apellido?.toLowerCase() || ''
+      if (numeroNivelA !== numeroNivelB) {
+        return numeroNivelA - numeroNivelB
+      }
 
-    return apellidoA.localeCompare(apellidoB)
-  })
+      const categoriaA =
+        a.gimnastas?.categorias?.nombre?.toLowerCase() || ''
+
+      const categoriaB =
+        b.gimnastas?.categorias?.nombre?.toLowerCase() || ''
+
+      if (categoriaA !== categoriaB) {
+        return categoriaA.localeCompare(categoriaB)
+      }
+
+      const apellidoA =
+        a.gimnastas?.apellido?.toLowerCase() || ''
+
+      const apellidoB =
+        b.gimnastas?.apellido?.toLowerCase() || ''
+
+      return apellidoA.localeCompare(apellidoB)
+    })
 
   function toggleSeleccion(gimnastaId) {
     setSeleccionadas((prev) => {
@@ -142,7 +195,6 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
       <h1>Turnos</h1>
 
       <div className="admin-box">
-
         <input
           type="text"
           placeholder="Nombre del turno (Ej: Turno 11 hs)"
@@ -157,6 +209,32 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
           onChange={(e) => setBusqueda(e.target.value)}
         />
 
+        <select
+          value={filtroNivel}
+          onChange={(e) => setFiltroNivel(e.target.value)}
+        >
+          <option value="">Todos los niveles</option>
+
+          {nivelesDisponibles.map((nivel) => (
+            <option key={nivel.id} value={nivel.id}>
+              {nivel.nombre}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={filtroCategoria}
+          onChange={(e) => setFiltroCategoria(e.target.value)}
+        >
+          <option value="">Todas las categorías</option>
+
+          {categoriasDisponibles.map((categoria) => (
+            <option key={categoria.id} value={categoria.id}>
+              {categoria.nombre}
+            </option>
+          ))}
+        </select>
+
         <p>
           Seleccionadas: <strong>{seleccionadas.length}</strong>
         </p>
@@ -164,12 +242,12 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
         <button onClick={crearTurno}>
           Crear turno
         </button>
-
       </div>
 
       <div className="admin-box">
-
-        <h2>Gimnastas</h2>
+        <h2>
+          Gimnastas filtradas: {filtradas.length}
+        </h2>
 
         <div className="table-wrapper">
           <table className="admin-table">
@@ -185,14 +263,11 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
             </thead>
 
             <tbody>
-
               {filtradas.map((inscripcion) => {
-
                 const g = inscripcion.gimnastas
 
                 return (
                   <tr key={g.id}>
-
                     <td>
                       <input
                         type="checkbox"
@@ -206,18 +281,15 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
                     <td>{g.club}</td>
                     <td>{g.niveles?.nombre}</td>
                     <td>{g.categorias?.nombre}</td>
-
                   </tr>
                 )
               })}
-
             </tbody>
           </table>
         </div>
       </div>
 
       <div className="admin-box">
-
         <h2>Turnos creados</h2>
 
         {turnos.map((turno) => (
@@ -225,10 +297,11 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
             key={turno.id}
             className="result-category-card"
           >
-            <strong>{turno.nombre}</strong>
+            <strong>
+              {turno.nombre} - TOTAL: {turno.total_gimnastas || 0}
+            </strong>
           </div>
         ))}
-
       </div>
     </div>
   )
