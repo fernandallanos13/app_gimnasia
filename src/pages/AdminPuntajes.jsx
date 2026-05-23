@@ -195,7 +195,7 @@ aparato_id: aparatoId,
 
                     {['Suelo', 'Salto', 'Viga', 'Paralelas'].map((aparato) => (
                       <td key={aparato}>
-                        {estaEditando && g.puntajesIds[aparato] ? (
+                        {estaEditando ? (
                           <input
                             type="number"
                             min="0"
