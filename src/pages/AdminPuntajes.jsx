@@ -26,6 +26,7 @@ function AdminPuntajes() {
         apellido: g.apellido,
         nombre: g.nombre,
         club: g.club,
+        gimnasta_id: g.id,
         nivel: g.niveles?.nombre || '',
 categoria: g.categorias?.nombre || '',
 
@@ -100,10 +101,15 @@ Paralelas: g.Paralelas_admin || g.Paralelas
     }
   } else {
     const aparatoData = puntajesCargados.find(
-      (p) => p.aparatos?.nombre === aparato
-    )
+  (p) => p.aparatos?.nombre === aparato
+)
 
-    if (!aparatoData) continue
+const aparatoId = aparatoData?.aparato_id
+
+if (!aparatoId) {
+  alert(`No se encontró el aparato ${aparato}`)
+  continue
+}
 
     const { data: juezAdmin } = await supabase
       .from('jueces')
@@ -116,8 +122,8 @@ Paralelas: g.Paralelas_admin || g.Paralelas
       .insert([
         {
           torneo_id: aparatoData.torneo_id,
-          gimnasta_id: aparatoData.gimnasta_id,
-          aparato_id: aparatoData.aparato_id,
+          gimnasta_id: g.gimnasta_id,
+aparato_id: aparatoId,
           juez_id: juezAdmin.id,
           puntaje: Number(valor)
         }
