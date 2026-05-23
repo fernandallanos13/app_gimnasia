@@ -192,3 +192,15 @@ button:hover {
 .admin-table {
   margin-right: 0 !important;
 }
+
+.admin-table {
+  font-size: 11px !important;
+}
+
+.admin-table th {
+  font-size: 10px !important;
+}
+
+.admin-table td {
+  font-size: 11px !important;
+}

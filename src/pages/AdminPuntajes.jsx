@@ -169,11 +169,11 @@ aparato_id: aparatoId,
                 <th>Nombre</th>
                 <th>Club</th>
                 <th>Nivel</th>
-<th>Categoría</th>
+<th>Cat.</th>
                 <th>Suelo</th>
                 <th>Salto</th>
                 <th>Viga</th>
-                <th>Paralelas</th>
+                <th>Paral.</th>
                 <th>Total</th>
                 <th>Acciones</th>
               </tr>
