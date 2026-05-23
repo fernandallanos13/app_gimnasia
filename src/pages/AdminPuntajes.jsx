@@ -40,7 +40,11 @@ categoria: g.categorias?.nombre || '',
 
     agrupados[clave][aparato] = p.puntaje
     agrupados[clave].puntajesIds[aparato] = p.id
-    agrupados[clave].total += Number(p.puntaje)
+    agrupados[clave].total = Number(
+  (
+    agrupados[clave].total + Number(p.puntaje)
+  ).toFixed(2)
+)
   })
 
   const filas = Object.values(agrupados).filter((g) => {
