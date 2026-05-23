@@ -38,7 +38,8 @@ function AdminTurnos() {
     }
   }, [])
 
-  const filtradas = gimnastasInscriptas.filter((inscripcion) => {
+  const filtradas = [...gimnastasInscriptas]
+  .filter((inscripcion) => {
     const g = inscripcion.gimnastas
 
     const texto =
@@ -46,6 +47,30 @@ function AdminTurnos() {
         .toLowerCase()
 
     return texto.includes(busqueda.toLowerCase())
+  })
+  .sort((a, b) => {
+    const nivelA = a.gimnastas?.niveles?.nombre || ''
+    const nivelB = b.gimnastas?.niveles?.nombre || ''
+
+    const numeroNivelA = Number(
+      nivelA.replace(/\D/g, '')
+    )
+
+    const numeroNivelB = Number(
+      nivelB.replace(/\D/g, '')
+    )
+
+    if (numeroNivelA !== numeroNivelB) {
+      return numeroNivelA - numeroNivelB
+    }
+
+    const apellidoA =
+      a.gimnastas?.apellido?.toLowerCase() || ''
+
+    const apellidoB =
+      b.gimnastas?.apellido?.toLowerCase() || ''
+
+    return apellidoA.localeCompare(apellidoB)
   })
 
   function toggleSeleccion(gimnastaId) {
