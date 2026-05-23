@@ -173,3 +173,22 @@ button:hover {
   flex-direction: column;
   gap: 2px;
 }
+
+.admin-page {
+  padding-right: 0 !important;
+}
+
+.admin-box {
+  padding-right: 0 !important;
+}
+
+.admin-table th:last-child,
+.admin-table td:last-child {
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+}
+
+.admin-table {
+  margin-right: 0 !important;
+}
