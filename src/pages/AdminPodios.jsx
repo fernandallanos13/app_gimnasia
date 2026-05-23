@@ -172,7 +172,9 @@ function exportarPodiosExcel() {
       Salto: mostrarPuntaje(g.Salto, g.categoria),
       Viga: mostrarPuntaje(g.Viga, g.categoria),
       Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
-      Total: esMiniatura(g.categoria) ? '🙂' : g.total
+      Total: esMiniatura(g.categoria)
+  ? '🙂'
+  : Number(g.total || 0).toFixed(2)
     }))
 
   const hoja = XLSX.utils.json_to_sheet(datosExcel)
@@ -291,7 +293,9 @@ function exportarPodiosExcel() {
                     <td>{mostrarPuntaje(g.Paralelas, g.categoria)}</td>
                     <td>
                       <strong>
-                        {esMiniatura(g.categoria) ? '🙂' : g.total}
+                        {esMiniatura(g.categoria)
+  ? '🙂'
+  : Number(g.total || 0).toFixed(2)}
                       </strong>
                     </td>
                   </tr>

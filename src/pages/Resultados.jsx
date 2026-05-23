@@ -27,6 +27,9 @@ function Resultados() {
     return '🙂'
   }
 
+  return Number(g.total || 0).toFixed(2)
+}
+
   return g.total
 }
 
