@@ -133,10 +133,11 @@ categoria: g.categorias?.nombre || '',
                 return (
                   <tr key={clave}>
                     <td>{g.apellido}</td>
-                    <td>{g.nombre}</td>
-                    <td>{g.club}</td>
-                    <td>{g.nivel}</td>
+<td>{g.nombre}</td>
+<td>{g.club}</td>
+<td>{g.nivel}</td>
 <td>{g.categoria}</td>
+                    
 
                     {['Suelo', 'Salto', 'Viga', 'Paralelas'].map((aparato) => (
                       <td key={aparato}>
