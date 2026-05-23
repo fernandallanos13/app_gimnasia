@@ -67,3 +67,34 @@ button:hover {
   width: 100% !important;
   min-width: 1200px !important;
 }
+
+/* Tabla de puntajes más cómoda */
+.container.admin-page {
+  width: 98vw !important;
+  max-width: 98vw !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+.container.admin-page .admin-box {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 14px !important;
+}
+
+.container.admin-page .admin-table {
+  width: 100% !important;
+  min-width: 1250px !important;
+  font-size: 14px !important;
+}
+
+.container.admin-page .admin-table th,
+.container.admin-page .admin-table td {
+  padding: 8px 10px !important;
+}
+
+.container.admin-page .admin-table button {
+  font-size: 14px !important;
+  padding: 8px 12px !important;
+  min-width: 90px !important;
+}
