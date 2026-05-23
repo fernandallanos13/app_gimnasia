@@ -209,7 +209,12 @@ function calcularPuestos(lista, categoria, nivel) {
       if (!agrupados[gimnasta.id]) return
 
       agrupados[gimnasta.id][aparato] = Number(item.puntaje)
-      agrupados[gimnasta.id].total += Number(item.puntaje)
+      agrupados[gimnasta.id].total = Number(
+  (
+    agrupados[gimnasta.id].total +
+    Number(item.puntaje)
+  ).toFixed(2)
+)
     })
 
     const resultadosFinales = Object.values(agrupados)
