@@ -366,7 +366,15 @@ function Jueces() {
     }
 
     const valorNormalizado = String(valor).replace(',', '.')
+const regexDecimal = /^\d+([.,]\d{0,2})?$/
 
+if (
+  valorNormalizado !== '' &&
+  !regexDecimal.test(valor)
+) {
+  alert('Máximo 2 decimales')
+  return
+}
 if (
   valorNormalizado !== '' &&
   (Number(valorNormalizado) < 0 || Number(valorNormalizado) > 99)
@@ -650,6 +658,7 @@ if (
   type="text"
   inputMode="decimal"
                       placeholder="0-99"
+                      maxLength={5}
                       value={puntajes[item.gimnastas.id] || ''}
                       onChange={(e) =>
                         cambiarPuntaje(item.gimnastas.id, e.target.value)
