@@ -275,6 +275,7 @@ function Jueces() {
       .from('turno_gimnastas')
       .select(`
         gimnasta_id,
+        orden,
         gimnastas (
           id,
           nombre,
@@ -296,11 +297,8 @@ function Jueces() {
     }
 
     const ordenadas = [...data].sort((a, b) => {
-      const apellidoA = a.gimnastas?.apellido?.toLowerCase() || ''
-      const apellidoB = b.gimnastas?.apellido?.toLowerCase() || ''
-      return apellidoA.localeCompare(apellidoB)
-    })
-
+  return Number(a.orden || 0) - Number(b.orden || 0)
+})
     setGimnastasGrupo(ordenadas)
     cargarPuntajesPrevios(ordenadas)
   }
