@@ -92,3 +92,33 @@ button:hover {
   flex-direction: column;
   gap: 4px;
 }
+
+.container.admin-page .admin-table {
+  width: 100%;
+  table-layout: auto !important;
+  font-size: 11px !important;
+}
+
+.container.admin-page .admin-table th,
+.container.admin-page .admin-table td {
+  padding: 3px !important;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+}
+
+.container.admin-page .admin-table td:nth-child(3) {
+  max-width: 120px;
+}
+
+.container.admin-page .admin-table td:nth-child(5) {
+  max-width: 90px;
+}
+
+.container.admin-page .admin-table input {
+  width: 45px !important;
+}
+
+.container.admin-page .admin-table button {
+  font-size: 10px !important;
+  padding: 3px 4px !important;
+}
