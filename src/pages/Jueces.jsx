@@ -392,21 +392,7 @@ if (
   }
 
   async function cargarOtroGrupo() {
-    if (torneo && juez && aparatoSeleccionado) {
-      localStorage.setItem(obtenerClaveGrupo(), 'true')
-
-      if (modoCarga === 'categoria' && nivelSeleccionado && categoriaSeleccionada) {
-        await supabase
-          .from('juez_grupos')
-          .update({ finalizado: true })
-          .eq('torneo_id', torneo.id)
-          .eq('juez_id', juez.id)
-          .eq('aparato_id', Number(aparatoSeleccionado))
-          .eq('nivel_id', Number(nivelSeleccionado))
-          .eq('categoria_id', Number(categoriaSeleccionada))
-      }
-    }
-
+   
     setModoCarga('')
     setNivelSeleccionado('')
     setCategoriaSeleccionada('')
@@ -668,12 +654,6 @@ if (
                 </div>
               ))}
 
-              <button
-                onClick={cargarOtroGrupo}
-                style={{ marginTop: '15px' }}
-              >
-                Finalicé este grupo / Cargar otro grupo
-              </button>
             </div>
           )}
         </div>
