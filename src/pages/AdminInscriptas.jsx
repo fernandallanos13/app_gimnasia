@@ -1,6 +1,8 @@
 import { useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { supabase } from '../services/supabase'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 
 function AdminInscriptas() {
   const location = useLocation()
@@ -208,6 +210,46 @@ function AdminInscriptas() {
     alert('Gimnasta eliminada')
   }
 
+  const descargarExcel = () => {
+  const datos = filtradas.map((inscripcion) => {
+    const g = inscripcion.gimnastas
+
+    return {
+      Apellido: g?.apellido || '',
+      Nombre: g?.nombre || '',
+      Club: g?.club || '',
+      Profe: g?.profe || '',
+      Nivel: g?.niveles?.nombre || '',
+      Categoria: g?.categorias?.nombre || ''
+    }
+  })
+
+  const worksheet = XLSX.utils.json_to_sheet(datos)
+
+  const workbook = XLSX.utils.book_new()
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    'Inscriptas'
+  )
+
+  const excelBuffer = XLSX.write(workbook, {
+    bookType: 'xlsx',
+    type: 'array'
+  })
+
+  const fileData = new Blob(
+    [excelBuffer],
+    {
+      type:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    }
+  )
+
+  saveAs(fileData, 'inscriptas.xlsx')
+}
+
   const filtradas = inscriptas.filter((inscripcion) => {
     const g = inscripcion.gimnastas
 
@@ -229,6 +271,13 @@ function AdminInscriptas() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
+        <button
+  onClick={descargarExcel}
+  className="btn btn-success"
+  style={{ marginTop: '10px', marginBottom: '15px' }}
+>
+  Descargar Excel
+</button>
 
         <div className="table-wrapper">
           <table className="admin-table">
