@@ -75,30 +75,61 @@ Paralelas: g.Paralelas_admin || g.Paralelas
     const aparatos = ['Suelo', 'Salto', 'Viga', 'Paralelas']
 
     for (const aparato of aparatos) {
-      const puntajeId = g.puntajesIds[aparato]
-      const valor = valoresEditados[aparato]
+  const puntajeId = g.puntajesIds[aparato]
+  const valor = valoresEditados[aparato]
 
-      if (!puntajeId || valor === '') continue
+  if (valor === '') continue
 
-      if (Number(valor) < 0 || Number(valor) > 99) {
-        alert('Los puntajes deben estar entre 0 y 99')
-        return
-      }
+  if (Number(valor) < 0 || Number(valor) > 99) {
+    alert('Los puntajes deben estar entre 0 y 99')
+    return
+  }
 
-      const { error } = await supabase
-        .from('puntajes')
-        .update({
-  nota_admin: Number(valor)
-})
-        .eq('id', puntajeId)
+  if (puntajeId) {
+    const { error } = await supabase
+      .from('puntajes')
+      .update({
+        puntaje: Number(valor)
+      })
+      .eq('id', puntajeId)
 
-      if (error) {
-        console.log(error)
-        alert('Error al editar puntaje')
-        return
-      }
+    if (error) {
+      console.log(error)
+      alert('Error al editar puntaje')
+      return
     }
+  } else {
+    const aparatoData = puntajesCargados.find(
+      (p) => p.aparatos?.nombre === aparato
+    )
 
+    if (!aparatoData) continue
+
+    const { data: juezAdmin } = await supabase
+      .from('jueces')
+      .select('id')
+      .eq('nombre', 'ADMIN')
+      .single()
+
+    const { error } = await supabase
+      .from('puntajes')
+      .insert([
+        {
+          torneo_id: aparatoData.torneo_id,
+          gimnasta_id: aparatoData.gimnasta_id,
+          aparato_id: aparatoData.aparato_id,
+          juez_id: juezAdmin.id,
+          puntaje: Number(valor)
+        }
+      ])
+
+    if (error) {
+      console.log(error)
+      alert('Error al crear puntaje')
+      return
+    }
+  }
+}
     alert('Puntajes editados. Volvé a entrar para verlos actualizados.')
     setEditando(null)
   }
