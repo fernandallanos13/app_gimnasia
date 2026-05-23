@@ -104,7 +104,16 @@ Paralelas: g.Paralelas_admin || g.Paralelas
   (p) => p.aparatos?.nombre === aparato
 )
 
-const aparatoId = aparatoData?.aparato_id
+const APARATOS_IDS = {
+  Suelo: 1,
+  Salto: 2,
+  Viga: 3,
+  Paralelas: 4
+}
+
+const aparatoId =
+  aparatoData?.aparato_id ||
+  APARATOS_IDS[aparato]
 
 if (!aparatoId) {
   alert(`No se encontró el aparato ${aparato}`)
