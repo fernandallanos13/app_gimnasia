@@ -150,7 +150,7 @@ aparato_id: aparatoId,
   }
 
   return (
-    <div className="container admin-page">
+    <div className="admin-page">
       <h1>Puntajes cargados</h1>
 
       <div className="admin-box">
