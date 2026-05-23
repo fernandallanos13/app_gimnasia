@@ -56,22 +56,40 @@ function AdminTurnos() {
   }, [])
 
   const nivelesDisponibles = [
-    ...new Map(
-      gimnastasInscriptas
-        .map((i) => i.gimnastas?.niveles)
-        .filter(Boolean)
-        .map((nivel) => [nivel.id, nivel])
-    ).values()
-  ]
+  ...new Map(
+    gimnastasInscriptas
+      .map((i) => {
+        const g = i.gimnastas
+
+        if (!g?.nivel_id) return null
+
+        return {
+          id: g.nivel_id,
+          nombre: g.niveles?.nombre || `Nivel ${g.nivel_id}`
+        }
+      })
+      .filter(Boolean)
+      .map((nivel) => [nivel.id, nivel])
+  ).values()
+]
 
   const categoriasDisponibles = [
-    ...new Map(
-      gimnastasInscriptas
-        .map((i) => i.gimnastas?.categorias)
-        .filter(Boolean)
-        .map((categoria) => [categoria.id, categoria])
-    ).values()
-  ]
+  ...new Map(
+    gimnastasInscriptas
+      .map((i) => {
+        const g = i.gimnastas
+
+        if (!g?.categoria_id) return null
+
+        return {
+          id: g.categoria_id,
+          nombre: g.categorias?.nombre || `Categoría ${g.categoria_id}`
+        }
+      })
+      .filter(Boolean)
+      .map((categoria) => [categoria.id, categoria])
+  ).values()
+]
 
   const filtradas = [...gimnastasInscriptas]
     .filter((inscripcion) => {
