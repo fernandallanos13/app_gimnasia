@@ -12,6 +12,8 @@ function AdminTurnos() {
 
   const [nombreTurno, setNombreTurno] = useState('')
   const [busqueda, setBusqueda] = useState('')
+  const [filtroNivel, setFiltroNivel] = useState('')
+const [filtroCategoria, setFiltroCategoria] = useState('')
 
   const [seleccionadas, setSeleccionadas] = useState([])
 
