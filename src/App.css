@@ -31,114 +31,59 @@ button {
 }
 
 button:hover {
-  background-color: #e72727;
+  background-color: #c91f1f;
 }
 
-.admin-page {
-  width: 100%;
-  max-width: 100%;
-}
-
-.table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.admin-table {
-  min-width: 1400px;
-}
+/* ========================= */
+/* ADMIN TABLAS */
+/* ========================= */
 
 .container.admin-page {
-  width: 95% !important;
-  max-width: 1900px !important;
+  width: 100vw;
+  max-width: 100vw;
+  padding: 6px;
+  box-sizing: border-box;
 }
 
 .container.admin-page .admin-box {
-  width: 100% !important;
-  max-width: 100% !important;
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
 }
 
 .container.admin-page .table-wrapper {
-  width: 100% !important;
-  overflow-x: auto !important;
+  width: 100%;
+  overflow-x: visible;
 }
 
 .container.admin-page .admin-table {
-  width: 100% !important;
-  min-width: 1200px !important;
-}
-
-/* Tabla de puntajes más cómoda */
-.container.admin-page {
-  width: 98vw !important;
-  max-width: 98vw !important;
-  padding-left: 8px !important;
-  padding-right: 8px !important;
-}
-
-.container.admin-page .admin-box {
-  width: 100% !important;
-  max-width: 100% !important;
-  padding: 14px !important;
-}
-
-.container.admin-page .admin-table {
-  width: 100% !important;
-  min-width: 1250px !important;
-  font-size: 14px !important;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
 }
 
 .container.admin-page .admin-table th,
 .container.admin-page .admin-table td {
-  padding: 8px 10px !important;
-}
-
-.container.admin-page .admin-table button {
-  font-size: 14px !important;
-  padding: 8px 12px !important;
-  min-width: 90px !important;
-}
-
-/* TABLA PUNTAJES COMPACTA */
-
-.container.admin-page {
-  width: 99vw !important;
-  max-width: 99vw !important;
-  padding: 4px !important;
-}
-
-.container.admin-page .admin-box {
-  width: 100% !important;
-  max-width: 100% !important;
-  padding: 8px !important;
-}
-
-.container.admin-page .table-wrapper {
-  overflow-x: hidden !important;
-}
-
-.container.admin-page .admin-table {
-  width: 100% !important;
-  min-width: unset !important;
-  table-layout: fixed !important;
-  font-size: 12px !important;
-}
-
-.container.admin-page .admin-table th,
-.container.admin-page .admin-table td {
-  padding: 4px !important;
+  padding: 4px;
   word-break: break-word;
+  border: 1px solid #ddd;
+}
+
+.container.admin-page .admin-table th {
+  background-color: #f5f5f5;
 }
 
 .container.admin-page .admin-table input {
-  width: 55px !important;
-  font-size: 12px !important;
-  padding: 2px !important;
+  width: 50px;
+  padding: 2px;
+  font-size: 12px;
+  text-align: center;
 }
 
 .container.admin-page .admin-table button {
-  font-size: 11px !important;
-  padding: 4px 6px !important;
+  font-size: 11px;
+  padding: 4px 6px;
 }
 
 .table-buttons {
