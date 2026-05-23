@@ -17,6 +17,7 @@ function AdminTurnos() {
   const [seleccionadas, setSeleccionadas] = useState([])
 const [ordenManual, setOrdenManual] = useState([])
   const [turnos, setTurnos] = useState([])
+  const [turnoEditando, setTurnoEditando] = useState(null)
 
   async function obtenerTurnos() {
     const { data, error } = await supabase
@@ -253,6 +254,98 @@ function moverAbajo(index) {
   setOrdenManual(nuevoOrden)
 }
 
+async function editarTurno(turno) {
+  setTurnoEditando(turno)
+  setNombreTurno(turno.nombre)
+
+  const { data, error } = await supabase
+    .from('turno_gimnastas')
+    .select('gimnasta_id, orden')
+    .eq('turno_id', turno.id)
+    .order('orden', { ascending: true })
+
+  if (error) {
+    console.log(error)
+    alert('Error al traer gimnastas del turno')
+    return
+  }
+
+  const ids = (data || []).map((item) => item.gimnasta_id)
+
+  setSeleccionadas(ids)
+  setOrdenManual(ids)
+}
+
+async function guardarCambiosTurno() {
+  if (!turnoEditando) return
+
+  if (!nombreTurno.trim()) {
+    alert('Poné un nombre al turno')
+    return
+  }
+
+  if (ordenManual.length === 0) {
+    alert('El turno debe tener al menos una gimnasta')
+    return
+  }
+
+  const { error: errorNombre } = await supabase
+    .from('turnos')
+    .update({
+      nombre: nombreTurno.trim()
+    })
+    .eq('id', turnoEditando.id)
+
+  if (errorNombre) {
+    console.log(errorNombre)
+    alert('Error al actualizar el turno')
+    return
+  }
+
+  const { error: errorBorrar } = await supabase
+    .from('turno_gimnastas')
+    .delete()
+    .eq('turno_id', turnoEditando.id)
+
+  if (errorBorrar) {
+    console.log(errorBorrar)
+    alert('Error al borrar el orden anterior')
+    return
+  }
+
+  const registros = ordenManual.map((gimnastaId, index) => ({
+    turno_id: turnoEditando.id,
+    torneo_id: torneoSeleccionado.id,
+    gimnasta_id: gimnastaId,
+    orden: index + 1
+  }))
+
+  const { error: errorInsertar } = await supabase
+    .from('turno_gimnastas')
+    .insert(registros)
+
+  if (errorInsertar) {
+    console.log(errorInsertar)
+    alert('Error al guardar gimnastas del turno')
+    return
+  }
+
+  alert('Turno actualizado')
+
+  setTurnoEditando(null)
+  setNombreTurno('')
+  setSeleccionadas([])
+  setOrdenManual([])
+  obtenerTurnos()
+}
+
+function cancelarEdicionTurno() {
+  setTurnoEditando(null)
+  setNombreTurno('')
+  setSeleccionadas([])
+  setOrdenManual([])
+}
+
   return (
     <div className="container admin-page">
       <h1>Turnos</h1>
@@ -340,9 +433,21 @@ function moverAbajo(index) {
   })}
 </div>
 
-        <button onClick={crearTurno}>
-          Crear turno
-        </button>
+        {turnoEditando ? (
+  <div className="table-buttons">
+    <button onClick={guardarCambiosTurno}>
+      Guardar cambios
+    </button>
+
+    <button className="danger" onClick={cancelarEdicionTurno}>
+      Cancelar edición
+    </button>
+  </div>
+) : (
+  <button onClick={crearTurno}>
+    Crear turno
+  </button>
+)}
       </div>
 
       <div className="admin-box">
@@ -401,6 +506,10 @@ function moverAbajo(index) {
             <strong>
               {turno.nombre} - TOTAL: {turno.total_gimnastas || 0}
             </strong>
+
+            <button onClick={() => editarTurno(turno)}>
+  Editar turno
+</button>
           </div>
         ))}
       </div>
