@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-
 import { supabase } from '../services/supabase'
 
 function Jueces() {
@@ -12,10 +11,13 @@ function Jueces() {
   const [aparatos, setAparatos] = useState([])
   const [niveles, setNiveles] = useState([])
   const [categorias, setCategorias] = useState([])
+  const [turnos, setTurnos] = useState([])
 
   const [aparatoSeleccionado, setAparatoSeleccionado] = useState('')
+  const [modoCarga, setModoCarga] = useState('')
   const [nivelSeleccionado, setNivelSeleccionado] = useState('')
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('')
+  const [turnoSeleccionado, setTurnoSeleccionado] = useState('')
 
   const [gimnastasGrupo, setGimnastasGrupo] = useState([])
   const [puntajes, setPuntajes] = useState({})
@@ -38,19 +40,9 @@ function Jueces() {
       return
     }
 
-    if (torneoEncontrado.estado === 'cerrado') {
-      alert('Este torneo ya está cerrado')
-      return
-    }
-
     const { data: juezCreado, error: errorJuez } = await supabase
       .from('jueces')
-      .insert([
-        {
-          nombre: nombreJuez,
-          torneo_id: torneoEncontrado.id
-        }
-      ])
+      .insert([{ nombre: nombreJuez, torneo_id: torneoEncontrado.id }])
       .select()
       .single()
 
@@ -67,6 +59,7 @@ function Jueces() {
     localStorage.setItem('torneo', JSON.stringify(torneoEncontrado))
 
     obtenerNiveles(torneoEncontrado.id)
+    obtenerTurnos(torneoEncontrado.id)
   }
 
   async function obtenerAparatos() {
@@ -75,11 +68,19 @@ function Jueces() {
       .select('*')
       .order('id', { ascending: true })
 
-    if (error) {
-      console.log(error)
-    } else {
-      setAparatos(data)
-    }
+    if (error) console.log(error)
+    else setAparatos(data)
+  }
+
+  async function obtenerTurnos(torneoId) {
+    const { data, error } = await supabase
+      .from('turnos')
+      .select('*')
+      .eq('torneo_id', torneoId)
+      .order('id', { ascending: true })
+
+    if (error) console.log(error)
+    else setTurnos(data || [])
   }
 
   async function obtenerNiveles(torneoId) {
@@ -105,10 +106,7 @@ function Jueces() {
 
     data.forEach((item) => {
       const nivel = item.gimnastas?.niveles
-
-      if (nivel) {
-        nivelesMap.set(nivel.id, nivel)
-      }
+      if (nivel) nivelesMap.set(nivel.id, nivel)
     })
 
     setNiveles(Array.from(nivelesMap.values()))
@@ -148,135 +146,189 @@ function Jueces() {
         String(gimnasta?.nivel_id) === String(nivelId) &&
         gimnasta?.categorias
       ) {
-        categoriasMap.set(
-          gimnasta.categorias.id,
-          gimnasta.categorias
-        )
+        categoriasMap.set(gimnasta.categorias.id, gimnasta.categorias)
       }
     })
 
     setCategorias(Array.from(categoriasMap.values()))
   }
 
-  async function obtenerGimnastasDelGrupo(categoriaId) {
-  setCategoriaSeleccionada(categoriaId)
-  setGimnastasGrupo([])
-  setPuntajes({})
-
-  if (!aparatoSeleccionado) {
-    alert('Primero seleccioná un aparato')
-    setCategoriaSeleccionada('')
-    return
-  }
-
-  if (!torneo?.id || !juez?.id || !nivelSeleccionado || !categoriaId) {
-    alert('Faltan datos para registrar el grupo del juez')
-    return
-  }
-
-  const claveGrupo = `grupo-finalizado-${torneo.id}-${juez.id}-${aparatoSeleccionado}-${nivelSeleccionado}-${categoriaId}`
-
-  if (localStorage.getItem(claveGrupo) === 'true') {
-    alert('Este grupo ya fue finalizado. Pedile al admin que edite los puntajes si hay un error.')
-    setCategoriaSeleccionada('')
-    return
-  }
-
-  const { error: errorGrupo } = await supabase
-    .from('juez_grupos')
-    .upsert(
-      {
-        torneo_id: torneo.id,
-      juez_id: juez.id,
-      aparato_id: Number(aparatoSeleccionado),
-      nivel_id: Number(nivelSeleccionado),
-      categoria_id: Number(categoriaId),
-      finalizado: false
-    },
-    {
-      onConflict: 'torneo_id,juez_id,aparato_id,nivel_id,categoria_id'
+  function obtenerClaveGrupo() {
+    if (modoCarga === 'turno') {
+      return `grupo-finalizado-turno-${torneo?.id}-${juez?.id}-${aparatoSeleccionado}-${turnoSeleccionado}`
     }
-  )
 
-console.log('ERROR GRUPO:', errorGrupo)
-console.log('DATOS GRUPO:', {
-  torneo_id: torneo.id,
-  juez_id: juez.id,
-  aparato_id: Number(aparatoSeleccionado),
-  nivel_id: Number(nivelSeleccionado),
-  categoria_id: Number(categoriaId)
-})
-
-  if (errorGrupo) {
-    console.log(errorGrupo)
-    alert('No se pudo registrar el grupo del juez')
-    return
+    return `grupo-finalizado-${torneo?.id}-${juez?.id}-${aparatoSeleccionado}-${nivelSeleccionado}-${categoriaSeleccionada}`
   }
 
-  const { data, error } = await supabase
-    .from('inscripciones')
-    .select(`
-      id,
-      gimnastas (
-        id,
-        nombre,
-        apellido,
-        club,
-        profe,
-        nivel_id,
-        categoria_id
+  function grupoEstaFinalizado() {
+    return localStorage.getItem(obtenerClaveGrupo()) === 'true'
+  }
+
+  async function obtenerGimnastasDelGrupo(categoriaId) {
+    setCategoriaSeleccionada(categoriaId)
+    setGimnastasGrupo([])
+    setPuntajes({})
+
+    if (!aparatoSeleccionado) {
+      alert('Primero seleccioná un aparato')
+      setCategoriaSeleccionada('')
+      return
+    }
+
+    if (!torneo?.id || !juez?.id || !nivelSeleccionado || !categoriaId) {
+      alert('Faltan datos para registrar el grupo del juez')
+      return
+    }
+
+    const claveGrupo = `grupo-finalizado-${torneo.id}-${juez.id}-${aparatoSeleccionado}-${nivelSeleccionado}-${categoriaId}`
+
+    if (localStorage.getItem(claveGrupo) === 'true') {
+      alert('Este grupo ya fue finalizado. Pedile al admin que edite los puntajes si hay un error.')
+      setCategoriaSeleccionada('')
+      return
+    }
+
+    const { error: errorGrupo } = await supabase
+      .from('juez_grupos')
+      .upsert(
+        {
+          torneo_id: torneo.id,
+          juez_id: juez.id,
+          aparato_id: Number(aparatoSeleccionado),
+          nivel_id: Number(nivelSeleccionado),
+          categoria_id: Number(categoriaId),
+          finalizado: false
+        },
+        {
+          onConflict: 'torneo_id,juez_id,aparato_id,nivel_id,categoria_id'
+        }
       )
-    `)
-    .eq('torneo_id', torneo.id)
 
-  if (error) {
-    console.log(error)
-    alert('Error al traer gimnastas')
-    return
-  }
+    if (errorGrupo) {
+      console.log(errorGrupo)
+      alert('No se pudo registrar el grupo del juez')
+      return
+    }
 
-  const filtradas = data.filter((item) => {
-    const g = item.gimnastas
+    const { data, error } = await supabase
+      .from('inscripciones')
+      .select(`
+        id,
+        gimnastas (
+          id,
+          nombre,
+          apellido,
+          club,
+          profe,
+          nivel_id,
+          categoria_id
+        )
+      `)
+      .eq('torneo_id', torneo.id)
 
-    return (
-      String(g?.nivel_id) === String(nivelSeleccionado) &&
-      String(g?.categoria_id) === String(categoriaId)
-    )
-  })
+    if (error) {
+      console.log(error)
+      alert('Error al traer gimnastas')
+      return
+    }
 
-  const ordenadas = filtradas.sort((a, b) => {
-    const apellidoA = a.gimnastas?.apellido?.toLowerCase() || ''
-    const apellidoB = b.gimnastas?.apellido?.toLowerCase() || ''
+    const filtradas = data.filter((item) => {
+      const g = item.gimnastas
 
-    return apellidoA.localeCompare(apellidoB)
-  })
-
-  setGimnastasGrupo(ordenadas)
-
-  const idsGimnastas = ordenadas.map((item) => item.gimnastas.id)
-
-  if (idsGimnastas.length === 0) {
-    return
-  }
-
-  const { data: puntajesExistentes, error: errorPuntajes } = await supabase
-    .from('puntajes')
-    .select('*')
-    .eq('torneo_id', torneo.id)
-    .eq('juez_id', juez.id)
-    .eq('aparato_id', Number(aparatoSeleccionado))
-    .in('gimnasta_id', idsGimnastas)
-
-  if (!errorPuntajes && puntajesExistentes) {
-    const puntajesPrevios = {}
-
-    puntajesExistentes.forEach((p) => {
-      puntajesPrevios[p.gimnasta_id] = p.puntaje
+      return (
+        String(g?.nivel_id) === String(nivelSeleccionado) &&
+        String(g?.categoria_id) === String(categoriaId)
+      )
     })
 
-    setPuntajes(puntajesPrevios)
+    const ordenadas = filtradas.sort((a, b) => {
+      const apellidoA = a.gimnastas?.apellido?.toLowerCase() || ''
+      const apellidoB = b.gimnastas?.apellido?.toLowerCase() || ''
+      return apellidoA.localeCompare(apellidoB)
+    })
+
+    setGimnastasGrupo(ordenadas)
+    cargarPuntajesPrevios(ordenadas)
   }
-}
+
+  async function obtenerGimnastasDelTurno(turnoId) {
+    setTurnoSeleccionado(turnoId)
+    setGimnastasGrupo([])
+    setPuntajes({})
+
+    if (!aparatoSeleccionado) {
+      alert('Primero seleccioná un aparato')
+      setTurnoSeleccionado('')
+      return
+    }
+
+    const claveGrupo = `grupo-finalizado-turno-${torneo.id}-${juez.id}-${aparatoSeleccionado}-${turnoId}`
+
+    if (localStorage.getItem(claveGrupo) === 'true') {
+      alert('Este turno ya fue finalizado. Pedile al admin que edite los puntajes si hay un error.')
+      setTurnoSeleccionado('')
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('turno_gimnastas')
+      .select(`
+        gimnasta_id,
+        gimnastas (
+          id,
+          nombre,
+          apellido,
+          club,
+          profe,
+          nivel_id,
+          categoria_id,
+          categorias (nombre)
+        )
+      `)
+      .eq('turno_id', turnoId)
+      .eq('torneo_id', torneo.id)
+
+    if (error) {
+      console.log(error)
+      alert('Error al traer gimnastas del turno')
+      return
+    }
+
+    const ordenadas = [...data].sort((a, b) => {
+      const apellidoA = a.gimnastas?.apellido?.toLowerCase() || ''
+      const apellidoB = b.gimnastas?.apellido?.toLowerCase() || ''
+      return apellidoA.localeCompare(apellidoB)
+    })
+
+    setGimnastasGrupo(ordenadas)
+    cargarPuntajesPrevios(ordenadas)
+  }
+
+  async function cargarPuntajesPrevios(lista) {
+    const idsGimnastas = lista.map((item) => item.gimnastas.id)
+
+    if (idsGimnastas.length === 0) return
+
+    const { data: puntajesExistentes, error } = await supabase
+      .from('puntajes')
+      .select('*')
+      .eq('torneo_id', torneo.id)
+      .eq('juez_id', juez.id)
+      .eq('aparato_id', Number(aparatoSeleccionado))
+      .in('gimnasta_id', idsGimnastas)
+
+    if (!error && puntajesExistentes) {
+      const puntajesPrevios = {}
+
+      puntajesExistentes.forEach((p) => {
+        puntajesPrevios[p.gimnasta_id] = p.puntaje
+      })
+
+      setPuntajes(puntajesPrevios)
+    }
+  }
+
   async function guardarPuntajeIndividual(gimnastaId, valor) {
     if (!aparatoSeleccionado || !torneo || !juez) return
 
@@ -306,15 +358,15 @@ console.log('DATOS GRUPO:', {
   }
 
   function cambiarPuntaje(gimnastaId, valor) {
+    if (grupoEstaFinalizado()) {
+      alert('Este grupo ya fue finalizado. No podés modificar los puntajes.')
+      return
+    }
+
     if (valor !== '' && (Number(valor) < 0 || Number(valor) > 99)) {
       alert('El puntaje debe ser entre 0 y 99')
       return
     }
-
-    if (grupoEstaFinalizado()) {
-  alert('Este grupo ya fue finalizado. No podés modificar los puntajes.')
-  return
-}
 
     setPuntajes({
       ...puntajes,
@@ -324,34 +376,30 @@ console.log('DATOS GRUPO:', {
     guardarPuntajeIndividual(gimnastaId, valor)
   }
 
-  function obtenerClaveGrupo() {
-  return `grupo-finalizado-${torneo?.id}-${juez?.id}-${aparatoSeleccionado}-${nivelSeleccionado}-${categoriaSeleccionada}`
-}
+  async function cargarOtroGrupo() {
+    if (torneo && juez && aparatoSeleccionado) {
+      localStorage.setItem(obtenerClaveGrupo(), 'true')
 
-function grupoEstaFinalizado() {
-  return localStorage.getItem(obtenerClaveGrupo()) === 'true'
-}
+      if (modoCarga === 'categoria' && nivelSeleccionado && categoriaSeleccionada) {
+        await supabase
+          .from('juez_grupos')
+          .update({ finalizado: true })
+          .eq('torneo_id', torneo.id)
+          .eq('juez_id', juez.id)
+          .eq('aparato_id', Number(aparatoSeleccionado))
+          .eq('nivel_id', Number(nivelSeleccionado))
+          .eq('categoria_id', Number(categoriaSeleccionada))
+      }
+    }
 
-async function cargarOtroGrupo() {
-  if (torneo && juez && aparatoSeleccionado && nivelSeleccionado && categoriaSeleccionada) {
-    localStorage.setItem(obtenerClaveGrupo(), 'true')
-
-    await supabase
-      .from('juez_grupos')
-      .update({ finalizado: true })
-      .eq('torneo_id', torneo.id)
-      .eq('juez_id', juez.id)
-      .eq('aparato_id', Number(aparatoSeleccionado))
-      .eq('nivel_id', Number(nivelSeleccionado))
-      .eq('categoria_id', Number(categoriaSeleccionada))
+    setModoCarga('')
+    setNivelSeleccionado('')
+    setCategoriaSeleccionada('')
+    setTurnoSeleccionado('')
+    setCategorias([])
+    setGimnastasGrupo([])
+    setPuntajes({})
   }
-
-  setNivelSeleccionado('')
-  setCategoriaSeleccionada('')
-  setCategorias([])
-  setGimnastasGrupo([])
-  setPuntajes({})
-}
 
   function salirJuez() {
     localStorage.removeItem('juez')
@@ -361,8 +409,10 @@ async function cargarOtroGrupo() {
     setJuez(null)
     setTorneo(null)
     setAparatoSeleccionado('')
+    setModoCarga('')
     setNivelSeleccionado('')
     setCategoriaSeleccionada('')
+    setTurnoSeleccionado('')
     setCategorias([])
     setGimnastasGrupo([])
     setPuntajes({})
@@ -375,16 +425,7 @@ async function cargarOtroGrupo() {
       .eq('id', torneoGuardado.id)
       .single()
 
-    if (error || !data) {
-      localStorage.removeItem('juez')
-      localStorage.removeItem('torneo')
-      setJuez(null)
-      setTorneo(null)
-      return
-    }
-
-    if (data.estado === 'cerrado') {
-      alert('Este torneo ya está cerrado')
+    if (error || !data || data.estado === 'cerrado') {
       localStorage.removeItem('juez')
       localStorage.removeItem('torneo')
       localStorage.removeItem('aparatoSeleccionado')
@@ -396,13 +437,18 @@ async function cargarOtroGrupo() {
 
     setTorneo(data)
     obtenerNiveles(data.id)
+    obtenerTurnos(data.id)
   }
-const categoriaActual = categorias.find(
-  (c) => String(c.id) === String(categoriaSeleccionada)
-)
 
-const esMiniaturas =
-  String(categoriaActual?.nombre || '').toLowerCase().trim() === 'miniaturas'
+  function esMiniaturaItem(item) {
+    const nombreCategoria =
+      item.gimnastas?.categorias?.nombre ||
+      categorias.find((c) => String(c.id) === String(categoriaSeleccionada))?.nombre ||
+      ''
+
+    return String(nombreCategoria).toLowerCase().trim().includes('miniatura')
+  }
+
   useEffect(() => {
     obtenerAparatos()
 
@@ -468,8 +514,10 @@ const esMiniaturas =
             onChange={(e) => {
               setAparatoSeleccionado(e.target.value)
               localStorage.setItem('aparatoSeleccionado', e.target.value)
+              setModoCarga('')
               setNivelSeleccionado('')
               setCategoriaSeleccionada('')
+              setTurnoSeleccionado('')
               setCategorias([])
               setGimnastasGrupo([])
               setPuntajes({})
@@ -484,34 +532,76 @@ const esMiniaturas =
             ))}
           </select>
 
-          <h3 style={{ marginTop: '20px' }}>Nivel</h3>
+          <h3 style={{ marginTop: '20px' }}>Modo de carga</h3>
 
           <select
-            value={nivelSeleccionado}
-            onChange={(e) => obtenerCategorias(e.target.value)}
+            value={modoCarga}
+            onChange={(e) => {
+              setModoCarga(e.target.value)
+              setNivelSeleccionado('')
+              setCategoriaSeleccionada('')
+              setTurnoSeleccionado('')
+              setCategorias([])
+              setGimnastasGrupo([])
+              setPuntajes({})
+            }}
           >
-            <option value="">Seleccionar nivel</option>
-
-            {niveles.map((nivel) => (
-              <option key={nivel.id} value={nivel.id}>
-                {nivel.nombre}
-              </option>
-            ))}
+            <option value="">Seleccionar modo</option>
+            <option value="categoria">Por nivel y categoría</option>
+            <option value="turno">Por turno</option>
           </select>
 
-          {categorias.length > 0 && (
+          {modoCarga === 'categoria' && (
             <>
-              <h3 style={{ marginTop: '20px' }}>Categoría</h3>
+              <h3 style={{ marginTop: '20px' }}>Nivel</h3>
 
               <select
-                value={categoriaSeleccionada}
-                onChange={(e) => obtenerGimnastasDelGrupo(e.target.value)}
+                value={nivelSeleccionado}
+                onChange={(e) => obtenerCategorias(e.target.value)}
               >
-                <option value="">Seleccionar categoría</option>
+                <option value="">Seleccionar nivel</option>
 
-                {categorias.map((categoria) => (
-                  <option key={categoria.id} value={categoria.id}>
-                    {categoria.nombre}
+                {niveles.map((nivel) => (
+                  <option key={nivel.id} value={nivel.id}>
+                    {nivel.nombre}
+                  </option>
+                ))}
+              </select>
+
+              {categorias.length > 0 && (
+                <>
+                  <h3 style={{ marginTop: '20px' }}>Categoría</h3>
+
+                  <select
+                    value={categoriaSeleccionada}
+                    onChange={(e) => obtenerGimnastasDelGrupo(e.target.value)}
+                  >
+                    <option value="">Seleccionar categoría</option>
+
+                    {categorias.map((categoria) => (
+                      <option key={categoria.id} value={categoria.id}>
+                        {categoria.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </>
+          )}
+
+          {modoCarga === 'turno' && (
+            <>
+              <h3 style={{ marginTop: '20px' }}>Turno</h3>
+
+              <select
+                value={turnoSeleccionado}
+                onChange={(e) => obtenerGimnastasDelTurno(e.target.value)}
+              >
+                <option value="">Seleccionar turno</option>
+
+                {turnos.map((turno) => (
+                  <option key={turno.id} value={turno.id}>
+                    {turno.nombre}
                   </option>
                 ))}
               </select>
@@ -537,38 +627,29 @@ const esMiniaturas =
                     <p>{item.gimnastas.club}</p>
                   </div>
 
-                  {esMiniaturas ? (
-
-  <button
-    className={
-      puntajes[item.gimnastas.id]
-        ? 'mini-score-button active'
-        : 'mini-score-button'
-    }
-    onClick={() =>
-      cambiarPuntaje(item.gimnastas.id, 1)
-    }
-  >
-    🙂
-  </button>
-
-) : (
-
-  <input
-    type="number"
-    min="0"
-    max="99"
-    placeholder="0-99"
-    value={puntajes[item.gimnastas.id] || ''}
-    onChange={(e) =>
-      cambiarPuntaje(
-        item.gimnastas.id,
-        e.target.value
-      )
-    }
-  />
-
-)}
+                  {esMiniaturaItem(item) ? (
+                    <button
+                      className={
+                        puntajes[item.gimnastas.id]
+                          ? 'mini-score-button active'
+                          : 'mini-score-button'
+                      }
+                      onClick={() => cambiarPuntaje(item.gimnastas.id, 1)}
+                    >
+                      🙂
+                    </button>
+                  ) : (
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      placeholder="0-99"
+                      value={puntajes[item.gimnastas.id] || ''}
+                      onChange={(e) =>
+                        cambiarPuntaje(item.gimnastas.id, e.target.value)
+                      }
+                    />
+                  )}
                 </div>
               ))}
 

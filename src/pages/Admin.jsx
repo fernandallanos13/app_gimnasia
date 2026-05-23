@@ -1086,6 +1086,19 @@ setImportandoExcel(false)
               : 'Cargar Excel'}
           </button>
 
+        <button
+  onClick={() =>
+    navigate('/admin/turnos', {
+      state: {
+        gimnastasInscriptas,
+        torneoSeleccionado
+      }
+    })
+  }
+>
+  Turnos
+</button>
+
         </section>
 
         <section className="admin-box">

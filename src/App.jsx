@@ -10,6 +10,9 @@ import AdminPuntajes from './pages/AdminPuntajes'
 import AdminPodios from './pages/AdminPodios'
 import AdminJueces from './pages/AdminJueces'
 import AdminTotales from './pages/AdminTotales'
+import AdminCargasManuales from './pages/AdminCargasManuales'
+import AdminTurnos from './pages/AdminTurnos'
+import AdminTurnos from './pages/AdminTurnos'
 
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -42,6 +45,9 @@ function App() {
 <Route path="/admin/podios" element={<AdminPodios />} />
 <Route path="/admin/jueces" element={<AdminJueces />} />
 <Route path="/admin/totales" element={<AdminTotales />} />
+<Route path="/admin/cargas-manuales" element={<AdminCargasManuales />} />
+<Route path="/admin/turnos" element={<AdminTurnos />} />
+<Route path="/admin/turnos" element={<AdminTurnos />} />
 
       </Routes>
     </BrowserRouter>
