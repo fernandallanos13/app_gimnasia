@@ -197,10 +197,15 @@ aparato_id: aparatoId,
                       <td key={aparato}>
                         {estaEditando ? (
                           <input
-                            type="number"
-                            min="0"
-                            max="99"
-                            value={valoresEditados[aparato]}
+  type="text"
+  inputMode="decimal"
+  style={{
+    width: '38px',
+    fontSize: '9px',
+    padding: '1px',
+    textAlign: 'center'
+  }}
+  value={valoresEditados[aparato]}
                             onChange={(e) =>
                               setValoresEditados({
                                 ...valoresEditados,
