@@ -235,3 +235,8 @@ button:hover {
 .admin-table td:nth-child(5) {
   white-space: normal !important;
 }
+
+.admin-table,
+.admin-table * {
+  font-size: 10px !important;
+}
