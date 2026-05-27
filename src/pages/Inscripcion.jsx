@@ -312,6 +312,10 @@ const totalGeneral = grupos.reduce(
       Sofía del Valle Gómez
     </p>
   </div>
+
+  <div className="Nombre y Apellido">
+  <p><br> NOMBRE Y APELLIDO </br></p>
+  </div>
 </div>
 
               <textarea
