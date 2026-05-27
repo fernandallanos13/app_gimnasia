@@ -304,6 +304,9 @@ function Inscripcion() {
             <section className="inscripcion-card">
 
               <h2>Resumen de carga</h2>
+              <p className="helper-text">
+  Haciendo clic en cada grupo verás la lista completa de gimnastas.
+</p>
 
               <div className="resumen-box">
                 <p>
@@ -608,6 +611,13 @@ function Inscripcion() {
           margin-top: 14px;
           font-weight: 800;
         }
+
+        .helper-text {
+  font-size: 14px;
+  color: #666;
+  margin-top: 4px;
+  margin-bottom: 18px;
+}
 
         @media (max-width: 700px) {
           .inscripcion-layout {
