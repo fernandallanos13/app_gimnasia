@@ -89,6 +89,17 @@ function Inscripcion() {
       return
     }
 
+    const grupoRepetido = grupos.some(
+  (grupo) =>
+    Number(grupo.nivel_id) === Number(nivelId) &&
+    Number(grupo.categoria_id) === Number(categoriaId)
+)
+
+if (grupoRepetido) {
+  setMensaje('Ya cargaste ese nivel y esa categoría. Si te equivocaste, eliminá el grupo del resumen y volvé a cargarlo.')
+  return
+}
+
     const nuevoGrupo = {
       nivel_id: Number(nivelId),
       nivel: nivelSeleccionado?.nombre || '',
