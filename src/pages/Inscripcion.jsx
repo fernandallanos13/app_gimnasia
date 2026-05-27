@@ -253,13 +253,31 @@ function Inscripcion() {
                 </select>
               </label>
 
-              <div className="listado-head">
-                <h3>Listado de gimnastas</h3>
+             <div className="listado-head">
+  <h3>Listado de gimnastas</h3>
 
-                <p>
-                  Una gimnasta por línea. No uses números ni comas.
-                </p>
-              </div>
+  <p>
+    Una gimnasta por línea.
+    No uses números ni comas.
+  </p>
+
+  <p>
+    Podés escribir en MAYÚSCULAS o minúsculas.
+    El sistema lo acomoda automáticamente.
+  </p>
+
+  <div className="ejemplo-box">
+    <strong>Ejemplo correcto:</strong>
+
+    <p>
+      Juana Pérez
+      <br />
+      Martina Gómez
+      <br />
+      Sofía del Valle Gómez
+    </p>
+  </div>
+</div>
 
               <textarea
                 value={listado}
@@ -308,19 +326,28 @@ function Inscripcion() {
                   <div className="grupos-lista">
 
                     {grupos.map((grupo, index) => (
-                      <div
-                        key={index}
-                        className="grupo-item"
-                      >
-                        <h3>
-                          {grupo.nivel} · {grupo.categoria}
-                        </h3>
+  <details key={index} className="grupo-item">
+    <summary>
+      <strong>{grupo.nivel} · {grupo.categoria}</strong>
+      <span>{grupo.gimnastas.length} gimnastas</span>
+    </summary>
 
-                        <p>
-                          {grupo.gimnastas.length} gimnastas
-                        </p>
-                      </div>
-                    ))}
+    <ol className="grupo-nombres">
+      {grupo.gimnastas.map((nombre) => (
+        <li key={nombre}>{nombre}</li>
+      ))}
+    </ol>
+
+    <button
+      className="danger-btn"
+      onClick={() =>
+        setGrupos((prev) => prev.filter((_, i) => i !== index))
+      }
+    >
+      Eliminar grupo
+    </button>
+  </details>
+))}
 
                   </div>
 
@@ -453,6 +480,20 @@ function Inscripcion() {
           color: #c1121f;
         }
 
+        .ejemplo-box {
+  background: #f6f6f6;
+  border-left: 5px solid #c1121f;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 14px;
+  color: #333;
+}
+
+.ejemplo-box p {
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
         .primary-btn {
           width: 100%;
           border: none;
@@ -493,6 +534,38 @@ function Inscripcion() {
           margin-top: 6px;
           font-weight: 700;
         }
+
+        .grupo-item summary {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.grupo-item summary span {
+  font-weight: 800;
+  color: #333;
+}
+
+.grupo-nombres {
+  margin-top: 12px;
+  padding-left: 22px;
+  line-height: 1.7;
+  font-weight: 700;
+}
+
+.danger-btn {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 11px;
+  margin-top: 12px;
+  background: #333;
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
 
         .totales-box {
           margin-top: 24px;
