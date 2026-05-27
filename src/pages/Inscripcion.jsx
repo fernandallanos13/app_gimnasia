@@ -314,7 +314,7 @@ const totalGeneral = grupos.reduce(
   </div>
 
   <div className="Nombre y Apellido">
-  <p><br> NOMBRE Y APELLIDO </br></p>
+  <p><br/> NOMBRE Y APELLIDO <br/></p>
   </div>
 </div>
 
