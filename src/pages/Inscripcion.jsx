@@ -99,7 +99,7 @@ function Inscripcion() {
 
 
 if (grupoRepetido) {
-  setMensaje('Ya cargaste ese nivel y esa categoría. Si te equivocaste, editá el grupo del resumen.')
+  setMensaje('Ya cargaste ese nivel y esa categoría. Si querés modificar algún dato, hacelo desplegando el nivel y categoría en el RESUMEN DE CARGA.')
   return
 }
 
