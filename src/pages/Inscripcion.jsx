@@ -43,6 +43,7 @@ function Inscripcion() {
   const [finalizado, setFinalizado] = useState(false)
 
   const [grupos, setGrupos] = useState([])
+  const [grupoEditandoIndex, setGrupoEditandoIndex] = useState(null)
 
   const nivelSeleccionado = NIVELES.find(
     (n) => String(n.id) === String(nivelId)
@@ -90,13 +91,15 @@ function Inscripcion() {
     }
 
     const grupoRepetido = grupos.some(
-  (grupo) =>
+  (grupo, index) =>
+    index !== grupoEditandoIndex &&
     Number(grupo.nivel_id) === Number(nivelId) &&
     Number(grupo.categoria_id) === Number(categoriaId)
 )
 
+
 if (grupoRepetido) {
-  setMensaje('Ya cargaste ese nivel y esa categoría. Si te equivocaste, eliminá el grupo del resumen y volvé a cargarlo.')
+  setMensaje('Ya cargaste ese nivel y esa categoría. Si te equivocaste, editá el grupo del resumen.')
   return
 }
 
@@ -108,15 +111,24 @@ if (grupoRepetido) {
       gimnastas
     }
 
-    setGrupos((prev) => [...prev, nuevoGrupo])
+    if (grupoEditandoIndex !== null) {
+  setGrupos((prev) =>
+    prev.map((grupo, index) =>
+      index === grupoEditandoIndex ? nuevoGrupo : grupo
+    )
+  )
+  setGrupoEditandoIndex(null)
+} else {
+  setGrupos((prev) => [...prev, nuevoGrupo])
+}
 
-    setNivelId('')
-    setCategoriaId('')
-    setListado('')
-    setMensaje('')
-  }
-
-  const totalGeneral = grupos.reduce(
+setNivelId('')
+setCategoriaId('')
+setListado('')
+setMensaje('')
+}
+  
+const totalGeneral = grupos.reduce(
     (acc, grupo) => acc + grupo.gimnastas.length,
     0
   )
@@ -134,6 +146,18 @@ if (grupoRepetido) {
 
     return resumen
   }, [grupos])
+
+  function editarGrupo(index) {
+  const grupo = grupos[index]
+
+  setNivelId(String(grupo.nivel_id))
+  setCategoriaId(String(grupo.categoria_id))
+  setListado(grupo.gimnastas.join('\n'))
+  setGrupoEditandoIndex(index)
+  setMensaje('Estás editando un grupo. Cuando termines, tocá “Guardar cambios del grupo”.')
+
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
   async function finalizarCarga() {
     if (grupos.length === 0) {
@@ -195,8 +219,8 @@ if (grupoRepetido) {
     <div className="inscripcion-page">
 
       <header className="inscripcion-header">
-        <h1>Inscripción de gimnastas</h1>
-        <p>Cargá todos los grupos del club antes de finalizar.</p>
+        <h1>Inscripción de Gimnastas- Torneo Gimnasia artística Deheza Football Club</h1>
+        <p>13/06 - General Deheza- </p>
       </header>
 
       <main className="inscripcion-layout">
@@ -307,7 +331,7 @@ if (grupoRepetido) {
                 className="primary-btn"
                 onClick={agregarGrupo}
               >
-                + Agregar grupo
+                {grupoEditandoIndex !== null ? 'Guardar cambios del grupo' : '+ Agregar grupo'}
               </button>
 
             </section>
@@ -353,13 +377,11 @@ if (grupoRepetido) {
     </ol>
 
     <button
-      className="danger-btn"
-      onClick={() =>
-        setGrupos((prev) => prev.filter((_, i) => i !== index))
-      }
-    >
-      Eliminar grupo
-    </button>
+  className="secondary-mini-btn"
+  onClick={() => editarGrupo(index)}
+>
+  Editar grupo
+</button>
   </details>
 ))}
 
@@ -623,11 +645,25 @@ if (grupoRepetido) {
           font-weight: 800;
         }
 
+        
+
         .helper-text {
   font-size: 14px;
   color: #666;
   margin-top: 4px;
   margin-bottom: 18px;
+}
+
+.secondary-mini-btn {
+  width: 100%;
+  border: 2px solid #c1121f;
+  border-radius: 12px;
+  padding: 11px;
+  margin-top: 12px;
+  background: white;
+  color: #c1121f;
+  font-weight: 900;
+  cursor: pointer;
 }
 
         @media (max-width: 700px) {
