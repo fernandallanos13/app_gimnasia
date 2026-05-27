@@ -12,6 +12,8 @@ import AdminJueces from './pages/AdminJueces'
 import AdminTotales from './pages/AdminTotales'
 import AdminCargasManuales from './pages/AdminCargasManuales'
 import AdminTurnos from './pages/AdminTurnos'
+import Inscripcion from './pages/Inscripcion'
+import AdminInscripciones from './pages/AdminInscripciones'
 
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -46,6 +48,8 @@ function App() {
 <Route path="/admin/totales" element={<AdminTotales />} />
 <Route path="/admin/cargas-manuales" element={<AdminCargasManuales />} />
 <Route path="/admin/turnos" element={<AdminTurnos />} />
+<Route path="/inscripcion" element={<Inscripcion />} />
+<Route path="/admin-inscripciones" element={<AdminInscripciones />} />
 
 
       </Routes>

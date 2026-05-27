@@ -30,9 +30,6 @@ function Resultados() {
   return Number(g.total || 0).toFixed(2)
 }
 
-  return g.total
-}
-
 function calcularPuestos(lista, categoria, nivel) {
   const ordenados = [...lista].sort((a, b) => b.total - a.total)
 
@@ -412,6 +409,6 @@ function calcularPuestos(lista, categoria, nivel) {
       )}
     </div>
   )
-}
+  }
 
 export default Resultados
