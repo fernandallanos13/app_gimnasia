@@ -101,16 +101,14 @@ function Admin() {
       .select(`
         id,
         gimnastas (
-          id,
-          nombre,
-          apellido,
-          club,
-          profe,
-          nivel_id,
-          categoria_id,
-          niveles (nombre),
-          categorias (nombre)
-        )
+  id,
+  nombre,
+  apellido,
+  club,
+  nivel_id,
+  categoria_id,
+  nombre_completo_normalizado
+)
       `)
       .eq('torneo_id', torneoId)
 
@@ -366,35 +364,36 @@ const filas = XLSX.utils.sheet_to_json(hoja, {
           continue
         }
 
-        const yaExiste = inscripcionesExistentes.some((inscripcion) => {
-          const g = inscripcion.gimnastas
+        const nombreCompletoExcel = normalizar(`${nombre} ${apellido}`)
 
-          return (
-            normalizar(g?.nombre) === normalizar(nombre) &&
-            normalizar(g?.apellido) === normalizar(apellido) &&
-            normalizar(g?.club) === normalizar(club) &&
-            g?.nivel_id === nivelEncontrado.id &&
-            g?.categoria_id === categoriaEncontrada.id
-          )
-        })
+const yaExiste = inscripcionesExistentes.some((inscripcion) => {
+  const g = inscripcion.gimnastas
 
-        if (yaExiste) {
-          omitidas++
-          continue
-        }
+  const nombreCompletoGuardado =
+    g?.nombre_completo_normalizado ||
+    normalizar(`${g?.nombre || ''} ${g?.apellido || ''}`)
+
+  return (
+    normalizar(nombreCompletoGuardado) === nombreCompletoExcel &&
+    normalizar(g?.club) === normalizar(club) &&
+    g?.nivel_id === nivelEncontrado.id &&
+    g?.categoria_id === categoriaEncontrada.id
+  )
+})
 
         const { data: gimnastaCreada, error: errorGimnasta } = await supabase
           .from('gimnastas')
           .insert([
             {
-              nombre,
-              apellido,
-              club,
-              profe,
-              nivel_id: nivelEncontrado.id,
-              categoria_id: categoriaEncontrada.id,
-              origen: 'manual'
-            }
+  nombre,
+  apellido,
+  club,
+  profe,
+  nivel_id: nivelEncontrado.id,
+  categoria_id: categoriaEncontrada.id,
+  origen: 'manual',
+  nombre_completo_normalizado: normalizar(`${nombre} ${apellido}`)
+}
           ])
           .select()
           .single()
