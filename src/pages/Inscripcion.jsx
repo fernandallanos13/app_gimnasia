@@ -26,7 +26,7 @@ const CATEGORIAS = [
 function limpiarNombre(texto) {
   return String(texto || '')
     .replace(/^\s*\d+[.)-]?\s*/g, '')
-    .replace(/,/g, ' ')
+    .replace(/[;,]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase()
