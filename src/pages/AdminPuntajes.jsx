@@ -1,17 +1,63 @@
+import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useState } from 'react'
 import { supabase } from '../services/supabase'
 
 function AdminPuntajes() {
   const location = useLocation()
 
-  const { puntajesCargados = [] } = location.state || {}
+  const {
+    puntajesCargados = [],
+    gimnastasInscriptas = [],
+    torneoSeleccionado = null
+  } = location.state || {}
 
   const [busqueda, setBusqueda] = useState('')
   const [editando, setEditando] = useState(null)
   const [valoresEditados, setValoresEditados] = useState({})
+  const [aparatos, setAparatos] = useState([])
+
+  useEffect(() => {
+    obtenerAparatos()
+  }, [])
+
+  async function obtenerAparatos() {
+    const { data, error } = await supabase
+      .from('aparatos')
+      .select('*')
+      .order('id', { ascending: true })
+
+    if (error) {
+      console.log(error)
+      alert('Error al traer aparatos')
+      return
+    }
+
+    setAparatos(data || [])
+  }
 
   const agrupados = {}
+
+  gimnastasInscriptas.forEach((inscripcion) => {
+    const g = inscripcion.gimnastas
+    if (!g) return
+
+    const clave = `${g.apellido}-${g.nombre}-${g.club}-${g.id}`
+
+    agrupados[clave] = {
+      apellido: g.apellido,
+      nombre: g.nombre,
+      club: g.club || '',
+      gimnasta_id: g.id,
+      nivel: g.niveles?.nombre || '',
+      categoria: g.categorias?.nombre || '',
+      Suelo: '',
+      Salto: '',
+      Viga: '',
+      Paralelas: '',
+      total: 0,
+      puntajesIds: {}
+    }
+  })
 
   puntajesCargados.forEach((p) => {
     const g = p.gimnastas
@@ -19,17 +65,16 @@ function AdminPuntajes() {
 
     if (!g || !aparato) return
 
-    const clave = `${g.apellido}-${g.nombre}-${g.club}`
+    const clave = `${g.apellido}-${g.nombre}-${g.club}-${g.id}`
 
     if (!agrupados[clave]) {
       agrupados[clave] = {
         apellido: g.apellido,
         nombre: g.nombre,
-        club: g.club,
+        club: g.club || '',
         gimnasta_id: g.id,
         nivel: g.niveles?.nombre || '',
-categoria: g.categorias?.nombre || '',
-
+        categoria: g.categorias?.nombre || '',
         Suelo: '',
         Salto: '',
         Viga: '',
@@ -39,31 +84,30 @@ categoria: g.categorias?.nombre || '',
       }
     }
 
-    agrupados[clave][aparato] = p.puntaje
-    agrupados[clave][`${aparato}_admin`] =
-  p.nota_admin ?? p.puntaje
+    agrupados[clave][aparato] = Number(p.puntaje).toFixed(2)
     agrupados[clave].puntajesIds[aparato] = p.id
+
     agrupados[clave].total = Number(
-  (
-    agrupados[clave].total + Number(p.puntaje)
-  ).toFixed(2)
-)
+      (
+        agrupados[clave].total + Number(p.puntaje || 0)
+      ).toFixed(2)
+    )
   })
 
   const filas = Object.values(agrupados).filter((g) => {
-    const texto = `${g.apellido} ${g.nombre} ${g.club}`.toLowerCase()
+    const texto = `${g.apellido} ${g.nombre} ${g.club} ${g.nivel} ${g.categoria}`.toLowerCase()
     return texto.includes(busqueda.toLowerCase())
   })
 
   function iniciarEdicion(g) {
-    const clave = `${g.apellido}-${g.nombre}-${g.club}`
+    const clave = `${g.apellido}-${g.nombre}-${g.club}-${g.gimnasta_id}`
     setEditando(clave)
 
     setValoresEditados({
-      Suelo: g.Suelo_admin || g.Suelo,
-Salto: g.Salto_admin || g.Salto,
-Viga: g.Viga_admin || g.Viga,
-Paralelas: g.Paralelas_admin || g.Paralelas
+      Suelo: g.Suelo,
+      Salto: g.Salto,
+      Viga: g.Viga,
+      Paralelas: g.Paralelas
     })
   }
 
@@ -72,80 +116,97 @@ Paralelas: g.Paralelas_admin || g.Paralelas
     setValoresEditados({})
   }
 
-  async function guardarEdicion(g) {
-    const aparatos = ['Suelo', 'Salto', 'Viga', 'Paralelas']
-
-    for (const aparato of aparatos) {
-  const puntajeId = g.puntajesIds[aparato]
-  const valor = valoresEditados[aparato]
-
-  if (valor === '') continue
-
-  if (Number(valor) < 0 || Number(valor) > 99) {
-    alert('Los puntajes deben estar entre 0 y 99')
-    return
+  function normalizarNumero(valor) {
+    return String(valor || '').replace(',', '.').trim()
   }
 
-  if (puntajeId) {
-    const { error } = await supabase
-      .from('puntajes')
-      .update({
-        puntaje: Number(valor)
-      })
-      .eq('id', puntajeId)
-
-    if (error) {
-      console.log(error)
-      alert('Error al editar puntaje')
-      return
-    }
-  } else {
-    const aparatoData = puntajesCargados.find(
-  (p) => p.aparatos?.nombre === aparato
-)
-
-const APARATOS_IDS = {
-  Suelo: 1,
-  Salto: 2,
-  Viga: 3,
-  Paralelas: 4
-}
-
-const aparatoId =
-  aparatoData?.aparato_id ||
-  APARATOS_IDS[aparato]
-
-if (!aparatoId) {
-  alert(`No se encontró el aparato ${aparato}`)
-  continue
-}
-
-    const { data: juezAdmin } = await supabase
+  async function obtenerJuezAdmin() {
+    const { data: existente, error: errorBuscar } = await supabase
       .from('jueces')
       .select('id')
       .eq('nombre', 'ADMIN')
-      .single()
+      .eq('torneo_id', torneoSeleccionado.id)
+      .maybeSingle()
 
-    const { error } = await supabase
-      .from('puntajes')
+    if (errorBuscar) {
+      console.log(errorBuscar)
+    }
+
+    if (existente) return existente
+
+    const { data: creado, error } = await supabase
+      .from('jueces')
       .insert([
         {
-          torneo_id: aparatoData.torneo_id,
-          gimnasta_id: g.gimnasta_id,
-aparato_id: aparatoId,
-          juez_id: juezAdmin.id,
-          puntaje: Number(valor)
+          nombre: 'ADMIN',
+          torneo_id: torneoSeleccionado.id
         }
       ])
+      .select('id')
+      .single()
 
     if (error) {
       console.log(error)
-      alert('Error al crear puntaje')
+      alert('No se pudo crear/obtener juez ADMIN')
+      return null
+    }
+
+    return creado
+  }
+
+  async function guardarEdicion(g) {
+    if (!torneoSeleccionado?.id) {
+      alert('No se encontró el torneo activo')
       return
     }
-  }
-}
-    alert('Puntajes editados. Volvé a entrar para verlos actualizados.')
+
+    const juezAdmin = await obtenerJuezAdmin()
+    if (!juezAdmin?.id) return
+
+    for (const aparato of aparatos) {
+      const nombreAparato = aparato.nombre
+      const valorCrudo = valoresEditados[nombreAparato]
+
+      if (valorCrudo === '' || valorCrudo === undefined) continue
+
+      const valorNormalizado = normalizarNumero(valorCrudo)
+      const valor = Number(valorNormalizado)
+
+      const regexDecimal = /^\d+(\.\d{0,2})?$/
+
+      if (!regexDecimal.test(valorNormalizado)) {
+        alert('Máximo 2 decimales')
+        return
+      }
+
+      if (Number.isNaN(valor) || valor < 0 || valor > 99) {
+        alert('Los puntajes deben estar entre 0 y 99')
+        return
+      }
+
+      const { error } = await supabase
+        .from('puntajes')
+        .upsert(
+          {
+            torneo_id: torneoSeleccionado.id,
+            gimnasta_id: g.gimnasta_id,
+            aparato_id: aparato.id,
+            juez_id: juezAdmin.id,
+            puntaje: Number(valor.toFixed(2))
+          },
+          {
+            onConflict: 'torneo_id,gimnasta_id,aparato_id'
+          }
+        )
+
+      if (error) {
+        console.log(error)
+        alert(`Error al guardar ${nombreAparato}`)
+        return
+      }
+    }
+
+    alert('Puntajes guardados correctamente. Volvé a entrar para verlos actualizados.')
     setEditando(null)
   }
 
@@ -156,7 +217,7 @@ aparato_id: aparatoId,
       <div className="admin-box">
         <input
           type="text"
-          placeholder="Buscar por apellido, nombre o club..."
+          placeholder="Buscar por apellido, nombre, club, nivel o categoría..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
@@ -169,7 +230,7 @@ aparato_id: aparatoId,
                 <th>Nombre</th>
                 <th>Club</th>
                 <th>Nivel</th>
-<th>Cat.</th>
+                <th>Cat.</th>
                 <th>Suelo</th>
                 <th>Salto</th>
                 <th>Viga</th>
@@ -181,31 +242,30 @@ aparato_id: aparatoId,
 
             <tbody>
               {filas.map((g) => {
-                const clave = `${g.apellido}-${g.nombre}-${g.club}`
+                const clave = `${g.apellido}-${g.nombre}-${g.club}-${g.gimnasta_id}`
                 const estaEditando = editando === clave
 
                 return (
                   <tr key={clave}>
                     <td>{g.apellido}</td>
-<td>{g.nombre}</td>
-<td>{g.club}</td>
-<td>{g.nivel}</td>
-<td>{g.categoria}</td>
-                    
+                    <td>{g.nombre}</td>
+                    <td>{g.club}</td>
+                    <td>{g.nivel}</td>
+                    <td>{g.categoria}</td>
 
                     {['Suelo', 'Salto', 'Viga', 'Paralelas'].map((aparato) => (
                       <td key={aparato}>
                         {estaEditando ? (
                           <input
-  type="text"
-  inputMode="decimal"
-  style={{
-    width: '38px',
-    fontSize: '10px',
-    padding: '1px',
-    textAlign: 'center'
-  }}
-  value={valoresEditados[aparato]}
+                            type="text"
+                            inputMode="decimal"
+                            style={{
+                              width: '38px',
+                              fontSize: '10px',
+                              padding: '1px',
+                              textAlign: 'center'
+                            }}
+                            value={valoresEditados[aparato] || ''}
                             onChange={(e) =>
                               setValoresEditados({
                                 ...valoresEditados,
@@ -222,11 +282,14 @@ aparato_id: aparatoId,
                     <td>
                       <strong>
                         {estaEditando
-                          ? Object.values(valoresEditados).reduce(
-                              (acc, val) => acc + Number(val || 0),
-                              0
-                            )
-                          : g.total}
+                          ? Number(
+                              Object.values(valoresEditados).reduce(
+                                (acc, val) =>
+                                  acc + Number(normalizarNumero(val) || 0),
+                                0
+                              )
+                            ).toFixed(2)
+                          : Number(g.total || 0).toFixed(2)}
                       </strong>
                     </td>
 
@@ -236,6 +299,7 @@ aparato_id: aparatoId,
                           <button onClick={() => guardarEdicion(g)}>
                             Guardar
                           </button>
+
                           <button className="danger" onClick={cancelarEdicion}>
                             Cancelar
                           </button>
@@ -255,7 +319,7 @@ aparato_id: aparatoId,
 
         {filas.length === 0 && (
           <p style={{ marginTop: '16px' }}>
-            No hay puntajes cargados para mostrar.
+            No hay gimnastas para mostrar.
           </p>
         )}
       </div>

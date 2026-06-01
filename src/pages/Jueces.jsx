@@ -312,7 +312,6 @@ function Jueces() {
       .from('puntajes')
       .select('*')
       .eq('torneo_id', torneo.id)
-      .eq('juez_id', juez.id)
       .eq('aparato_id', Number(aparatoSeleccionado))
       .in('gimnasta_id', idsGimnastas)
 
@@ -328,34 +327,40 @@ function Jueces() {
   }
 
   async function guardarPuntajeIndividual(gimnastaId, valor) {
-    if (!aparatoSeleccionado || !torneo || !juez) return
+  if (!aparatoSeleccionado || !torneo || !juez) return
 
-    if (valor === '' || Number(valor) < 0 || Number(valor) > 99) {
-      return
-    }
+  const valorNormalizado = String(valor).replace(',', '.')
+  const numero = Number(valorNormalizado)
 
-    const { error } = await supabase
-      .from('puntajes')
-      .upsert(
-        {
-          torneo_id: torneo.id,
-          gimnasta_id: gimnastaId,
-          juez_id: juez.id,
-          aparato_id: Number(aparatoSeleccionado),
-          puntaje: Number(
-  String(valor).replace(',', '.')
-)
-        },
-        {
-          onConflict: 'torneo_id,gimnasta_id,juez_id,aparato_id'
-        }
-      )
-
-    if (error) {
-      console.log(error)
-      alert('Error al autoguardar puntaje')
-    }
+  if (
+    valorNormalizado === '' ||
+    Number.isNaN(numero) ||
+    numero < 0 ||
+    numero > 99
+  ) {
+    return
   }
+
+  const { error } = await supabase
+    .from('puntajes')
+    .upsert(
+      {
+        torneo_id: torneo.id,
+        gimnasta_id: gimnastaId,
+        juez_id: juez.id,
+        aparato_id: Number(aparatoSeleccionado),
+        puntaje: Number(numero.toFixed(2))
+      },
+      {
+        onConflict: 'torneo_id,gimnasta_id,aparato_id'
+      }
+    )
+
+  if (error) {
+    console.log(error)
+    alert('Error al autoguardar puntaje')
+  }
+}
 
   function cambiarPuntaje(gimnastaId, valor) {
     if (grupoEstaFinalizado()) {

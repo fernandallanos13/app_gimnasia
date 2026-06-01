@@ -96,51 +96,31 @@ function Admin() {
   }
 
   async function obtenerGimnastasInscriptas(torneoId) {
-    const { data, error } = await supabase
-      .from('inscripciones')
-      .select(`
+  const { data, error } = await supabase
+    .from('inscripciones')
+    .select(`
+      id,
+      gimnastas (
         id,
-        gimnastas (
-  id,
-  nombre,
-  apellido,
-  club,
-  nivel_id,
-  categoria_id,
-  nombre_completo_normalizado
-)
-      `)
-      .eq('torneo_id', torneoId)
-
-    if (error) {
-      console.log(error)
-      alert('Error al traer gimnastas inscriptas')
-    } else {
-      setGimnastasInscriptas(data)
-    }
-  }
-
-  const normalizarTexto = (texto) =>
-    String(texto || '')
-      .toLowerCase()
-      .trim()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-
-  function existeGimnastaEnTorneo({ nombre, apellido, nivelId, categoriaId, ignorarGimnastaId = null }) {
-    return gimnastasInscriptas.some((inscripcion) => {
-      const g = inscripcion.gimnastas
-
-      if (!g || g.id === ignorarGimnastaId) return false
-
-      return (
-        normalizarTexto(g.nombre) === normalizarTexto(nombre) &&
-        normalizarTexto(g.apellido) === normalizarTexto(apellido) &&
-        Number(g.nivel_id) === Number(nivelId) &&
-        Number(g.categoria_id) === Number(categoriaId)
+        nombre,
+        apellido,
+        club,
+        nivel_id,
+        categoria_id,
+        nombre_completo_normalizado,
+        niveles (nombre),
+        categorias (nombre)
       )
-    })
+    `)
+    .eq('torneo_id', torneoId)
+
+  if (error) {
+    console.log(error)
+    alert('Error al traer gimnastas inscriptas')
+  } else {
+    setGimnastasInscriptas(data)
   }
+}
 
   async function cargarGimnasta() {
   if (!torneoSeleccionado) {
@@ -589,44 +569,40 @@ setImportandoExcel(false)
 }
 
   async function obtenerPuntajesCargados(torneoId) {
-    const { data, error } = await supabase
-      .from('puntajes')
-      .select(`
+  const { data, error } = await supabase
+    .from('puntajes')
+    .select(`
+      id,
+      torneo_id,
+      gimnasta_id,
+      aparato_id,
+      juez_id,
+      puntaje,
+      gimnastas (
         id,
-        puntaje,
-        gimnastas (
-  nombre,
-  apellido,
-  club,
-  niveles (nombre),
-  categorias (nombre)
-),
-        aparatos (
-          nombre
-        ),
-        jueces (
-          nombre
-        )
-      `)
-      .eq('torneo_id', torneoId)
+        nombre,
+        apellido,
+        club,
+        niveles (nombre),
+        categorias (nombre)
+      ),
+      aparatos (
+        id,
+        nombre
+      ),
+      jueces (
+        nombre
+      )
+    `)
+    .eq('torneo_id', torneoId)
 
-    if (error) {
-      console.log(error)
-      alert('Error al traer puntajes')
-    } else {
-      setPuntajesCargados(data)
-    }
+  if (error) {
+    console.log(error)
+    alert('Error al traer puntajes')
+  } else {
+    setPuntajesCargados(data)
   }
-
-  function iniciarEdicionPuntaje(puntaje) {
-    setPuntajeEditandoId(puntaje.id)
-    setEditPuntaje(puntaje.puntaje)
-  }
-
-  function cancelarEdicionPuntaje() {
-    setPuntajeEditandoId(null)
-    setEditPuntaje('')
-  }
+}
 
   async function guardarEdicionPuntaje(puntajeId) {
     if (
@@ -1191,17 +1167,18 @@ setImportandoExcel(false)
           </p>
 
           <button
-            onClick={() =>
-              navigate('/admin/puntajes', {
-  state: {
-    puntajesCargados
+  onClick={() =>
+    navigate('/admin/puntajes', {
+      state: {
+        puntajesCargados,
+        gimnastasInscriptas,
+        torneoSeleccionado
+      }
+    })
   }
-})
-            }
-          >
-            Ver puntajes
-          </button>
-
+>
+  Ver puntajes
+</button>
           <button
   onClick={() =>
     navigate('/admin/podios', {
