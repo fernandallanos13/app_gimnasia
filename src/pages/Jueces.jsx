@@ -201,15 +201,25 @@ function Jueces() {
           finalizado: false
         },
         {
-          onConflict: 'torneo_id,juez_id,aparato_id,nivel_id,categoria_id'
+          onConflict: 'torneo_id,aparato_id,nivel_id,categoria_id'
         }
       )
 
     if (errorGrupo) {
-      console.log(errorGrupo)
-      alert('No se pudo registrar el grupo del juez')
-      return
-    }
+  console.log(errorGrupo)
+
+  if (
+    errorGrupo.code === '23505'
+  ) {
+    alert(
+      'Este aparato ya está asignado a otra jueza para este grupo.'
+    )
+  } else {
+    alert('No se pudo registrar el grupo del juez')
+  }
+
+  return
+}
 
     const { data, error } = await supabase
       .from('inscripciones')
