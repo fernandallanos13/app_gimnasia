@@ -189,36 +189,50 @@ function Jueces() {
       return
     }
 
-    const { error: errorGrupo } = await supabase
-      .from('juez_grupos')
-      .upsert(
-        {
-          torneo_id: torneo.id,
-          juez_id: juez.id,
-          aparato_id: Number(aparatoSeleccionado),
-          nivel_id: Number(nivelSeleccionado),
-          categoria_id: Number(categoriaId),
-          finalizado: false
-        },
-        {
-          onConflict: 'torneo_id,aparato_id,nivel_id,categoria_id'
-        }
-      )
+    const { data: grupoExistente } = await supabase
+  .from('juez_grupos')
+  .select('id, juez_id')
+  .eq('torneo_id', torneo.id)
+  .eq('aparato_id', Number(aparatoSeleccionado))
+  .eq('nivel_id', Number(nivelSeleccionado))
+  .eq('categoria_id', Number(categoriaId))
+  .is('turno_id', null)
+  .maybeSingle()
 
-    if (errorGrupo) {
-  console.log(errorGrupo)
-
-  if (
-    errorGrupo.code === '23505'
-  ) {
-    alert(
-      'Este aparato ya está asignado a otra jueza para este grupo.'
-    )
-  } else {
-    alert('No se pudo registrar el grupo del juez')
-  }
-
+if (
+  grupoExistente &&
+  Number(grupoExistente.juez_id) !== Number(juez.id)
+) {
+  alert('Este aparato ya está asignado a otra jueza para este grupo.')
   return
+}
+
+if (!grupoExistente) {
+  const { error: errorGrupo } = await supabase
+    .from('juez_grupos')
+    .insert([
+      {
+        torneo_id: torneo.id,
+        juez_id: juez.id,
+        aparato_id: Number(aparatoSeleccionado),
+        nivel_id: Number(nivelSeleccionado),
+        categoria_id: Number(categoriaId),
+        turno_id: null,
+        finalizado: false
+      }
+    ])
+
+  if (errorGrupo) {
+    console.log(errorGrupo)
+
+    if (errorGrupo.code === '23505') {
+      alert('Este aparato ya está asignado a otra jueza para este grupo.')
+    } else {
+      alert('No se pudo registrar el grupo del juez')
+    }
+
+    return
+  }
 }
 
     const { data, error } = await supabase
@@ -280,6 +294,52 @@ function Jueces() {
       setTurnoSeleccionado('')
       return
     }
+
+    const { data: grupoTurnoExistente } = await supabase
+  .from('juez_grupos')
+  .select('id, juez_id')
+  .eq('torneo_id', torneo.id)
+  .eq('aparato_id', Number(aparatoSeleccionado))
+  .eq('turno_id', Number(turnoId))
+  .maybeSingle()
+
+if (
+  grupoTurnoExistente &&
+  Number(grupoTurnoExistente.juez_id) !== Number(juez.id)
+) {
+  alert('Este aparato ya está asignado a otra jueza para este turno.')
+  return
+}
+
+if (!grupoTurnoExistente) {
+  const { error: errorGrupoTurno } = await supabase
+    .from('juez_grupos')
+    .insert([
+      {
+        torneo_id: torneo.id,
+        juez_id: juez.id,
+        aparato_id: Number(aparatoSeleccionado),
+        nivel_id: null,
+        categoria_id: null,
+        turno_id: Number(turnoId),
+        finalizado: false
+      }
+    ])
+
+  if (errorGrupoTurno) {
+    console.log(errorGrupoTurno)
+
+    if (errorGrupoTurno.code === '23505') {
+      alert('Este aparato ya está asignado a otra jueza para este turno.')
+    } else {
+      alert('No se pudo registrar el turno del juez')
+    }
+
+    return
+  }
+}
+
+
 
     const { data, error } = await supabase
       .from('turno_gimnastas')
