@@ -173,3 +173,15 @@ button:hover {
   flex-direction: column;
   gap: 3px;
 }
+
+.estado-pendiente {
+  border-left: 10px solid #d62828 !important;
+}
+
+.estado-cargando {
+  border-left: 10px solid #f77f00 !important;
+}
+
+.estado-finalizado {
+  border-left: 10px solid #2a9d8f !important;
+}

@@ -1,6 +1,8 @@
 import { useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import * as XLSX from 'xlsx'
+import { supabase } from '../services/supabase'
+import { useEffect } from 'react'
 
 function AdminPodios() {
   const location = useLocation()
@@ -15,6 +17,7 @@ function AdminPodios() {
   const [categoriaFiltro, setCategoriaFiltro] = useState('')
   const [clubFiltro, setClubFiltro] = useState('')
   const [gruposAbiertos, setGruposAbiertos] = useState({})
+  const [estados, setEstados] = useState({})
   
   const agrupados = {}
 
@@ -147,6 +150,52 @@ function toggleGrupo(grupo) {
   })
 }
 
+async function cambiarEstado(nivel, categoria, estado) {
+  const { error } = await supabase
+    .from('estados_resultados')
+    .upsert(
+      {
+        nivel,
+        categoria,
+        estado
+      },
+      {
+        onConflict: 'nivel,categoria'
+      }
+    )
+
+  if (error) {
+    console.log(error)
+    alert('Error al cambiar estado')
+    return
+  }
+
+  cargarEstados()
+}
+
+async function cargarEstados() {
+  const { data, error } = await supabase
+    .from('estados_resultados')
+    .select('*')
+
+  if (error) {
+    console.log(error)
+    return
+  }
+
+  const mapa = {}
+
+  ;(data || []).forEach((e) => {
+    mapa[`${e.nivel} - ${e.categoria}`] = e.estado
+  })
+
+  setEstados(mapa)
+}
+
+useEffect(() => {
+  cargarEstados()
+}, [])
+
 function exportarPodiosExcel() {
   const datosExcel = [...filasFiltradas]
     .sort((a, b) => {
@@ -175,6 +224,7 @@ function exportarPodiosExcel() {
       Total: esMiniatura(g.categoria)
   ? '🙂'
   : Number(g.total || 0).toFixed(2)
+
     }))
 
   const hoja = XLSX.utils.json_to_sheet(datosExcel)
@@ -244,7 +294,12 @@ function exportarPodiosExcel() {
     const abierto = gruposAbiertos[grupo]
 
     return (
-      <div className="result-category-card" key={grupo}>
+      <div
+  className={`result-category-card estado-${
+    estados[grupo] || 'pendiente'
+  }`}
+  key={grupo}
+>
         <button
           className="result-category-header"
           onClick={() => toggleGrupo(grupo)}
@@ -253,6 +308,20 @@ function exportarPodiosExcel() {
           <strong>{grupo}</strong>
           <small>{gimnastas.length} gimnasta(s)</small>
         </button>
+
+        <div style={{ display: 'flex', gap: '8px', margin: '10px 0' }}>
+  <button onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'pendiente')}>
+    Pendiente
+  </button>
+
+  <button onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'cargando')}>
+    En proceso
+  </button>
+
+  <button onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'finalizado')}>
+    Finalizado
+  </button>
+</div>
 
         {abierto && (
           <div className="table-wrapper">
