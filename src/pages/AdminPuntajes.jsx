@@ -20,16 +20,148 @@ function AdminPuntajes() {
   const [valoresEditados, setValoresEditados] = useState({})
   const [aparatos, setAparatos] = useState([])
   const [turnosPorGimnasta, setTurnosPorGimnasta] = useState({})
+  const [torneoActual, setTorneoActual] = useState(torneoSeleccionado)
+  const [inscripcionesActuales, setInscripcionesActuales] = useState(gimnastasInscriptas)
+  const [puntajesActuales, setPuntajesActuales] = useState(puntajesCargados)
+  const [cargando, setCargando] = useState(false)
 
   useEffect(() => {
     obtenerAparatos()
-  }, [])
+    cargarDatosPuntajes()
+  }, [torneoSeleccionado?.id])
 
   useEffect(() => {
-    if (torneoSeleccionado?.id) {
-      obtenerTurnosPorGimnasta(torneoSeleccionado.id)
+    const torneoId = torneoActual?.id || torneoSeleccionado?.id
+    if (!torneoId) return
+
+    const refrescar = () => cargarDatosPuntajes(false)
+
+    const canal = supabase
+      .channel(`admin-puntajes-en-vivo-${torneoId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'puntajes',
+          filter: `torneo_id=eq.${torneoId}`
+        },
+        refrescar
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inscripciones',
+          filter: `torneo_id=eq.${torneoId}`
+        },
+        refrescar
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'gimnastas'
+        },
+        refrescar
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'turno_gimnastas'
+        },
+        refrescar
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(canal)
     }
-  }, [torneoSeleccionado?.id])
+  }, [torneoActual?.id, torneoSeleccionado?.id])
+
+  async function obtenerTorneoParaPuntajes() {
+    if (torneoSeleccionado?.id) return torneoSeleccionado
+    if (torneoActual?.id) return torneoActual
+
+    const { data, error } = await supabase
+      .from('torneos')
+      .select('*')
+      .eq('estado', 'activo')
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      console.log(error)
+      return null
+    }
+
+    return data
+  }
+
+  async function cargarDatosPuntajes(mostrarCarga = true) {
+    if (mostrarCarga) setCargando(true)
+
+    const torneo = await obtenerTorneoParaPuntajes()
+
+    if (!torneo?.id) {
+      setTorneoActual(null)
+      setInscripcionesActuales([])
+      setPuntajesActuales([])
+      setTurnosPorGimnasta({})
+      setCargando(false)
+      return
+    }
+
+    setTorneoActual(torneo)
+
+    const { data: inscripcionesData, error: inscripcionesError } = await supabase
+      .from('inscripciones')
+      .select(`
+        id,
+        gimnastas (
+          id,
+          nombre,
+          apellido,
+          club,
+          niveles (nombre),
+          categorias (nombre)
+        )
+      `)
+      .eq('torneo_id', torneo.id)
+
+    const { data: puntajesData, error: puntajesError } = await supabase
+      .from('puntajes')
+      .select(`
+        id,
+        puntaje,
+        gimnastas (
+          id,
+          nombre,
+          apellido,
+          club,
+          niveles (nombre),
+          categorias (nombre)
+        ),
+        aparatos (nombre)
+      `)
+      .eq('torneo_id', torneo.id)
+
+    if (inscripcionesError || puntajesError) {
+      console.log(inscripcionesError || puntajesError)
+      alert('No se pudieron actualizar los puntajes')
+      setCargando(false)
+      return
+    }
+
+    setInscripcionesActuales(inscripcionesData || [])
+    setPuntajesActuales(puntajesData || [])
+    await obtenerTurnosPorGimnasta(torneo.id)
+    setCargando(false)
+  }
 
   async function obtenerAparatos() {
     const { data, error } = await supabase
@@ -98,7 +230,7 @@ function AdminPuntajes() {
 
   const agrupados = {}
 
-  gimnastasInscriptas.forEach((inscripcion) => {
+  inscripcionesActuales.forEach((inscripcion) => {
     const g = inscripcion.gimnastas
     if (!g) return
 
@@ -121,7 +253,7 @@ function AdminPuntajes() {
     }
   })
 
-  puntajesCargados.forEach((p) => {
+  puntajesActuales.forEach((p) => {
     const g = p.gimnastas
     const aparato = p.aparatos?.nombre
 
@@ -223,7 +355,7 @@ function AdminPuntajes() {
       .from('jueces')
       .select('id')
       .eq('nombre', 'ADMIN')
-      .eq('torneo_id', torneoSeleccionado.id)
+      .eq('torneo_id', torneoActual.id)
       .maybeSingle()
 
     if (errorBuscar) {
@@ -237,7 +369,7 @@ function AdminPuntajes() {
       .insert([
         {
           nombre: 'ADMIN',
-          torneo_id: torneoSeleccionado.id
+          torneo_id: torneoActual.id
         }
       ])
       .select('id')
@@ -253,7 +385,7 @@ function AdminPuntajes() {
   }
 
   async function guardarEdicion(g) {
-    if (!torneoSeleccionado?.id) {
+    if (!torneoActual?.id) {
       alert('No se encontró el torneo activo')
       return
     }
@@ -286,7 +418,7 @@ function AdminPuntajes() {
         .from('puntajes')
         .upsert(
           {
-            torneo_id: torneoSeleccionado.id,
+            torneo_id: torneoActual.id,
             gimnasta_id: g.gimnasta_id,
             aparato_id: aparato.id,
             juez_id: juezAdmin.id,
@@ -304,8 +436,18 @@ function AdminPuntajes() {
       }
     }
 
-    alert('Puntajes guardados correctamente. Volvé a entrar para verlos actualizados.')
+    await cargarDatosPuntajes(false)
+    alert('Puntajes guardados correctamente. La tabla ya se actualizó.')
     setEditando(null)
+    setValoresEditados({})
+  }
+
+  if (cargando) {
+    return (
+      <div className="admin-page">
+        <h1>Cargando puntajes...</h1>
+      </div>
+    )
   }
 
   return (

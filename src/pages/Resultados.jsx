@@ -296,6 +296,33 @@ function calcularPuestos(lista, categoria, nivel) {
         },
         () => obtenerResultados()
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inscripciones'
+        },
+        () => obtenerResultados()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'gimnastas'
+        },
+        () => obtenerResultados()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'torneos'
+        },
+        () => obtenerResultados()
+      )
       .subscribe()
 
     return () => {

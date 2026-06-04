@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../services/supabase'
 
@@ -8,7 +8,8 @@ function AdminPodios() {
 
   const {
     puntajesCargados = [],
-    gimnastasInscriptas = []
+    gimnastasInscriptas = [],
+    torneoSeleccionado = null
   } = location.state || {}
 
   const [busqueda, setBusqueda] = useState('')
@@ -17,81 +18,211 @@ function AdminPodios() {
   const [clubFiltro, setClubFiltro] = useState('')
   const [gruposAbiertos, setGruposAbiertos] = useState({})
   const [estados, setEstados] = useState({})
+  const [cargando, setCargando] = useState(true)
+  const [torneoActual, setTorneoActual] = useState(torneoSeleccionado)
+  const [inscripcionesActuales, setInscripcionesActuales] = useState(gimnastasInscriptas)
+  const [puntajesActuales, setPuntajesActuales] = useState(puntajesCargados)
 
-  const agrupados = {}
+  useEffect(() => {
+    cargarDatosPodios()
+    cargarEstados()
+  }, [torneoSeleccionado?.id])
 
-  gimnastasInscriptas.forEach((inscripcion) => {
-    const g = inscripcion.gimnastas
-    if (!g) return
+  useEffect(() => {
+    const canal = supabase
+      .channel('admin-podios-en-vivo')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'puntajes'
+        },
+        () => cargarDatosPodios(false)
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'estados_resultados'
+        },
+        () => cargarEstados()
+      )
+      .subscribe()
 
-    const clave = `${g.apellido}-${g.nombre}-${g.club}`
-
-    agrupados[clave] = {
-      apellido: g.apellido,
-      nombre: g.nombre,
-      club: g.club || '',
-      nivel: g.niveles?.nombre || '',
-      categoria: g.categorias?.nombre || '',
-      Suelo: '',
-      Salto: '',
-      Viga: '',
-      Paralelas: '',
-      total: 0
+    return () => {
+      supabase.removeChannel(canal)
     }
-  })
+  }, [torneoActual?.id])
 
-  puntajesCargados.forEach((p) => {
-    const g = p.gimnastas
-    const aparato = p.aparatos?.nombre
+  async function obtenerTorneoParaPodios() {
+    if (torneoSeleccionado?.id) return torneoSeleccionado
+    if (torneoActual?.id) return torneoActual
 
-    if (!g || !aparato) return
+    const { data, error } = await supabase
+      .from('torneos')
+      .select('*')
+      .eq('estado', 'activo')
+      .limit(1)
+      .maybeSingle()
 
-    const clave = `${g.apellido}-${g.nombre}-${g.club}`
+    if (error) {
+      console.log(error)
+      return null
+    }
 
-    if (!agrupados[clave]) return
+    return data
+  }
 
-    agrupados[clave][aparato] = p.puntaje
-    agrupados[clave].total = Number(
-      (agrupados[clave].total + Number(p.puntaje || 0)).toFixed(2)
-    )
-  })
+  async function cargarDatosPodios(mostrarCarga = true) {
+    if (mostrarCarga) setCargando(true)
 
-  const filasBase = Object.values(agrupados)
+    const torneo = await obtenerTorneoParaPodios()
 
-  const niveles = [...new Set(filasBase.map((g) => g.nivel).filter(Boolean))]
-  const categorias = [...new Set(filasBase.map((g) => g.categoria).filter(Boolean))]
-  const clubes = [...new Set(filasBase.map((g) => g.club).filter(Boolean))]
+    if (!torneo?.id) {
+      setTorneoActual(null)
+      setInscripcionesActuales([])
+      setPuntajesActuales([])
+      setCargando(false)
+      return
+    }
 
-  const filasFiltradas = filasBase
-    .filter((g) => {
-      const texto = `${g.apellido} ${g.nombre} ${g.club}`.toLowerCase()
+    setTorneoActual(torneo)
 
-      return (
-        texto.includes(busqueda.toLowerCase()) &&
-        (!nivelFiltro || g.nivel === nivelFiltro) &&
-        (!categoriaFiltro || g.categoria === categoriaFiltro) &&
-        (!clubFiltro || g.club === clubFiltro)
+    const { data: inscripcionesData, error: inscripcionesError } = await supabase
+      .from('inscripciones')
+      .select(`
+        id,
+        gimnastas (
+          id,
+          nombre,
+          apellido,
+          club,
+          niveles (nombre),
+          categorias (nombre)
+        )
+      `)
+      .eq('torneo_id', torneo.id)
+
+    const { data: puntajesData, error: puntajesError } = await supabase
+      .from('puntajes')
+      .select(`
+        id,
+        puntaje,
+        gimnastas (
+          id,
+          nombre,
+          apellido,
+          club,
+          niveles (nombre),
+          categorias (nombre)
+        ),
+        aparatos (nombre)
+      `)
+      .eq('torneo_id', torneo.id)
+
+    if (inscripcionesError || puntajesError) {
+      console.log(inscripcionesError || puntajesError)
+      alert('No se pudieron actualizar los podios')
+      setCargando(false)
+      return
+    }
+
+    setInscripcionesActuales(inscripcionesData || [])
+    setPuntajesActuales(puntajesData || [])
+    setCargando(false)
+  }
+
+  const filasBase = useMemo(() => {
+    const agrupados = {}
+
+    ;(inscripcionesActuales || []).forEach((inscripcion) => {
+      const g = inscripcion.gimnastas
+      if (!g) return
+
+      agrupados[g.id] = {
+        id: g.id,
+        apellido: g.apellido,
+        nombre: g.nombre,
+        club: g.club || '',
+        nivel: g.niveles?.nombre || '',
+        categoria: g.categorias?.nombre || '',
+        Suelo: '',
+        Salto: '',
+        Viga: '',
+        Paralelas: '',
+        total: 0
+      }
+    })
+
+    ;(puntajesActuales || []).forEach((p) => {
+      const g = p.gimnastas
+      const aparato = p.aparatos?.nombre
+
+      if (!g || !aparato) return
+      if (!agrupados[g.id]) return
+
+      const puntaje = Number(p.puntaje || 0)
+
+      agrupados[g.id][aparato] = puntaje.toFixed(2)
+      agrupados[g.id].total = Number(
+        (agrupados[g.id].total + puntaje).toFixed(2)
       )
     })
-    .sort((a, b) => {
-      const nivelA = numeroNivel(a.nivel)
-      const nivelB = numeroNivel(b.nivel)
 
-      if (nivelA !== nivelB) return nivelA - nivelB
-      if (a.categoria !== b.categoria) return String(a.categoria || '').localeCompare(String(b.categoria || ''))
+    return Object.values(agrupados)
+  }, [inscripcionesActuales, puntajesActuales])
 
-      return Number(b.total) - Number(a.total)
+  const niveles = useMemo(() => {
+    return [...new Set(filasBase.map((g) => g.nivel).filter(Boolean))]
+      .sort((a, b) => numeroNivel(a) - numeroNivel(b))
+  }, [filasBase])
+
+  const categorias = useMemo(() => {
+    return [...new Set(filasBase.map((g) => g.categoria).filter(Boolean))].sort()
+  }, [filasBase])
+
+  const clubes = useMemo(() => {
+    return [...new Set(filasBase.map((g) => g.club).filter(Boolean))].sort()
+  }, [filasBase])
+
+  const filasFiltradas = useMemo(() => {
+    return filasBase
+      .filter((g) => {
+        const texto = `${g.apellido} ${g.nombre} ${g.club}`.toLowerCase()
+
+        return (
+          texto.includes(busqueda.toLowerCase()) &&
+          (!nivelFiltro || g.nivel === nivelFiltro) &&
+          (!categoriaFiltro || g.categoria === categoriaFiltro) &&
+          (!clubFiltro || g.club === clubFiltro)
+        )
+      })
+      .sort((a, b) => {
+        const nivelA = numeroNivel(a.nivel)
+        const nivelB = numeroNivel(b.nivel)
+
+        if (nivelA !== nivelB) return nivelA - nivelB
+        if (a.categoria !== b.categoria) {
+          return String(a.categoria || '').localeCompare(String(b.categoria || ''))
+        }
+
+        return Number(b.total) - Number(a.total)
+      })
+  }, [filasBase, busqueda, nivelFiltro, categoriaFiltro, clubFiltro])
+
+  const grupos = useMemo(() => {
+    const mapa = {}
+
+    filasFiltradas.forEach((g) => {
+      const clave = `${g.nivel} - ${g.categoria}`
+      if (!mapa[clave]) mapa[clave] = []
+      mapa[clave].push(g)
     })
 
-  const grupos = {}
-
-  filasFiltradas.forEach((g) => {
-    const clave = `${g.nivel} - ${g.categoria}`
-
-    if (!grupos[clave]) grupos[clave] = []
-
-    grupos[clave].push(g)
-  })
+    return mapa
+  }, [filasFiltradas])
 
   function esMiniatura(categoria) {
     return String(categoria || '').toLowerCase().includes('miniatura')
@@ -201,26 +332,28 @@ function AdminPodios() {
     setEstados(mapa)
   }
 
-  useEffect(() => {
-    cargarEstados()
-  }, [])
-
   function exportarPodiosExcel() {
-    const datosExcel = [...filasFiltradas].map((g, index) => ({
-      Puesto: calcularPuestoAdmin(g, filasFiltradas, g.nivel, g.categoria),
-      Apellido: g.apellido,
-      Nombre: g.nombre,
-      Club: g.club,
-      Nivel: g.nivel,
-      Categoria: g.categoria,
-      Suelo: mostrarPuntaje(g.Suelo, g.categoria),
-      Salto: mostrarPuntaje(g.Salto, g.categoria),
-      Viga: mostrarPuntaje(g.Viga, g.categoria),
-      Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
-      Total: esMiniatura(g.categoria)
-        ? '🙂'
-        : Number(g.total || 0).toFixed(2)
-    }))
+    const datosExcel = [...filasFiltradas].map((g) => {
+      const listaGrupo = filasFiltradas.filter(
+        (item) => item.nivel === g.nivel && item.categoria === g.categoria
+      )
+
+      return {
+        Puesto: calcularPuestoAdmin(g, listaGrupo, g.nivel, g.categoria),
+        Apellido: g.apellido,
+        Nombre: g.nombre,
+        Club: g.club,
+        Nivel: g.nivel,
+        Categoria: g.categoria,
+        Suelo: mostrarPuntaje(g.Suelo, g.categoria),
+        Salto: mostrarPuntaje(g.Salto, g.categoria),
+        Viga: mostrarPuntaje(g.Viga, g.categoria),
+        Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
+        Total: esMiniatura(g.categoria)
+          ? '🙂'
+          : Number(g.total || 0).toFixed(2)
+      }
+    })
 
     const hoja = XLSX.utils.json_to_sheet(datosExcel)
     const libro = XLSX.utils.book_new()
@@ -229,9 +362,29 @@ function AdminPodios() {
     XLSX.writeFile(libro, 'podios-resultados.xlsx')
   }
 
+  if (cargando) {
+    return (
+      <div className="container admin-page">
+        <h1>Cargando podios...</h1>
+      </div>
+    )
+  }
+
+  if (!torneoActual) {
+    return (
+      <div className="container admin-page">
+        <h1>No hay torneo activo</h1>
+        <p>Seleccioná o abrí un torneo desde el panel de administración.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="container admin-page">
       <h1>Podios y resultados</h1>
+      <p style={{ marginTop: '-8px', opacity: 0.8 }}>
+        Torneo: <strong>{torneoActual.nombre}</strong>
+      </p>
 
       <div className="admin-box">
         <input
@@ -264,6 +417,7 @@ function AdminPodios() {
           </select>
 
           <button onClick={limpiarFiltros}>Limpiar filtros</button>
+          <button onClick={() => cargarDatosPodios()}>Actualizar podios</button>
           <button onClick={exportarPodiosExcel}>Descargar Excel filtrado</button>
         </div>
       </div>
@@ -295,7 +449,6 @@ function AdminPodios() {
               key={grupo}
               style={{ borderLeft: `12px solid ${colorEstado}` }}
             >
-              {/* ← HEADER: todo en una línea */}
               <div
                 className="podio-header"
                 onClick={() => toggleGrupo(grupo)}
@@ -328,26 +481,28 @@ function AdminPodios() {
                 </div>
               </div>
 
-              {/* ← BOTONES DE ESTADO: fuera del header */}
               <div style={{ display: 'flex', flexDirection: 'row', gap: '6px', marginTop: '8px', marginBottom: '6px' }}>
-  <button
-    style={{ fontSize: '13px', padding: '5px 10px', minWidth: '40px', maxWidth: '75px', borderRadius: '6px' }}
-    onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'pendiente')}>
-    Pend.
-  </button>
+                <button
+                  style={{ fontSize: '13px', padding: '5px 10px', minWidth: '40px', maxWidth: '75px', borderRadius: '6px' }}
+                  onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'pendiente')}
+                >
+                  Pend.
+                </button>
 
-  <button
-    style={{ fontSize: '13px', padding: '5px 10px', minWidth: '40px', maxWidth: '75px', borderRadius: '6px' }}
-    onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'cargando')}>
-    Cargando
-  </button>
+                <button
+                  style={{ fontSize: '13px', padding: '5px 10px', minWidth: '40px', maxWidth: '75px', borderRadius: '6px' }}
+                  onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'cargando')}
+                >
+                  Cargando
+                </button>
 
-  <button
-    style={{ fontSize: '13px', padding: '5px 10px', minWidth: '40px', maxWidth: '75px', borderRadius: '6px' }}
-    onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'finalizado')}>
-    Final.
-  </button>
-</div>
+                <button
+                  style={{ fontSize: '13px', padding: '5px 10px', minWidth: '40px', maxWidth: '75px', borderRadius: '6px' }}
+                  onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'finalizado')}
+                >
+                  Final.
+                </button>
+              </div>
 
               {abierto && (
                 <div className="table-wrapper">
@@ -367,8 +522,8 @@ function AdminPodios() {
                     </thead>
 
                     <tbody>
-                      {gimnastas.map((g, index) => (
-                        <tr key={`${g.apellido}-${g.nombre}-${g.club}`}>
+                      {gimnastas.map((g) => (
+                        <tr key={g.id}>
                           <td>
                             <strong>
                               {calcularPuestoAdmin(g, gimnastas, g.nivel, g.categoria)}

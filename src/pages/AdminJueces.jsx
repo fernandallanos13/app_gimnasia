@@ -28,6 +28,23 @@ function AdminJueces() {
 
   useEffect(() => {
     obtenerJueces()
+
+    const canal = supabase
+      .channel('admin-jueces-en-vivo')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'juez_grupos'
+        },
+        () => obtenerJueces()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(canal)
+    }
   }, [])
 
   async function reabrirGrupo(grupo) {
