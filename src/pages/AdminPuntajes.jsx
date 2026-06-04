@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 
@@ -12,13 +12,24 @@ function AdminPuntajes() {
   } = location.state || {}
 
   const [busqueda, setBusqueda] = useState('')
+  const [nivelFiltro, setNivelFiltro] = useState('')
+  const [categoriaFiltro, setCategoriaFiltro] = useState('')
+  const [turnoFiltro, setTurnoFiltro] = useState('')
+  const [clubFiltro, setClubFiltro] = useState('')
   const [editando, setEditando] = useState(null)
   const [valoresEditados, setValoresEditados] = useState({})
   const [aparatos, setAparatos] = useState([])
+  const [turnosPorGimnasta, setTurnosPorGimnasta] = useState({})
 
   useEffect(() => {
     obtenerAparatos()
   }, [])
+
+  useEffect(() => {
+    if (torneoSeleccionado?.id) {
+      obtenerTurnosPorGimnasta(torneoSeleccionado.id)
+    }
+  }, [torneoSeleccionado?.id])
 
   async function obtenerAparatos() {
     const { data, error } = await supabase
@@ -33,6 +44,56 @@ function AdminPuntajes() {
     }
 
     setAparatos(data || [])
+  }
+
+  async function obtenerTurnosPorGimnasta(torneoId) {
+    const { data: turnosData, error: errorTurnos } = await supabase
+      .from('turnos')
+      .select('id, nombre')
+      .eq('torneo_id', torneoId)
+      .order('id', { ascending: true })
+
+    if (errorTurnos) {
+      console.log(errorTurnos)
+      return
+    }
+
+    const turnos = turnosData || []
+    const idsTurnos = turnos.map((turno) => turno.id)
+
+    if (idsTurnos.length === 0) {
+      setTurnosPorGimnasta({})
+      return
+    }
+
+    const nombresPorTurno = {}
+    turnos.forEach((turno) => {
+      nombresPorTurno[turno.id] = turno.nombre
+    })
+
+    const { data: relacionesData, error: errorRelaciones } = await supabase
+      .from('turno_gimnastas')
+      .select('turno_id, gimnasta_id')
+      .in('turno_id', idsTurnos)
+
+    if (errorRelaciones) {
+      console.log(errorRelaciones)
+      return
+    }
+
+    const mapa = {}
+
+    ;(relacionesData || []).forEach((relacion) => {
+      const gimnastaId = relacion.gimnasta_id
+      const nombreTurno = nombresPorTurno[relacion.turno_id]
+
+      if (!gimnastaId || !nombreTurno) return
+
+      if (!mapa[gimnastaId]) mapa[gimnastaId] = []
+      if (!mapa[gimnastaId].includes(nombreTurno)) mapa[gimnastaId].push(nombreTurno)
+    })
+
+    setTurnosPorGimnasta(mapa)
   }
 
   const agrupados = {}
@@ -50,6 +111,7 @@ function AdminPuntajes() {
       gimnasta_id: g.id,
       nivel: g.niveles?.nombre || '',
       categoria: g.categorias?.nombre || '',
+      turnos: turnosPorGimnasta[g.id] || [],
       Suelo: '',
       Salto: '',
       Viga: '',
@@ -75,6 +137,7 @@ function AdminPuntajes() {
         gimnasta_id: g.id,
         nivel: g.niveles?.nombre || '',
         categoria: g.categorias?.nombre || '',
+        turnos: turnosPorGimnasta[g.id] || [],
         Suelo: '',
         Salto: '',
         Viga: '',
@@ -88,16 +151,51 @@ function AdminPuntajes() {
     agrupados[clave].puntajesIds[aparato] = p.id
 
     agrupados[clave].total = Number(
-      (
-        agrupados[clave].total + Number(p.puntaje || 0)
-      ).toFixed(2)
+      (agrupados[clave].total + Number(p.puntaje || 0)).toFixed(2)
     )
   })
 
-  const filas = Object.values(agrupados).filter((g) => {
-    const texto = `${g.apellido} ${g.nombre} ${g.club} ${g.nivel} ${g.categoria}`.toLowerCase()
-    return texto.includes(busqueda.toLowerCase())
+  const filasBase = Object.values(agrupados)
+
+  const niveles = useMemo(() => {
+    return [...new Set(filasBase.map((g) => g.nivel).filter(Boolean))].sort((a, b) => numeroNivel(a) - numeroNivel(b))
+  }, [filasBase])
+
+  const categorias = useMemo(() => {
+    return [...new Set(filasBase.map((g) => g.categoria).filter(Boolean))].sort()
+  }, [filasBase])
+
+  const clubes = useMemo(() => {
+    return [...new Set(filasBase.map((g) => g.club).filter(Boolean))].sort()
+  }, [filasBase])
+
+  const turnos = useMemo(() => {
+    return [...new Set(filasBase.flatMap((g) => g.turnos || []).filter(Boolean))].sort()
+  }, [filasBase])
+
+  const filas = filasBase.filter((g) => {
+    const texto = `${g.apellido} ${g.nombre}`.toLowerCase()
+    const coincideBusqueda = texto.includes(busqueda.toLowerCase())
+    const coincideNivel = nivelFiltro ? g.nivel === nivelFiltro : true
+    const coincideCategoria = categoriaFiltro ? g.categoria === categoriaFiltro : true
+    const coincideClub = clubFiltro ? g.club === clubFiltro : true
+    const coincideTurno = turnoFiltro ? (g.turnos || []).includes(turnoFiltro) : true
+
+    return coincideBusqueda && coincideNivel && coincideCategoria && coincideClub && coincideTurno
   })
+
+  function numeroNivel(nivel) {
+    const match = String(nivel || '').match(/\d+/)
+    return match ? Number(match[0]) : 999
+  }
+
+  function limpiarFiltros() {
+    setBusqueda('')
+    setNivelFiltro('')
+    setCategoriaFiltro('')
+    setTurnoFiltro('')
+    setClubFiltro('')
+  }
 
   function iniciarEdicion(g) {
     const clave = `${g.apellido}-${g.nombre}-${g.club}-${g.gimnasta_id}`
@@ -217,10 +315,46 @@ function AdminPuntajes() {
       <div className="admin-box">
         <input
           type="text"
-          placeholder="Buscar por apellido, nombre, club, nivel o categoría..."
+          placeholder="Buscar por nombre o apellido..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
+
+        <div className="podios-filter-grid">
+          <select value={nivelFiltro} onChange={(e) => setNivelFiltro(e.target.value)}>
+            <option value="">Todos los niveles</option>
+            {niveles.map((nivel) => (
+              <option key={nivel} value={nivel}>{nivel}</option>
+            ))}
+          </select>
+
+          <select value={categoriaFiltro} onChange={(e) => setCategoriaFiltro(e.target.value)}>
+            <option value="">Todas las categorías</option>
+            {categorias.map((categoria) => (
+              <option key={categoria} value={categoria}>{categoria}</option>
+            ))}
+          </select>
+
+          <select value={turnoFiltro} onChange={(e) => setTurnoFiltro(e.target.value)}>
+            <option value="">Todos los turnos</option>
+            {turnos.map((turno) => (
+              <option key={turno} value={turno}>{turno}</option>
+            ))}
+          </select>
+
+          <select value={clubFiltro} onChange={(e) => setClubFiltro(e.target.value)}>
+            <option value="">Todos los clubes</option>
+            {clubes.map((club) => (
+              <option key={club} value={club}>{club}</option>
+            ))}
+          </select>
+
+          <button onClick={limpiarFiltros}>Limpiar filtros</button>
+        </div>
+
+        <p style={{ marginTop: '12px', fontWeight: 'bold' }}>
+          {filas.length} gimnasta(s) encontrada(s)
+        </p>
 
         <div className="table-wrapper">
           <table className="admin-table">
@@ -231,6 +365,7 @@ function AdminPuntajes() {
                 <th>Club</th>
                 <th>Nivel</th>
                 <th>Cat.</th>
+                <th>Turno</th>
                 <th>Suelo</th>
                 <th>Salto</th>
                 <th>Viga</th>
@@ -252,6 +387,7 @@ function AdminPuntajes() {
                     <td>{g.club}</td>
                     <td>{g.nivel}</td>
                     <td>{g.categoria}</td>
+                    <td>{(g.turnos || []).join(', ') || '-'}</td>
 
                     {['Suelo', 'Salto', 'Viga', 'Paralelas'].map((aparato) => (
                       <td key={aparato}>

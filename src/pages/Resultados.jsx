@@ -8,6 +8,7 @@ function Resultados() {
   const [busqueda, setBusqueda] = useState('')
   const [categoriasAbiertas, setCategoriasAbiertas] = useState({})
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null)
+  const [estadosResultados, setEstadosResultados] = useState({})
 
   function esMiniatura(categoria) {
     const texto = String(categoria || '').toLowerCase().trim()
@@ -42,31 +43,36 @@ function calcularPuestos(lista, categoria, nivel) {
 
     const nivelTexto = String(nivel || '').toUpperCase().trim()
 
-    if (nivelTexto === 'N1') {
-      const tercio = Math.ceil(ordenados.length / 3)
+    return ordenados.map((g) => {
+      const puntaje = Number(g.total || 0)
+      const posicionPorPuntaje =
+        ordenados.filter((item) => Number(item.total || 0) > puntaje).length + 1
+      const indexPorPuntaje = posicionPorPuntaje - 1
 
-      return ordenados.map((g, index) => ({
-        ...g,
-        puesto:
-          index < tercio
-            ? '1°'
-            : index < tercio * 2
-              ? '2°'
-              : '3°'
-      }))
-    }
+      if (nivelTexto === 'N1') {
+        const tercio = Math.ceil(ordenados.length / 3)
 
-    if (nivelTexto === 'N2' || nivelTexto === 'N3') {
-      return ordenados.map((g, index) => {
-        if (index < 6) {
+        return {
+          ...g,
+          puesto:
+            indexPorPuntaje < tercio
+              ? '1°'
+              : indexPorPuntaje < tercio * 2
+                ? '2°'
+                : '3°'
+        }
+      }
+
+      if (nivelTexto === 'N2' || nivelTexto === 'N3') {
+        if (posicionPorPuntaje <= 6) {
           return {
             ...g,
-            puesto: `${index + 1}°`
+            puesto: `${posicionPorPuntaje}°`
           }
         }
 
-        const restantes = ordenados.length - 6
-        const posicionRestante = index - 6
+        const restantes = Math.max(ordenados.length - 6, 1)
+        const posicionRestante = Math.max(posicionPorPuntaje - 7, 0)
         const cuarto = Math.ceil(restantes / 4)
 
         let puesto = '10°'
@@ -83,13 +89,25 @@ function calcularPuestos(lista, categoria, nivel) {
           ...g,
           puesto
         }
-      })
-    }
+      }
 
-    return ordenados.map((g, index) => ({
-      ...g,
-      puesto: `${index + 1}°`
-    }))
+      return {
+        ...g,
+        puesto: `${posicionPorPuntaje}°`
+      }
+    })
+  }
+
+  function colorEstadoResultado(estado) {
+    if (estado === 'finalizado') return '#19eb19'
+    if (estado === 'cargando') return '#f77f00'
+    return '#d62828'
+  }
+
+  function textoEstadoResultado(estado) {
+    if (estado === 'finalizado') return 'Finalizado'
+    if (estado === 'cargando') return 'Cargando'
+    return 'Pendiente'
   }
 
   function toggleCategoria(clave) {
@@ -171,11 +189,23 @@ function calcularPuestos(lista, categoria, nivel) {
       `)
       .eq('torneo_id', torneoId)
 
-    if (puntajesError || inscripcionesError) {
-      console.log(puntajesError || inscripcionesError)
+    const { data: estadosData, error: estadosError } = await supabase
+      .from('estados_resultados')
+      .select('*')
+
+    if (puntajesError || inscripcionesError || estadosError) {
+      console.log(puntajesError || inscripcionesError || estadosError)
       setCargando(false)
       return
     }
+
+    const mapaEstados = {}
+
+    ;(estadosData || []).forEach((estado) => {
+      mapaEstados[`${estado.nivel} - ${estado.categoria}`] = estado.estado
+    })
+
+    setEstadosResultados(mapaEstados)
 
     const agrupados = {}
 
@@ -254,6 +284,15 @@ function calcularPuestos(lista, categoria, nivel) {
           event: '*',
           schema: 'public',
           table: 'puntajes'
+        },
+        () => obtenerResultados()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'estados_resultados'
         },
         () => obtenerResultados()
       )
@@ -346,8 +385,16 @@ function calcularPuestos(lista, categoria, nivel) {
           ? true
           : categoriasAbiertas[grupo.clave]
 
+        const claveEstado = `${grupo.nivel} - ${grupo.categoria}`
+        const estadoActual = estadosResultados[claveEstado] || 'pendiente'
+        const colorEstado = colorEstadoResultado(estadoActual)
+
         return (
-          <div key={grupo.clave} className="result-category-card">
+          <div
+            key={grupo.clave}
+            className="result-category-card"
+            style={{ borderLeft: `12px solid ${colorEstado}` }}
+          >
             <button
               className="result-category-header"
               onClick={() => toggleCategoria(grupo.clave)}
@@ -359,7 +406,7 @@ function calcularPuestos(lista, categoria, nivel) {
               </strong>
 
               <small>
-                {grupo.gimnastas.length} gimnasta(s)
+                {grupo.gimnastas.length} gimnasta(s) · {textoEstadoResultado(estadoActual)}
               </small>
             </button>
 

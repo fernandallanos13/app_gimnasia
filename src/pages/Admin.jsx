@@ -701,9 +701,33 @@ setImportandoExcel(false)
   }
 
   async function cerrarTorneo(torneoId) {
-    const confirmar = confirm('¿Seguro que querés cerrar este torneo?')
+    const confirmar = confirm(
+      '¿Seguro que querés cerrar este torneo? Se limpiarán los jueces logueados y las cargas manuales de este torneo.'
+    )
 
     if (!confirmar) return
+
+    const { error: errorJuecesLogueados } = await supabase
+      .from('juez_grupos')
+      .delete()
+      .eq('torneo_id', torneoId)
+
+    if (errorJuecesLogueados) {
+      console.log(errorJuecesLogueados)
+      alert('Error al limpiar los jueces logueados del torneo')
+      return
+    }
+
+    const { error: errorCargasManuales } = await supabase
+      .from('cargas_manuales')
+      .delete()
+      .eq('torneo_id', torneoId)
+
+    if (errorCargasManuales) {
+      console.log(errorCargasManuales)
+      alert('Error al limpiar las cargas manuales del torneo')
+      return
+    }
 
     const { error } = await supabase
       .from('torneos')
@@ -718,7 +742,7 @@ setImportandoExcel(false)
       return
     }
 
-    alert('Torneo cerrado')
+    alert('Torneo cerrado. Se limpiaron jueces logueados y cargas manuales de este torneo.')
 
     setTorneoSeleccionado(null)
     setGimnastasInscriptas([])
