@@ -49,6 +49,24 @@ function AdminPodios() {
         },
         () => cargarEstados()
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inscripciones'
+        },
+        () => cargarDatosPodios(false)
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'gimnastas'
+        },
+        () => cargarDatosPodios(false)
+      )
       .subscribe()
 
     return () => {

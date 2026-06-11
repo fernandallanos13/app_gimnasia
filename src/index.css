@@ -708,3 +708,96 @@ table th {
   padding: 8px 10px;
   font-size: 14px;
 }
+
+/* Cartel de instalación de GymScore */
+.install-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  max-width: 520px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22);
+}
+
+.install-banner__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+  color: white;
+  font-size: 24px;
+}
+
+.install-banner__content h2 {
+  margin: 0 0 4px;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.install-banner__content p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.install-banner__hint {
+  margin-top: 8px !important;
+  font-weight: 700;
+  color: #0f172a !important;
+}
+
+.install-banner__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.install-banner__actions button {
+  max-width: none;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+
+.install-banner__primary {
+  background: #0f172a;
+  color: #ffffff;
+  flex: 1.2;
+}
+
+.install-banner__primary:hover {
+  background: #1e293b;
+}
+
+.install-banner__secondary {
+  background: #e2e8f0;
+  color: #0f172a;
+  flex: 0.8;
+}
+
+.install-banner__secondary:hover {
+  background: #cbd5e1;
+}
+
+@media (max-width: 420px) {
+  .install-banner__actions {
+    flex-direction: column;
+  }
+}
