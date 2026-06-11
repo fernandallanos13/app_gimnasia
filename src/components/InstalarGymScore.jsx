@@ -12,12 +12,15 @@ function isAppInstalled() {
 function InstalarGymScore() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallCard, setShowInstallCard] = useState(false)
-  const [showIosHelp, setShowIosHelp] = useState(false)
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(INSTALL_DISMISSED_KEY) === 'true'
+    if (isAppInstalled()) return
 
-    if (isAppInstalled() || dismissed) return
+    const dismissed = localStorage.getItem(INSTALL_DISMISSED_KEY)
+
+    if (dismissed !== 'true') {
+      setShowInstallCard(true)
+    }
 
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault()
@@ -33,13 +36,6 @@ function InstalarGymScore() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     window.addEventListener('appinstalled', handleAppInstalled)
-
-    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
-    const isSafari = /^((?!chrome|android).)*safari/i.test(window.navigator.userAgent)
-
-    if (isIos && isSafari) {
-      setShowIosHelp(true)
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
@@ -60,10 +56,9 @@ function InstalarGymScore() {
   const dismissInstallCard = () => {
     localStorage.setItem(INSTALL_DISMISSED_KEY, 'true')
     setShowInstallCard(false)
-    setShowIosHelp(false)
   }
 
-  if (!showInstallCard && !showIosHelp) return null
+  if (!showInstallCard) return null
 
   return (
     <div className="install-banner" role="dialog" aria-label="Instalar GymScore">
@@ -73,15 +68,16 @@ function InstalarGymScore() {
         <h2>Instalar GymScore</h2>
         <p>Accedé más rápido desde tu celular durante el torneo.</p>
 
-        {showIosHelp && !showInstallCard && (
+        {!deferredPrompt && (
           <p className="install-banner__hint">
-            En iPhone: tocá Compartir y después “Agregar a pantalla de inicio”.
+            Si no aparece el botón automático, tocá los tres puntitos de Chrome y elegí
+            “Instalar app” o “Agregar a pantalla principal”.
           </p>
         )}
       </div>
 
       <div className="install-banner__actions">
-        {showInstallCard && (
+        {deferredPrompt && (
           <button type="button" className="install-banner__primary" onClick={installApp}>
             Instalar aplicación
           </button>
