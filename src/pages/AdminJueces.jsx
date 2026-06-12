@@ -10,10 +10,12 @@ function AdminJueces() {
       .select(`
         id,
         finalizado,
+        turno_id,
         jueces (nombre),
         aparatos (nombre),
         niveles (nombre),
-        categorias (nombre)
+        categorias (nombre),
+        turnos (nombre)
       `)
       .order('id', { ascending: false })
 
@@ -23,7 +25,7 @@ function AdminJueces() {
       return
     }
 
-    setGrupos(data)
+    setGrupos(data || [])
   }
 
   useEffect(() => {
@@ -47,34 +49,79 @@ function AdminJueces() {
     }
   }, [])
 
-  async function reabrirGrupo(grupo) {
-  const confirmar = window.confirm(
-    `¿Reabrir el grupo de ${grupo.jueces?.nombre}?`
-  )
+  async function finalizarGrupo(grupo) {
+    const confirmar = window.confirm(
+      `¿Finalizar la carga de ${grupo.jueces?.nombre}? La jueza ya no podrá modificar puntajes.`
+    )
 
-  if (!confirmar) return
+    if (!confirmar) return
 
-  const { error } = await supabase
-    .from('juez_grupos')
-    .update({ finalizado: false })
-    .eq('id', grupo.id)
+    const { error } = await supabase
+      .from('juez_grupos')
+      .update({ finalizado: true })
+      .eq('id', grupo.id)
 
-  if (error) {
-    console.log(error)
-    alert('No se pudo reabrir el grupo')
-    return
+    if (error) {
+      console.log(error)
+      alert('No se pudo finalizar la carga')
+      return
+    }
+
+    alert('Carga finalizada')
+    obtenerJueces()
   }
 
-  alert('Grupo reabierto. La jueza debe salir y volver a entrar al grupo.')
-  obtenerJueces()
-}
+  async function reabrirGrupo(grupo) {
+    const confirmar = window.confirm(
+      `¿Reabrir la carga de ${grupo.jueces?.nombre}?`
+    )
+
+    if (!confirmar) return
+
+    const { error } = await supabase
+      .from('juez_grupos')
+      .update({ finalizado: false })
+      .eq('id', grupo.id)
+
+    if (error) {
+      console.log(error)
+      alert('No se pudo reabrir el grupo')
+      return
+    }
+
+    alert('Grupo reabierto')
+    obtenerJueces()
+  }
+
+  async function eliminarGrupo(grupo) {
+    const confirmar = window.confirm(
+      `¿Eliminar esta asignación de ${grupo.jueces?.nombre}? Esto libera el aparato/grupo/turno para que pueda volver a cargarse.`
+    )
+
+    if (!confirmar) return
+
+    const { error } = await supabase
+      .from('juez_grupos')
+      .delete()
+      .eq('id', grupo.id)
+
+    if (error) {
+      console.log(error)
+      alert('No se pudo eliminar la asignación')
+      return
+    }
+
+    alert('Asignación eliminada')
+    obtenerJueces()
+  }
 
   return (
     <div className="container admin-page">
       <h1>Jueces logueados</h1>
+
       <button onClick={obtenerJueces}>
-  Actualizar
-</button>
+        Actualizar
+      </button>
 
       <div className="admin-box">
         {grupos.length === 0 ? (
@@ -88,6 +135,7 @@ function AdminJueces() {
                   <th>Aparato</th>
                   <th>Nivel</th>
                   <th>Categoría</th>
+                  <th>Turno</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -96,22 +144,34 @@ function AdminJueces() {
               <tbody>
                 {grupos.map((grupo) => (
                   <tr key={grupo.id}>
-                    <td>{grupo.jueces?.nombre}</td>
-                    <td>{grupo.aparatos?.nombre}</td>
-                    <td>{grupo.niveles?.nombre}</td>
-                    <td>{grupo.categorias?.nombre}</td>
+                    <td>{grupo.jueces?.nombre || '-'}</td>
+                    <td>{grupo.aparatos?.nombre || '-'}</td>
+                    <td>{grupo.niveles?.nombre || '-'}</td>
+                    <td>{grupo.categorias?.nombre || '-'}</td>
+                    <td>{grupo.turnos?.nombre || '-'}</td>
                     <td>
                       {grupo.finalizado ? 'Finalizado' : 'Cargando'}
                     </td>
                     <td>
-  {grupo.finalizado ? (
-    <button onClick={() => reabrirGrupo(grupo)}>
-      Reabrir grupo
-    </button>
-  ) : (
-    <span>Activo</span>
-  )}
-</td>
+                      <div className="table-buttons">
+                        {grupo.finalizado ? (
+                          <button onClick={() => reabrirGrupo(grupo)}>
+                            Reabrir
+                          </button>
+                        ) : (
+                          <button onClick={() => finalizarGrupo(grupo)}>
+                            Finalizar carga
+                          </button>
+                        )}
+
+                        <button
+                          className="danger"
+                          onClick={() => eliminarGrupo(grupo)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

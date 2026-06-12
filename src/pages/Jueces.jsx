@@ -69,7 +69,7 @@ function Jueces() {
       .order('id', { ascending: true })
 
     if (error) console.log(error)
-    else setAparatos(data)
+    else setAparatos(data || [])
   }
 
   async function obtenerTurnos(torneoId) {
@@ -165,6 +165,34 @@ function Jueces() {
     return localStorage.getItem(obtenerClaveGrupo()) === 'true'
   }
 
+  async function grupoFinalizadoEnBD() {
+    if (!torneo?.id || !aparatoSeleccionado) return false
+
+    let query = supabase
+      .from('juez_grupos')
+      .select('finalizado')
+      .eq('torneo_id', torneo.id)
+      .eq('aparato_id', Number(aparatoSeleccionado))
+
+    if (modoCarga === 'turno') {
+      query = query.eq('turno_id', Number(turnoSeleccionado))
+    } else {
+      query = query
+        .eq('nivel_id', Number(nivelSeleccionado))
+        .eq('categoria_id', Number(categoriaSeleccionada))
+        .is('turno_id', null)
+    }
+
+    const { data, error } = await query.maybeSingle()
+
+    if (error) {
+      console.log(error)
+      return false
+    }
+
+    return data?.finalizado === true
+  }
+
   async function obtenerGimnastasDelGrupo(categoriaId) {
     setCategoriaSeleccionada(categoriaId)
     setGimnastasGrupo([])
@@ -189,51 +217,62 @@ function Jueces() {
       return
     }
 
-    const { data: grupoExistente } = await supabase
-  .from('juez_grupos')
-  .select('id, juez_id')
-  .eq('torneo_id', torneo.id)
-  .eq('aparato_id', Number(aparatoSeleccionado))
-  .eq('nivel_id', Number(nivelSeleccionado))
-  .eq('categoria_id', Number(categoriaId))
-  .is('turno_id', null)
-  .maybeSingle()
+    const { data: grupoExistente, error: errorBuscarGrupo } = await supabase
+      .from('juez_grupos')
+      .select('id, juez_id, finalizado')
+      .eq('torneo_id', torneo.id)
+      .eq('aparato_id', Number(aparatoSeleccionado))
+      .eq('nivel_id', Number(nivelSeleccionado))
+      .eq('categoria_id', Number(categoriaId))
+      .is('turno_id', null)
+      .maybeSingle()
 
-if (
-  grupoExistente &&
-  Number(grupoExistente.juez_id) !== Number(juez.id)
-) {
-  alert('Este aparato ya está asignado a otra jueza para este grupo.')
-  return
-}
-
-if (!grupoExistente) {
-  const { error: errorGrupo } = await supabase
-    .from('juez_grupos')
-    .insert([
-      {
-        torneo_id: torneo.id,
-        juez_id: juez.id,
-        aparato_id: Number(aparatoSeleccionado),
-        nivel_id: Number(nivelSeleccionado),
-        categoria_id: Number(categoriaId),
-        turno_id: null,
-        finalizado: false
-      }
-    ])
-
-  if (errorGrupo) {
-    console.log(errorGrupo)
-
-    if (errorGrupo.code === '23505') {
-      alert('Este aparato ya está asignado a otra jueza para este grupo.')
-    } else {
-      alert('No se pudo registrar el grupo del juez')
+    if (errorBuscarGrupo) {
+      console.log(errorBuscarGrupo)
+      alert('No se pudo verificar si el grupo ya estaba asignado')
+      return
     }
 
-    return
-  }
-}
+    if (
+      grupoExistente &&
+      Number(grupoExistente.juez_id) !== Number(juez.id)
+    ) {
+      alert('Este aparato ya está asignado a otra jueza para este grupo.')
+      return
+    }
+
+    if (grupoExistente?.finalizado) {
+      alert('Este grupo ya fue finalizado por el admin. No se pueden modificar puntajes.')
+      return
+    }
+
+    if (!grupoExistente) {
+      const { error: errorGrupo } = await supabase
+        .from('juez_grupos')
+        .insert([
+          {
+            torneo_id: torneo.id,
+            juez_id: juez.id,
+            aparato_id: Number(aparatoSeleccionado),
+            nivel_id: Number(nivelSeleccionado),
+            categoria_id: Number(categoriaId),
+            turno_id: null,
+            finalizado: false
+          }
+        ])
+
+      if (errorGrupo) {
+        console.log(errorGrupo)
+
+        if (errorGrupo.code === '23505') {
+          alert('Este aparato ya está asignado a otra jueza para este grupo.')
+        } else {
+          alert('No se pudo registrar el grupo del juez')
+        }
+
+        return
+      }
+    }
 
     const { data, error } = await supabase
       .from('inscripciones')
@@ -287,6 +326,11 @@ if (!grupoExistente) {
       return
     }
 
+    if (!torneo?.id || !juez?.id || !turnoId) {
+      alert('Faltan datos para registrar el turno del juez')
+      return
+    }
+
     const claveGrupo = `grupo-finalizado-turno-${torneo.id}-${juez.id}-${aparatoSeleccionado}-${turnoId}`
 
     if (localStorage.getItem(claveGrupo) === 'true') {
@@ -295,51 +339,60 @@ if (!grupoExistente) {
       return
     }
 
-    const { data: grupoTurnoExistente } = await supabase
-  .from('juez_grupos')
-  .select('id, juez_id')
-  .eq('torneo_id', torneo.id)
-  .eq('aparato_id', Number(aparatoSeleccionado))
-  .eq('turno_id', Number(turnoId))
-  .maybeSingle()
+    const { data: grupoTurnoExistente, error: errorBuscarTurno } = await supabase
+      .from('juez_grupos')
+      .select('id, juez_id, finalizado')
+      .eq('torneo_id', torneo.id)
+      .eq('aparato_id', Number(aparatoSeleccionado))
+      .eq('turno_id', Number(turnoId))
+      .maybeSingle()
 
-if (
-  grupoTurnoExistente &&
-  Number(grupoTurnoExistente.juez_id) !== Number(juez.id)
-) {
-  alert('Este aparato ya está asignado a otra jueza para este turno.')
-  return
-}
-
-if (!grupoTurnoExistente) {
-  const { error: errorGrupoTurno } = await supabase
-    .from('juez_grupos')
-    .insert([
-      {
-        torneo_id: torneo.id,
-        juez_id: juez.id,
-        aparato_id: Number(aparatoSeleccionado),
-        nivel_id: null,
-        categoria_id: null,
-        turno_id: Number(turnoId),
-        finalizado: false
-      }
-    ])
-
-  if (errorGrupoTurno) {
-    console.log(errorGrupoTurno)
-
-    if (errorGrupoTurno.code === '23505') {
-      alert('Este aparato ya está asignado a otra jueza para este turno.')
-    } else {
-      alert('No se pudo registrar el turno del juez')
+    if (errorBuscarTurno) {
+      console.log(errorBuscarTurno)
+      alert('No se pudo verificar si el turno ya estaba asignado')
+      return
     }
 
-    return
-  }
-}
+    if (
+      grupoTurnoExistente &&
+      Number(grupoTurnoExistente.juez_id) !== Number(juez.id)
+    ) {
+      alert('Este aparato ya está asignado a otra jueza para este turno.')
+      return
+    }
 
+    if (grupoTurnoExistente?.finalizado) {
+      alert('Este turno ya fue finalizado por el admin. No se pueden modificar puntajes.')
+      return
+    }
 
+    if (!grupoTurnoExistente) {
+      const { error: errorGrupoTurno } = await supabase
+        .from('juez_grupos')
+        .insert([
+          {
+            torneo_id: torneo.id,
+            juez_id: juez.id,
+            aparato_id: Number(aparatoSeleccionado),
+            nivel_id: null,
+            categoria_id: null,
+            turno_id: Number(turnoId),
+            finalizado: false
+          }
+        ])
+
+      if (errorGrupoTurno) {
+        console.log(errorGrupoTurno)
+
+        if (errorGrupoTurno.code === '23505') {
+          alert('Este aparato ya está asignado a otra jueza para este turno.')
+        } else {
+          alert('No se pudo registrar el turno del juez')
+        }
+
+        return
+      }
+    }
 
     const { data, error } = await supabase
       .from('turno_gimnastas')
@@ -367,8 +420,9 @@ if (!grupoTurnoExistente) {
     }
 
     const ordenadas = [...data].sort((a, b) => {
-  return Number(a.orden || 0) - Number(b.orden || 0)
-})
+      return Number(a.orden || 0) - Number(b.orden || 0)
+    })
+
     setGimnastasGrupo(ordenadas)
     cargarPuntajesPrevios(ordenadas)
   }
@@ -397,61 +451,66 @@ if (!grupoTurnoExistente) {
   }
 
   async function guardarPuntajeIndividual(gimnastaId, valor) {
-  if (!aparatoSeleccionado || !torneo || !juez) return
+    if (!aparatoSeleccionado || !torneo || !juez) return
 
-  const valorNormalizado = String(valor).replace(',', '.')
-  const numero = Number(valorNormalizado)
+    const valorNormalizado = String(valor).replace(',', '.')
+    const numero = Number(valorNormalizado)
 
-  if (
-    valorNormalizado === '' ||
-    Number.isNaN(numero) ||
-    numero < 0 ||
-    numero > 99
-  ) {
-    return
+    if (
+      valorNormalizado === '' ||
+      Number.isNaN(numero) ||
+      numero < 0 ||
+      numero > 99
+    ) {
+      return
+    }
+
+    const { error } = await supabase
+      .from('puntajes')
+      .upsert(
+        {
+          torneo_id: torneo.id,
+          gimnasta_id: gimnastaId,
+          juez_id: juez.id,
+          aparato_id: Number(aparatoSeleccionado),
+          puntaje: Number(numero.toFixed(2))
+        },
+        {
+          onConflict: 'torneo_id,gimnasta_id,aparato_id'
+        }
+      )
+
+    if (error) {
+      console.log(error)
+      alert('Error al autoguardar puntaje')
+    }
   }
 
-  const { error } = await supabase
-    .from('puntajes')
-    .upsert(
-      {
-        torneo_id: torneo.id,
-        gimnasta_id: gimnastaId,
-        juez_id: juez.id,
-        aparato_id: Number(aparatoSeleccionado),
-        puntaje: Number(numero.toFixed(2))
-      },
-      {
-        onConflict: 'torneo_id,gimnasta_id,aparato_id'
-      }
-    )
-
-  if (error) {
-    console.log(error)
-    alert('Error al autoguardar puntaje')
-  }
-}
-
-  function cambiarPuntaje(gimnastaId, valor) {
+  async function cambiarPuntaje(gimnastaId, valor) {
     if (grupoEstaFinalizado()) {
       alert('Este grupo ya fue finalizado. No podés modificar los puntajes.')
       return
     }
 
-    const valorNormalizado = String(valor).replace(',', '.')
-const regexDecimal = /^\d+([.,]\d{0,2})?$/
+    const finalizadoEnBD = await grupoFinalizadoEnBD()
 
-if (
-  valorNormalizado !== '' &&
-  !regexDecimal.test(valor)
-) {
-  alert('Máximo 2 decimales')
-  return
-}
-if (
-  valorNormalizado !== '' &&
-  (Number(valorNormalizado) < 0 || Number(valorNormalizado) > 99)
-) {
+    if (finalizadoEnBD) {
+      alert('El admin ya finalizó esta carga. No podés modificar los puntajes.')
+      return
+    }
+
+    const valorNormalizado = String(valor).replace(',', '.')
+    const regexDecimal = /^\d+([.,]\d{0,2})?$/
+
+    if (valorNormalizado !== '' && !regexDecimal.test(valor)) {
+      alert('Máximo 2 decimales')
+      return
+    }
+
+    if (
+      valorNormalizado !== '' &&
+      (Number(valorNormalizado) < 0 || Number(valorNormalizado) > 99)
+    ) {
       alert('El puntaje debe ser entre 0 y 99')
       return
     }
@@ -465,7 +524,6 @@ if (
   }
 
   async function cargarOtroGrupo() {
-   
     setModoCarga('')
     setNivelSeleccionado('')
     setCategoriaSeleccionada('')
@@ -714,8 +772,8 @@ if (
                     </button>
                   ) : (
                     <input
-  type="text"
-  inputMode="decimal"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="0-99"
                       maxLength={5}
                       value={puntajes[item.gimnastas.id] || ''}
@@ -726,7 +784,6 @@ if (
                   )}
                 </div>
               ))}
-
             </div>
           )}
         </div>
