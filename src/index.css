@@ -294,12 +294,12 @@ table th {
 }
 
 .admin-btn.primary {
-  background: #4f46e5;
+  background: #be0101;
   color: white;
 }
 
 .admin-btn.primary:hover {
-  background: #4338ca;
+  background: #bd0000;
 }
 
 .admin-btn.secondary {
