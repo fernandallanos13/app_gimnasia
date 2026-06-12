@@ -15,6 +15,9 @@ function AdminInscriptas() {
 
   const [inscriptas, setInscriptas] = useState(gimnastasInscriptas)
   const [busqueda, setBusqueda] = useState('')
+  const [filtroClub, setFiltroClub] = useState('')
+const [filtroNivel, setFiltroNivel] = useState('')
+const [filtroCategoria, setFiltroCategoria] = useState('')
 
   const [editandoId, setEditandoId] = useState(null)
   const [editNombre, setEditNombre] = useState('')
@@ -249,16 +252,43 @@ function AdminInscriptas() {
 
   saveAs(fileData, 'inscriptas.xlsx')
 }
+const clubes = Array.from(
+  new Set(
+    inscriptas
+      .map((i) => i.gimnastas?.club)
+      .filter(Boolean)
+  )
+).sort()
 
   const filtradas = inscriptas.filter((inscripcion) => {
-    const g = inscripcion.gimnastas
+  const g = inscripcion.gimnastas
 
-    const texto =
-      `${g?.apellido} ${g?.nombre} ${g?.club}`
-        .toLowerCase()
+  const texto =
+    `${g?.apellido} ${g?.nombre} ${g?.club}`
+      .toLowerCase()
 
-    return texto.includes(busqueda.toLowerCase())
-  })
+  const cumpleBusqueda =
+    texto.includes(busqueda.toLowerCase())
+
+  const cumpleClub =
+    filtroClub === '' ||
+    g?.club === filtroClub
+
+  const cumpleNivel =
+    filtroNivel === '' ||
+    String(g?.nivel_id) === String(filtroNivel)
+
+  const cumpleCategoria =
+    filtroCategoria === '' ||
+    String(g?.categoria_id) === String(filtroCategoria)
+
+  return (
+    cumpleBusqueda &&
+    cumpleClub &&
+    cumpleNivel &&
+    cumpleCategoria
+  )
+})
 
   return (
     <div className="container admin-page">
@@ -271,6 +301,65 @@ function AdminInscriptas() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
+
+        <div
+  style={{
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+    marginTop: '15px'
+  }}
+>
+
+  <select
+    value={filtroClub}
+    onChange={(e) => setFiltroClub(e.target.value)}
+  >
+    <option value="">Todos los clubes</option>
+
+    {clubes.map((club) => (
+      <option
+        key={club}
+        value={club}
+      >
+        {club}
+      </option>
+    ))}
+  </select>
+
+  <select
+    value={filtroNivel}
+    onChange={(e) => setFiltroNivel(e.target.value)}
+  >
+    <option value="">Todos los niveles</option>
+
+    {niveles.map((nivel) => (
+      <option
+        key={nivel.id}
+        value={nivel.id}
+      >
+        {nivel.nombre}
+      </option>
+    ))}
+  </select>
+
+  <select
+    value={filtroCategoria}
+    onChange={(e) => setFiltroCategoria(e.target.value)}
+  >
+    <option value="">Todas las categorías</option>
+
+    {categorias.map((categoria) => (
+      <option
+        key={categoria.id}
+        value={categoria.id}
+      >
+        {categoria.nombre}
+      </option>
+    ))}
+  </select>
+
+</div>
         <button
   onClick={descargarExcel}
   className="btn btn-success"
