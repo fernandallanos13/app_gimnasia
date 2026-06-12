@@ -361,6 +361,12 @@ const yaExiste = inscripcionesExistentes.some((inscripcion) => {
   )
 })
 
+if (yaExiste) {
+  omitidas++
+  continue
+
+}
+
         const { data: gimnastaCreada, error: errorGimnasta } = await supabase
           .from('gimnastas')
           .insert([
