@@ -122,6 +122,25 @@ function Admin() {
   }
 }
 
+function existeGimnastaEnTorneo({ nombre, apellido, nivelId, categoriaId, ignorarGimnastaId = null }) {
+  return gimnastasInscriptas.some((inscripcion) => {
+    const g = inscripcion.gimnastas
+
+    if (!g) return false
+
+    if (ignorarGimnastaId && Number(g.id) === Number(ignorarGimnastaId)) {
+      return false
+    }
+
+    return (
+      normalizarTexto(g.nombre) === normalizarTexto(nombre) &&
+      normalizarTexto(g.apellido) === normalizarTexto(apellido) &&
+      Number(g.nivel_id) === Number(nivelId) &&
+      Number(g.categoria_id) === Number(categoriaId)
+    )
+  })
+}
+
   async function cargarGimnasta() {
   if (!torneoSeleccionado) {
     alert('No hay un torneo activo seleccionado')
@@ -212,10 +231,6 @@ if (errorCargaManual) {
 alert('Gimnasta cargada e inscripta')
 
 
-if (errorCargaManual) {
-  alert('La gimnasta se cargó, pero NO se registró como carga manual. Mirá la consola.')
-  return
-}
   setNombreGimnasta('')
   setApellidoGimnasta('')
   setClub('')
@@ -332,6 +347,7 @@ const filas = XLSX.utils.sheet_to_json(hoja, {
                 nombre,
                 apellido,
                 club,
+                profe,
                 nivel_id,
                 categoria_id
               )
