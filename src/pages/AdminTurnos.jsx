@@ -15,7 +15,7 @@ function AdminTurnos() {
   const [filtroNivel, setFiltroNivel] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [seleccionadas, setSeleccionadas] = useState([])
-const [ordenManual, setOrdenManual] = useState([])
+  const [ordenManual, setOrdenManual] = useState([])
   const [turnos, setTurnos] = useState([])
   const [turnoEditando, setTurnoEditando] = useState(null)
 
@@ -35,10 +35,7 @@ const [ordenManual, setOrdenManual] = useState([])
       (data || []).map(async (turno) => {
         const { count } = await supabase
           .from('turno_gimnastas')
-          .select('*', {
-            count: 'exact',
-            head: true
-          })
+          .select('*', { count: 'exact', head: true })
           .eq('turno_id', turno.id)
 
         return {
@@ -58,48 +55,45 @@ const [ordenManual, setOrdenManual] = useState([])
   }, [])
 
   const nivelesDisponibles = [
-  ...new Map(
-    gimnastasInscriptas
-      .map((i) => {
-        const g = i.gimnastas
+    ...new Map(
+      gimnastasInscriptas
+        .map((i) => {
+          const g = i.gimnastas
+          if (!g?.nivel_id) return null
 
-        if (!g?.nivel_id) return null
-
-        return {
-          id: g.nivel_id,
-          nombre: g.niveles?.nombre || `Nivel ${g.nivel_id}`
-        }
-      })
-      .filter(Boolean)
-      .map((nivel) => [nivel.id, nivel])
-  ).values()
-]
+          return {
+            id: g.nivel_id,
+            nombre: g.niveles?.nombre || `Nivel ${g.nivel_id}`
+          }
+        })
+        .filter(Boolean)
+        .map((nivel) => [nivel.id, nivel])
+    ).values()
+  ]
 
   const categoriasDisponibles = [
-  ...new Map(
-    gimnastasInscriptas
-      .map((i) => {
-        const g = i.gimnastas
+    ...new Map(
+      gimnastasInscriptas
+        .map((i) => {
+          const g = i.gimnastas
+          if (!g?.categoria_id) return null
 
-        if (!g?.categoria_id) return null
-
-        return {
-          id: g.categoria_id,
-          nombre: g.categorias?.nombre || `Categoría ${g.categoria_id}`
-        }
-      })
-      .filter(Boolean)
-      .map((categoria) => [categoria.id, categoria])
-  ).values()
-]
+          return {
+            id: g.categoria_id,
+            nombre: g.categorias?.nombre || `Categoría ${g.categoria_id}`
+          }
+        })
+        .filter(Boolean)
+        .map((categoria) => [categoria.id, categoria])
+    ).values()
+  ]
 
   const filtradas = [...gimnastasInscriptas]
     .filter((inscripcion) => {
       const g = inscripcion.gimnastas
 
       const texto =
-        `${g?.apellido} ${g?.nombre} ${g?.club}`
-          .toLowerCase()
+        `${g?.apellido} ${g?.nombre} ${g?.club}`.toLowerCase()
 
       const coincideBusqueda =
         texto.includes(busqueda.toLowerCase())
@@ -112,11 +106,7 @@ const [ordenManual, setOrdenManual] = useState([])
         !filtroCategoria ||
         String(g?.categoria_id) === String(filtroCategoria)
 
-      return (
-        coincideBusqueda &&
-        coincideNivel &&
-        coincideCategoria
-      )
+      return coincideBusqueda && coincideNivel && coincideCategoria
     })
     .sort((a, b) => {
       const nivelA = a.gimnastas?.niveles?.nombre || ''
@@ -149,25 +139,34 @@ const [ordenManual, setOrdenManual] = useState([])
     })
 
   function toggleSeleccion(gimnastaId) {
-  setSeleccionadas((prev) => {
-    if (prev.includes(gimnastaId)) {
-      setOrdenManual((ordenPrev) =>
-        ordenPrev.filter((id) => id !== gimnastaId)
-      )
+    setSeleccionadas((prev) => {
+      if (prev.includes(gimnastaId)) {
+        setOrdenManual((ordenPrev) =>
+          ordenPrev.filter((id) => id !== gimnastaId)
+        )
 
-      return prev.filter((id) => id !== gimnastaId)
-    }
+        return prev.filter((id) => id !== gimnastaId)
+      }
 
-    setOrdenManual((ordenPrev) => [
-      ...ordenPrev,
-      gimnastaId
-    ])
+      setOrdenManual((ordenPrev) => [
+        ...ordenPrev,
+        gimnastaId
+      ])
 
-    return [...prev, gimnastaId]
-  })
-}
+      return [...prev, gimnastaId]
+    })
+  }
 
-   
+  function quitarGimnastaDelTurno(gimnastaId) {
+    setSeleccionadas((prev) =>
+      prev.filter((id) => id !== gimnastaId)
+    )
+
+    setOrdenManual((prev) =>
+      prev.filter((id) => id !== gimnastaId)
+    )
+  }
+
   async function crearTurno() {
     if (!nombreTurno.trim()) {
       alert('Poné un nombre al turno')
@@ -196,14 +195,13 @@ const [ordenManual, setOrdenManual] = useState([])
       return
     }
 
-    const registros = ordenManual.map(
-  (gimnastaId, index) => ({
-    turno_id: turnoCreado.id,
-    torneo_id: torneoSeleccionado.id,
-    gimnasta_id: gimnastaId,
-    orden: index + 1
-  })
-)
+    const registros = ordenManual.map((gimnastaId, index) => ({
+      turno_id: turnoCreado.id,
+      torneo_id: torneoSeleccionado.id,
+      gimnasta_id: gimnastaId,
+      orden: index + 1
+    }))
+
     const { error: errorRelaciones } = await supabase
       .from('turno_gimnastas')
       .insert(registros)
@@ -218,133 +216,182 @@ const [ordenManual, setOrdenManual] = useState([])
 
     setNombreTurno('')
     setSeleccionadas([])
+    setOrdenManual([])
 
     obtenerTurnos()
   }
 
   function moverArriba(index) {
-  if (index === 0) return
+    if (index === 0) return
 
-  const nuevoOrden = [...ordenManual]
+    const nuevoOrden = [...ordenManual]
 
-  ;[
-    nuevoOrden[index - 1],
-    nuevoOrden[index]
-  ] = [
-    nuevoOrden[index],
-    nuevoOrden[index - 1]
-  ]
+    ;[
+      nuevoOrden[index - 1],
+      nuevoOrden[index]
+    ] = [
+      nuevoOrden[index],
+      nuevoOrden[index - 1]
+    ]
 
-  setOrdenManual(nuevoOrden)
-}
-
-function moverAbajo(index) {
-  if (index === ordenManual.length - 1) return
-
-  const nuevoOrden = [...ordenManual]
-
-  ;[
-    nuevoOrden[index + 1],
-    nuevoOrden[index]
-  ] = [
-    nuevoOrden[index],
-    nuevoOrden[index + 1]
-  ]
-
-  setOrdenManual(nuevoOrden)
-}
-
-async function editarTurno(turno) {
-  setTurnoEditando(turno)
-  setNombreTurno(turno.nombre)
-
-  const { data, error } = await supabase
-    .from('turno_gimnastas')
-    .select('gimnasta_id, orden')
-    .eq('turno_id', turno.id)
-    .order('orden', { ascending: true })
-
-  if (error) {
-    console.log(error)
-    alert('Error al traer gimnastas del turno')
-    return
+    setOrdenManual(nuevoOrden)
   }
 
-  const ids = (data || []).map((item) => item.gimnasta_id)
+  function moverAbajo(index) {
+    if (index === ordenManual.length - 1) return
 
-  setSeleccionadas(ids)
-  setOrdenManual(ids)
-}
+    const nuevoOrden = [...ordenManual]
 
-async function guardarCambiosTurno() {
-  if (!turnoEditando) return
+    ;[
+      nuevoOrden[index + 1],
+      nuevoOrden[index]
+    ] = [
+      nuevoOrden[index],
+      nuevoOrden[index + 1]
+    ]
 
-  if (!nombreTurno.trim()) {
-    alert('Poné un nombre al turno')
-    return
+    setOrdenManual(nuevoOrden)
   }
 
-  if (ordenManual.length === 0) {
-    alert('El turno debe tener al menos una gimnasta')
-    return
+  async function editarTurno(turno) {
+    setTurnoEditando(turno)
+    setNombreTurno(turno.nombre)
+
+    const { data, error } = await supabase
+      .from('turno_gimnastas')
+      .select('gimnasta_id, orden')
+      .eq('turno_id', turno.id)
+      .order('orden', { ascending: true })
+
+    if (error) {
+      console.log(error)
+      alert('Error al traer gimnastas del turno')
+      return
+    }
+
+    const ids = (data || []).map((item) => item.gimnasta_id)
+
+    setSeleccionadas(ids)
+    setOrdenManual(ids)
   }
 
-  const { error: errorNombre } = await supabase
-    .from('turnos')
-    .update({
-      nombre: nombreTurno.trim()
-    })
-    .eq('id', turnoEditando.id)
+  async function guardarCambiosTurno() {
+    if (!turnoEditando) return
 
-  if (errorNombre) {
-    console.log(errorNombre)
-    alert('Error al actualizar el turno')
-    return
+    if (!nombreTurno.trim()) {
+      alert('Poné un nombre al turno')
+      return
+    }
+
+    if (ordenManual.length === 0) {
+      alert('El turno debe tener al menos una gimnasta')
+      return
+    }
+
+    const { error: errorNombre } = await supabase
+      .from('turnos')
+      .update({
+        nombre: nombreTurno.trim()
+      })
+      .eq('id', turnoEditando.id)
+
+    if (errorNombre) {
+      console.log(errorNombre)
+      alert('Error al actualizar el turno')
+      return
+    }
+
+    const { error: errorBorrar } = await supabase
+      .from('turno_gimnastas')
+      .delete()
+      .eq('turno_id', turnoEditando.id)
+
+    if (errorBorrar) {
+      console.log(errorBorrar)
+      alert('Error al borrar el orden anterior')
+      return
+    }
+
+    const registros = ordenManual.map((gimnastaId, index) => ({
+      turno_id: turnoEditando.id,
+      torneo_id: torneoSeleccionado.id,
+      gimnasta_id: gimnastaId,
+      orden: index + 1
+    }))
+
+    const { error: errorInsertar } = await supabase
+      .from('turno_gimnastas')
+      .insert(registros)
+
+    if (errorInsertar) {
+      console.log(errorInsertar)
+      alert('Error al guardar gimnastas del turno')
+      return
+    }
+
+    alert('Turno actualizado')
+
+    setTurnoEditando(null)
+    setNombreTurno('')
+    setSeleccionadas([])
+    setOrdenManual([])
+    obtenerTurnos()
   }
 
-  const { error: errorBorrar } = await supabase
-    .from('turno_gimnastas')
-    .delete()
-    .eq('turno_id', turnoEditando.id)
+  async function eliminarTurno(turno) {
+    const confirmar = window.confirm(
+      `¿Eliminar el turno "${turno.nombre}"? Se quitarán sus gimnastas asignadas y las juezas asignadas a ese turno.`
+    )
 
-  if (errorBorrar) {
-    console.log(errorBorrar)
-    alert('Error al borrar el orden anterior')
-    return
+    if (!confirmar) return
+
+    const { error: errorJueces } = await supabase
+      .from('juez_grupos')
+      .delete()
+      .eq('turno_id', turno.id)
+
+    if (errorJueces) {
+      console.log(errorJueces)
+      alert('No se pudieron eliminar las asignaciones de jueces de este turno')
+      return
+    }
+
+    const { error: errorGimnastas } = await supabase
+      .from('turno_gimnastas')
+      .delete()
+      .eq('turno_id', turno.id)
+
+    if (errorGimnastas) {
+      console.log(errorGimnastas)
+      alert('No se pudieron eliminar las gimnastas del turno')
+      return
+    }
+
+    const { error: errorTurno } = await supabase
+      .from('turnos')
+      .delete()
+      .eq('id', turno.id)
+
+    if (errorTurno) {
+      console.log(errorTurno)
+      alert('No se pudo eliminar el turno')
+      return
+    }
+
+    if (turnoEditando?.id === turno.id) {
+      cancelarEdicionTurno()
+    }
+
+    alert('Turno eliminado')
+    obtenerTurnos()
   }
 
-  const registros = ordenManual.map((gimnastaId, index) => ({
-    turno_id: turnoEditando.id,
-    torneo_id: torneoSeleccionado.id,
-    gimnasta_id: gimnastaId,
-    orden: index + 1
-  }))
-
-  const { error: errorInsertar } = await supabase
-    .from('turno_gimnastas')
-    .insert(registros)
-
-  if (errorInsertar) {
-    console.log(errorInsertar)
-    alert('Error al guardar gimnastas del turno')
-    return
+  function cancelarEdicionTurno() {
+    setTurnoEditando(null)
+    setNombreTurno('')
+    setSeleccionadas([])
+    setOrdenManual([])
   }
-
-  alert('Turno actualizado')
-
-  setTurnoEditando(null)
-  setNombreTurno('')
-  setSeleccionadas([])
-  setOrdenManual([])
-  obtenerTurnos()
-}
-
-function cancelarEdicionTurno() {
-  setTurnoEditando(null)
-  setNombreTurno('')
-  setSeleccionadas([])
-  setOrdenManual([])
-}
 
   return (
     <div className="container admin-page">
@@ -396,58 +443,70 @@ function cancelarEdicionTurno() {
         </p>
 
         <div className="admin-box">
-  <h3>Orden manual</h3>
+          <h3>Orden manual</h3>
 
-  {ordenManual.map((id, index) => {
-    const gimnasta = gimnastasInscriptas.find(
-      (i) => i.gimnastas?.id === id
-    )?.gimnastas
+          {ordenManual.length === 0 ? (
+            <p>No hay gimnastas seleccionadas.</p>
+          ) : (
+            ordenManual.map((id, index) => {
+              const gimnasta = gimnastasInscriptas.find(
+                (i) => i.gimnastas?.id === id
+              )?.gimnastas
 
-    if (!gimnasta) return null
+              if (!gimnasta) return null
 
-    return (
-      <div
-        key={id}
-        style={{
-          display: 'flex',
-          gap: '10px',
-          alignItems: 'center',
-          marginBottom: '6px'
-        }}
-      >
-        <strong>{index + 1}.</strong>
+              return (
+                <div
+                  key={id}
+                  style={{
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'center',
+                    marginBottom: '6px',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <strong>{index + 1}.</strong>
 
-        <span>
-          {gimnasta.apellido} {gimnasta.nombre}
-        </span>
+                  <span>
+                    {gimnasta.apellido} {gimnasta.nombre}
+                  </span>
 
-        <button onClick={() => moverArriba(index)}>
-          ↑
-        </button>
+                  <button onClick={() => moverArriba(index)}>
+                    ↑
+                  </button>
 
-        <button onClick={() => moverAbajo(index)}>
-          ↓
-        </button>
-      </div>
-    )
-  })}
-</div>
+                  <button onClick={() => moverAbajo(index)}>
+                    ↓
+                  </button>
+
+                  <button
+                    className="danger"
+                    onClick={() => quitarGimnastaDelTurno(id)}
+                  >
+                    Quitar
+                  </button>
+                </div>
+              )
+            })
+          )}
+        </div>
 
         {turnoEditando ? (
-  <div className="table-buttons">
-    <button onClick={guardarCambiosTurno}>
-      Guardar cambios
-    </button>
+          <div className="table-buttons">
+            <button onClick={guardarCambiosTurno}>
+              Guardar cambios
+            </button>
 
-    <button className="danger" onClick={cancelarEdicionTurno}>
-      Cancelar edición
-    </button>
-  </div>
-) : (
-  <button onClick={crearTurno}>
-    Crear turno
-  </button>
-)}
+            <button className="danger" onClick={cancelarEdicionTurno}>
+              Cancelar edición
+            </button>
+          </div>
+        ) : (
+          <button onClick={crearTurno}>
+            Crear turno
+          </button>
+        )}
       </div>
 
       <div className="admin-box">
@@ -498,20 +557,33 @@ function cancelarEdicionTurno() {
       <div className="admin-box">
         <h2>Turnos creados</h2>
 
-        {turnos.map((turno) => (
-          <div
-            key={turno.id}
-            className="result-category-card"
-          >
-            <strong>
-              {turno.nombre} - TOTAL: {turno.total_gimnastas || 0}
-            </strong>
+        {turnos.length === 0 ? (
+          <p>No hay turnos creados.</p>
+        ) : (
+          turnos.map((turno) => (
+            <div
+              key={turno.id}
+              className="result-category-card"
+            >
+              <strong>
+                {turno.nombre} - TOTAL: {turno.total_gimnastas || 0}
+              </strong>
 
-            <button onClick={() => editarTurno(turno)}>
-  Editar turno
-</button>
-          </div>
-        ))}
+              <div className="table-buttons">
+                <button onClick={() => editarTurno(turno)}>
+                  Editar turno
+                </button>
+
+                <button
+                  className="danger"
+                  onClick={() => eliminarTurno(turno)}
+                >
+                  Eliminar turno
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   )
