@@ -105,6 +105,7 @@ function Admin() {
         nombre,
         apellido,
         club,
+        profe,
         nivel_id,
         categoria_id,
         nombre_completo_normalizado,
@@ -120,6 +121,14 @@ function Admin() {
   } else {
     setGimnastasInscriptas(data)
   }
+}
+
+function normalizarTexto(texto) {
+  return String(texto || '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 }
 
 function existeGimnastaEnTorneo({ nombre, apellido, nivelId, categoriaId, ignorarGimnastaId = null }) {
