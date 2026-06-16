@@ -45,8 +45,15 @@ function calcularPuestos(lista, categoria, nivel) {
 
     return ordenados.map((g) => {
       const puntaje = Number(g.total || 0)
-      const posicionPorPuntaje =
-        ordenados.filter((item) => Number(item.total || 0) > puntaje).length + 1
+      const puntaje = Number(item.total || 0)
+
+const puntajesMayores = new Set(
+  ordenados
+    .map((g) => Number(g.total || 0))
+    .filter((total) => total > puntaje)
+)
+
+const posicionPorPuntaje = puntajesMayores.size + 1
       const indexPorPuntaje = posicionPorPuntaje - 1
 
       if (nivelTexto === 'N1') {

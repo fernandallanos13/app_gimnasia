@@ -270,8 +270,14 @@ function AdminPodios() {
 
     const total = lista.length
     const puntaje = Number(gimnasta.total || 0)
-    const posicionPorPuntaje =
-      lista.filter((item) => Number(item.total || 0) > puntaje).length + 1
+
+const puntajesMayores = new Set(
+  lista
+    .map((item) => Number(item.total || 0))
+    .filter((total) => total > puntaje)
+)
+
+const posicionPorPuntaje = puntajesMayores.size + 1
     const indexPorPuntaje = posicionPorPuntaje - 1
 
     if (nivelTexto === 'N1') {
