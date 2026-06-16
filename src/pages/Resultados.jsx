@@ -245,6 +245,7 @@ function calcularPuestos(lista, categoria, nivel) {
     })
 
     const resultadosFinales = Object.values(agrupados)
+  .filter((g) => Number(g.total || 0) > 0)
     const grupos = {}
 
     resultadosFinales.forEach((g) => {

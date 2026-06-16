@@ -205,30 +205,32 @@ function AdminPodios() {
     return [...new Set(filasBase.map((g) => g.club).filter(Boolean))].sort()
   }, [filasBase])
 
-  const filasFiltradas = useMemo(() => {
-    return filasBase
-      .filter((g) => {
-        const texto = `${g.apellido} ${g.nombre} ${g.club}`.toLowerCase()
+ const filasFiltradas = useMemo(() => {
+  return filasBase
+    .filter((g) => {
+      const texto = `${g.apellido} ${g.nombre} ${g.club}`.toLowerCase()
 
-        return (
-          texto.includes(busqueda.toLowerCase()) &&
-          (!nivelFiltro || g.nivel === nivelFiltro) &&
-          (!categoriaFiltro || g.categoria === categoriaFiltro) &&
-          (!clubFiltro || g.club === clubFiltro)
-        )
-      })
-      .sort((a, b) => {
-        const nivelA = numeroNivel(a.nivel)
-        const nivelB = numeroNivel(b.nivel)
+      return (
+        Number(g.total || 0) > 0 &&
+        texto.includes(busqueda.toLowerCase()) &&
+        (!nivelFiltro || g.nivel === nivelFiltro) &&
+        (!categoriaFiltro || g.categoria === categoriaFiltro) &&
+        (!clubFiltro || g.club === clubFiltro)
+      )
+    })
+    .sort((a, b) => {
+      const nivelA = numeroNivel(a.nivel)
+      const nivelB = numeroNivel(b.nivel)
 
-        if (nivelA !== nivelB) return nivelA - nivelB
-        if (a.categoria !== b.categoria) {
-          return String(a.categoria || '').localeCompare(String(b.categoria || ''))
-        }
+      if (nivelA !== nivelB) return nivelA - nivelB
 
-        return Number(b.total) - Number(a.total)
-      })
-  }, [filasBase, busqueda, nivelFiltro, categoriaFiltro, clubFiltro])
+      if (a.categoria !== b.categoria) {
+        return String(a.categoria || '').localeCompare(String(b.categoria || ''))
+      }
+
+      return Number(b.total) - Number(a.total)
+    })
+}, [filasBase, busqueda, nivelFiltro, categoriaFiltro, clubFiltro])
 
   const grupos = useMemo(() => {
     const mapa = {}
