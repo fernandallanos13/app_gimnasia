@@ -358,35 +358,63 @@ const posicionPorPuntaje = puntajesMayores.size + 1
     setEstados(mapa)
   }
 
-  function exportarPodiosExcel() {
-    const datosExcel = [...filasFiltradas].map((g) => {
-      const listaGrupo = filasFiltradas.filter(
-        (item) => item.nivel === g.nivel && item.categoria === g.categoria
-      )
+  function limpiarNombreHoja(nombre) {
+  return String(nombre || 'Resultados')
+    .replace(/[\\/?*[\]:]/g, '')
+    .substring(0, 31)
+}
 
-      return {
-        Puesto: calcularPuestoAdmin(g, listaGrupo, g.nivel, g.categoria),
-        Apellido: g.apellido,
-        Nombre: g.nombre,
-        Club: g.club,
-        Nivel: g.nivel,
-        Categoria: g.categoria,
-        Suelo: mostrarPuntaje(g.Suelo, g.categoria),
-        Salto: mostrarPuntaje(g.Salto, g.categoria),
-        Viga: mostrarPuntaje(g.Viga, g.categoria),
-        Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
-        Total: esMiniatura(g.categoria)
-          ? '🙂'
-          : Number(g.total || 0).toFixed(2)
-      }
-    })
+function limpiarNombreHoja(nombre) {
+  return String(nombre || 'Resultados')
+    .replace(/[\\/?*[\]:]/g, '')
+    .substring(0, 31)
+}
+
+function exportarPodiosExcel() {
+  const libro = XLSX.utils.book_new()
+
+  const gruposExcel = {}
+
+  filasFiltradas.forEach((g) => {
+    const clave = `${g.nivel} - ${g.categoria}`
+
+    if (!gruposExcel[clave]) {
+      gruposExcel[clave] = []
+    }
+
+    gruposExcel[clave].push(g)
+  })
+
+  Object.entries(gruposExcel).forEach(([grupo, gimnastas]) => {
+    const datosExcel = gimnastas.map((g) => ({
+      Puesto: calcularPuestoAdmin(g, gimnastas, g.nivel, g.categoria),
+      Apellido: g.apellido,
+      Nombre: g.nombre,
+      Club: g.club,
+      Nivel: g.nivel,
+      Categoria: g.categoria,
+      Suelo: mostrarPuntaje(g.Suelo, g.categoria),
+      Salto: mostrarPuntaje(g.Salto, g.categoria),
+      Viga: mostrarPuntaje(g.Viga, g.categoria),
+      Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
+      Total: esMiniatura(g.categoria)
+        ? '🙂'
+        : Number(g.total || 0).toFixed(2)
+    }))
 
     const hoja = XLSX.utils.json_to_sheet(datosExcel)
-    const libro = XLSX.utils.book_new()
+    const nombreHoja = limpiarNombreHoja(grupo)
 
-    XLSX.utils.book_append_sheet(libro, hoja, 'Podios')
-    XLSX.writeFile(libro, 'podios-resultados.xlsx')
+    XLSX.utils.book_append_sheet(libro, hoja, nombreHoja)
+  })
+
+  if (Object.keys(gruposExcel).length === 0) {
+    alert('No hay resultados para exportar con esos filtros.')
+    return
   }
+
+  XLSX.writeFile(libro, 'podios-resultados.xlsx')
+}
 
   if (cargando) {
     return (
