@@ -45,7 +45,7 @@ function calcularPuestos(lista, categoria, nivel) {
 
     return ordenados.map((g) => {
       const puntaje = Number(g.total || 0)
-      const puntaje = Number(item.total || 0)
+      
 
 const puntajesMayores = new Set(
   ordenados

@@ -31,42 +31,10 @@ function AdminPodios() {
   useEffect(() => {
     const canal = supabase
       .channel('admin-podios-en-vivo')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'puntajes'
-        },
-        () => cargarDatosPodios(false)
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'estados_resultados'
-        },
-        () => cargarEstados()
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'inscripciones'
-        },
-        () => cargarDatosPodios(false)
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'gimnastas'
-        },
-        () => cargarDatosPodios(false)
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'puntajes' }, () => cargarDatosPodios(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_resultados' }, () => cargarEstados())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inscripciones' }, () => cargarDatosPodios(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gimnastas' }, () => cargarDatosPodios(false))
       .subscribe()
 
     return () => {
@@ -184,13 +152,16 @@ function AdminPodios() {
       const puntaje = Number(p.puntaje || 0)
 
       agrupados[g.id][aparato] = puntaje.toFixed(2)
-      agrupados[g.id].total = Number(
-        (agrupados[g.id].total + puntaje).toFixed(2)
-      )
+      agrupados[g.id].total = Number((agrupados[g.id].total + puntaje).toFixed(2))
     })
 
     return Object.values(agrupados)
   }, [inscripcionesActuales, puntajesActuales])
+
+  function numeroNivel(nivel) {
+    const match = String(nivel || '').match(/\d+/)
+    return match ? Number(match[0]) : 999
+  }
 
   const niveles = useMemo(() => {
     return [...new Set(filasBase.map((g) => g.nivel).filter(Boolean))]
@@ -205,32 +176,32 @@ function AdminPodios() {
     return [...new Set(filasBase.map((g) => g.club).filter(Boolean))].sort()
   }, [filasBase])
 
- const filasFiltradas = useMemo(() => {
-  return filasBase
-    .filter((g) => {
-      const texto = `${g.apellido} ${g.nombre} ${g.club}`.toLowerCase()
+  const filasFiltradas = useMemo(() => {
+    return filasBase
+      .filter((g) => {
+        const texto = `${g.apellido} ${g.nombre} ${g.club}`.toLowerCase()
 
-      return (
-        Number(g.total || 0) > 0 &&
-        texto.includes(busqueda.toLowerCase()) &&
-        (!nivelFiltro || g.nivel === nivelFiltro) &&
-        (!categoriaFiltro || g.categoria === categoriaFiltro) &&
-        (!clubFiltro || g.club === clubFiltro)
-      )
-    })
-    .sort((a, b) => {
-      const nivelA = numeroNivel(a.nivel)
-      const nivelB = numeroNivel(b.nivel)
+        return (
+          Number(g.total || 0) > 0 &&
+          texto.includes(busqueda.toLowerCase()) &&
+          (!nivelFiltro || g.nivel === nivelFiltro) &&
+          (!categoriaFiltro || g.categoria === categoriaFiltro) &&
+          (!clubFiltro || g.club === clubFiltro)
+        )
+      })
+      .sort((a, b) => {
+        const nivelA = numeroNivel(a.nivel)
+        const nivelB = numeroNivel(b.nivel)
 
-      if (nivelA !== nivelB) return nivelA - nivelB
+        if (nivelA !== nivelB) return nivelA - nivelB
 
-      if (a.categoria !== b.categoria) {
-        return String(a.categoria || '').localeCompare(String(b.categoria || ''))
-      }
+        if (a.categoria !== b.categoria) {
+          return String(a.categoria || '').localeCompare(String(b.categoria || ''))
+        }
 
-      return Number(b.total) - Number(a.total)
-    })
-}, [filasBase, busqueda, nivelFiltro, categoriaFiltro, clubFiltro])
+        return Number(b.total) - Number(a.total)
+      })
+  }, [filasBase, busqueda, nivelFiltro, categoriaFiltro, clubFiltro])
 
   const grupos = useMemo(() => {
     const mapa = {}
@@ -268,16 +239,17 @@ function AdminPodios() {
 
     if (esMiniatura(categoria)) return '🙂'
 
-    const total = lista.length
+    const listaValida = lista.filter((item) => Number(item.total || 0) > 0)
+    const total = listaValida.length
     const puntaje = Number(gimnasta.total || 0)
 
-const puntajesMayores = new Set(
-  lista
-    .map((item) => Number(item.total || 0))
-    .filter((total) => total > puntaje)
-)
+    const puntajesMayores = new Set(
+      listaValida
+        .map((item) => Number(item.total || 0))
+        .filter((totalItem) => totalItem > puntaje)
+    )
 
-const posicionPorPuntaje = puntajesMayores.size + 1
+    const posicionPorPuntaje = puntajesMayores.size + 1
     const indexPorPuntaje = posicionPorPuntaje - 1
 
     if (nivelTexto === 'N1') {
@@ -302,11 +274,6 @@ const posicionPorPuntaje = puntajesMayores.size + 1
     }
 
     return `${posicionPorPuntaje}°`
-  }
-
-  function numeroNivel(nivel) {
-    const match = String(nivel || '').match(/\d+/)
-    return match ? Number(match[0]) : 999
   }
 
   function toggleGrupo(grupo) {
@@ -358,59 +325,60 @@ const posicionPorPuntaje = puntajesMayores.size + 1
     setEstados(mapa)
   }
 
-function limpiarNombreHoja(nombre, indice) {
-  const nombreLimpio = String(nombre || 'Resultados')
-    .replace(/[\\/?*[\]:]/g, '')
-    .substring(0, 25)
+  function limpiarNombreHoja(nombre, indice) {
+    const nombreLimpio = String(nombre || 'Resultados')
+      .replace(/[\\/?*[\]:]/g, '')
+      .substring(0, 25)
 
-  return `${indice + 1}-${nombreLimpio}`.substring(0, 31)
-}
-
-function exportarPodiosExcel() {
-  const libro = XLSX.utils.book_new()
-
-  const gruposExcel = {}
-
-  filasFiltradas.forEach((g) => {
-    const clave = `${g.nivel} - ${g.categoria}`
-
-    if (!gruposExcel[clave]) {
-      gruposExcel[clave] = []
-    }
-
-    gruposExcel[clave].push(g)
-  })
-
-  Object.entries(gruposExcel).forEach(([grupo, gimnastas], index) => {
-    const datosExcel = gimnastas.map((g) => ({
-      Puesto: calcularPuestoAdmin(g, gimnastas, g.nivel, g.categoria),
-      Apellido: g.apellido,
-      Nombre: g.nombre,
-      Club: g.club,
-      Nivel: g.nivel,
-      Categoria: g.categoria,
-      Suelo: mostrarPuntaje(g.Suelo, g.categoria),
-      Salto: mostrarPuntaje(g.Salto, g.categoria),
-      Viga: mostrarPuntaje(g.Viga, g.categoria),
-      Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
-      Total: esMiniatura(g.categoria)
-        ? '🙂'
-        : Number(g.total || 0).toFixed(2)
-    }))
-
-    const hoja = XLSX.utils.json_to_sheet(datosExcel)
-    const nombreHoja = limpiarNombreHoja(grupo, index)
-
-    XLSX.utils.book_append_sheet(libro, hoja, nombreHoja)
-  })
-
-  if (Object.keys(gruposExcel).length === 0) {
-    alert('No hay resultados para exportar con esos filtros.')
-    return
+    return `${indice + 1}-${nombreLimpio}`.substring(0, 31)
   }
 
-  XLSX.writeFile(libro, 'podios-resultados.xlsx')
-}
+  function exportarPodiosExcel() {
+    const libro = XLSX.utils.book_new()
+    const gruposExcel = {}
+
+    filasFiltradas.forEach((g) => {
+      const clave = `${g.nivel} - ${g.categoria}`
+
+      if (!gruposExcel[clave]) {
+        gruposExcel[clave] = []
+      }
+
+      gruposExcel[clave].push(g)
+    })
+
+    const entradas = Object.entries(gruposExcel)
+
+    if (entradas.length === 0) {
+      alert('No hay resultados para exportar con esos filtros.')
+      return
+    }
+
+    entradas.forEach(([grupo, gimnastas], index) => {
+      const datosExcel = gimnastas.map((g) => ({
+        Puesto: calcularPuestoAdmin(g, gimnastas, g.nivel, g.categoria),
+        Apellido: g.apellido,
+        Nombre: g.nombre,
+        Club: g.club,
+        Nivel: g.nivel,
+        Categoria: g.categoria,
+        Suelo: mostrarPuntaje(g.Suelo, g.categoria),
+        Salto: mostrarPuntaje(g.Salto, g.categoria),
+        Viga: mostrarPuntaje(g.Viga, g.categoria),
+        Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
+        Total: esMiniatura(g.categoria)
+          ? '🙂'
+          : Number(g.total || 0).toFixed(2)
+      }))
+
+      const hoja = XLSX.utils.json_to_sheet(datosExcel)
+      const nombreHoja = limpiarNombreHoja(grupo, index)
+
+      XLSX.utils.book_append_sheet(libro, hoja, nombreHoja)
+    })
+
+    XLSX.writeFile(libro, 'podios-resultados.xlsx')
+  }
 
   if (cargando) {
     return (
