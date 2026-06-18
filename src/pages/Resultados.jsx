@@ -24,49 +24,61 @@ function Resultados() {
   }
 
   function mostrarTotal(g, categoria) {
-  if (esMiniatura(categoria)) {
-    return '🙂'
+    if (esMiniatura(categoria)) {
+      return '🙂'
+    }
+
+    return Number(g.total || 0).toFixed(2)
   }
 
-  return Number(g.total || 0).toFixed(2)
-}
+  function obtenerPosicionPorPuntaje(lista, puntaje) {
+    const puntajesMayores = new Set(
+      lista
+        .map((item) => Number(item.total || 0))
+        .filter((total) => total > puntaje)
+    )
 
-function calcularPuestos(lista, categoria, nivel) {
-  const ordenados = [...lista].sort((a, b) => b.total - a.total)
-
-  if (esMiniatura(categoria)) {
-    return ordenados.map((g) => ({
-      ...g,
-      puesto: '🙂'
-    }))
+    return puntajesMayores.size + 1
   }
+
+  function calcularPuestoPorCortes(gimnasta, lista, puestos) {
+    const puntaje = Number(gimnasta.total || 0)
+    const total = lista.length
+
+    for (let i = 0; i < puestos.length - 1; i++) {
+      const corte = Math.ceil((total * (i + 1)) / puestos.length)
+      const puntajeCorte = Number(lista[corte - 1]?.total || 0)
+
+      if (puntaje >= puntajeCorte) {
+        return puestos[i]
+      }
+    }
+
+    return puestos[puestos.length - 1]
+  }
+
+  function calcularPuestos(lista, categoria, nivel) {
+    const ordenados = [...lista]
+      .filter((g) => Number(g.total || 0) > 0)
+      .sort((a, b) => Number(b.total || 0) - Number(a.total || 0))
+
+    if (esMiniatura(categoria)) {
+      return ordenados.map((g) => ({
+        ...g,
+        puesto: '🙂'
+      }))
+    }
 
     const nivelTexto = String(nivel || '').toUpperCase().trim()
 
     return ordenados.map((g) => {
       const puntaje = Number(g.total || 0)
-      
-
-const puntajesMayores = new Set(
-  ordenados
-    .map((g) => Number(g.total || 0))
-    .filter((total) => total > puntaje)
-)
-
-const posicionPorPuntaje = puntajesMayores.size + 1
-      const indexPorPuntaje = posicionPorPuntaje - 1
+      const posicionPorPuntaje = obtenerPosicionPorPuntaje(ordenados, puntaje)
 
       if (nivelTexto === 'N1') {
-        const tercio = Math.ceil(ordenados.length / 3)
-
         return {
           ...g,
-          puesto:
-            indexPorPuntaje < tercio
-              ? '1°'
-              : indexPorPuntaje < tercio * 2
-                ? '2°'
-                : '3°'
+          puesto: calcularPuestoPorCortes(g, ordenados, ['1°', '2°', '3°'])
         }
       }
 
@@ -78,23 +90,14 @@ const posicionPorPuntaje = puntajesMayores.size + 1
           }
         }
 
-        const restantes = Math.max(ordenados.length - 6, 1)
-        const posicionRestante = Math.max(posicionPorPuntaje - 7, 0)
-        const cuarto = Math.ceil(restantes / 4)
-
-        let puesto = '10°'
-
-        if (posicionRestante < cuarto) {
-          puesto = '7°'
-        } else if (posicionRestante < cuarto * 2) {
-          puesto = '8°'
-        } else if (posicionRestante < cuarto * 3) {
-          puesto = '9°'
-        }
+        const resto = ordenados.filter((item) => {
+          const p = Number(item.total || 0)
+          return obtenerPosicionPorPuntaje(ordenados, p) > 6
+        })
 
         return {
           ...g,
-          puesto
+          puesto: calcularPuestoPorCortes(g, resto, ['7°', '8°', '9°', '10°'])
         }
       }
 
@@ -216,7 +219,7 @@ const posicionPorPuntaje = puntajesMayores.size + 1
 
     const agrupados = {}
 
-    inscripcionesData.forEach((item) => {
+    ;(inscripcionesData || []).forEach((item) => {
       const gimnasta = item.gimnastas
 
       if (!gimnasta) return
@@ -235,7 +238,7 @@ const posicionPorPuntaje = puntajesMayores.size + 1
       }
     })
 
-    puntajesData.forEach((item) => {
+    ;(puntajesData || []).forEach((item) => {
       const gimnasta = item.gimnastas
       const aparato = item.aparatos?.nombre
 
@@ -244,15 +247,16 @@ const posicionPorPuntaje = puntajesMayores.size + 1
 
       agrupados[gimnasta.id][aparato] = Number(item.puntaje)
       agrupados[gimnasta.id].total = Number(
-  (
-    agrupados[gimnasta.id].total +
-    Number(item.puntaje)
-  ).toFixed(2)
-)
+        (
+          agrupados[gimnasta.id].total +
+          Number(item.puntaje)
+        ).toFixed(2)
+      )
     })
 
     const resultadosFinales = Object.values(agrupados)
-  .filter((g) => Number(g.total || 0) > 0)
+      .filter((g) => Number(g.total || 0) > 0)
+
     const grupos = {}
 
     resultadosFinales.forEach((g) => {
@@ -286,51 +290,11 @@ const posicionPorPuntaje = puntajesMayores.size + 1
 
     const canal = supabase
       .channel('resultados-en-vivo')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'puntajes'
-        },
-        () => obtenerResultados()
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'estados_resultados'
-        },
-        () => obtenerResultados()
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'inscripciones'
-        },
-        () => obtenerResultados()
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'gimnastas'
-        },
-        () => obtenerResultados()
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'torneos'
-        },
-        () => obtenerResultados()
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'puntajes' }, () => obtenerResultados())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_resultados' }, () => obtenerResultados())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inscripciones' }, () => obtenerResultados())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gimnastas' }, () => obtenerResultados())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'torneos' }, () => obtenerResultados())
       .subscribe()
 
     return () => {
@@ -491,6 +455,6 @@ const posicionPorPuntaje = puntajesMayores.size + 1
       )}
     </div>
   )
-  }
+}
 
 export default Resultados

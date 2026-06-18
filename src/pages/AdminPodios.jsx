@@ -234,43 +234,57 @@ function AdminPodios() {
     setClubFiltro('')
   }
 
+  function obtenerPosicionPorPuntaje(lista, puntaje) {
+    const puntajesMayores = new Set(
+      lista
+        .map((item) => Number(item.total || 0))
+        .filter((total) => total > puntaje)
+    )
+
+    return puntajesMayores.size + 1
+  }
+
+  function calcularPuestoPorCortes(gimnasta, lista, puestos) {
+    const puntaje = Number(gimnasta.total || 0)
+    const total = lista.length
+
+    for (let i = 0; i < puestos.length - 1; i++) {
+      const corte = Math.ceil((total * (i + 1)) / puestos.length)
+      const puntajeCorte = Number(lista[corte - 1]?.total || 0)
+
+      if (puntaje >= puntajeCorte) {
+        return puestos[i]
+      }
+    }
+
+    return puestos[puestos.length - 1]
+  }
+
   function calcularPuestoAdmin(gimnasta, lista, nivel, categoria) {
     const nivelTexto = String(nivel || '').toUpperCase().trim()
 
     if (esMiniatura(categoria)) return '🙂'
 
-    const listaValida = lista.filter((item) => Number(item.total || 0) > 0)
-    const total = listaValida.length
+    const ordenados = [...lista]
+      .filter((item) => Number(item.total || 0) > 0)
+      .sort((a, b) => Number(b.total || 0) - Number(a.total || 0))
+
     const puntaje = Number(gimnasta.total || 0)
-
-    const puntajesMayores = new Set(
-      listaValida
-        .map((item) => Number(item.total || 0))
-        .filter((totalItem) => totalItem > puntaje)
-    )
-
-    const posicionPorPuntaje = puntajesMayores.size + 1
-    const indexPorPuntaje = posicionPorPuntaje - 1
+    const posicionPorPuntaje = obtenerPosicionPorPuntaje(ordenados, puntaje)
 
     if (nivelTexto === 'N1') {
-      const tercio = Math.ceil(total / 3)
-
-      if (indexPorPuntaje < tercio) return '1°'
-      if (indexPorPuntaje < tercio * 2) return '2°'
-      return '3°'
+      return calcularPuestoPorCortes(gimnasta, ordenados, ['1°', '2°', '3°'])
     }
 
     if (nivelTexto === 'N2' || nivelTexto === 'N3') {
       if (posicionPorPuntaje <= 6) return `${posicionPorPuntaje}°`
 
-      const restantes = Math.max(total - 6, 1)
-      const posicionRestante = Math.max(posicionPorPuntaje - 7, 0)
-      const cuarto = Math.ceil(restantes / 4)
+      const resto = ordenados.filter((item) => {
+        const p = Number(item.total || 0)
+        return obtenerPosicionPorPuntaje(ordenados, p) > 6
+      })
 
-      if (posicionRestante < cuarto) return '7°'
-      if (posicionRestante < cuarto * 2) return '8°'
-      if (posicionRestante < cuarto * 3) return '9°'
-      return '10°'
+      return calcularPuestoPorCortes(gimnasta, resto, ['7°', '8°', '9°', '10°'])
     }
 
     return `${posicionPorPuntaje}°`
