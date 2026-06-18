@@ -358,16 +358,12 @@ const posicionPorPuntaje = puntajesMayores.size + 1
     setEstados(mapa)
   }
 
-  function limpiarNombreHoja(nombre) {
-  return String(nombre || 'Resultados')
+function limpiarNombreHoja(nombre, indice) {
+  const nombreLimpio = String(nombre || 'Resultados')
     .replace(/[\\/?*[\]:]/g, '')
-    .substring(0, 31)
-}
+    .substring(0, 25)
 
-function limpiarNombreHoja(nombre) {
-  return String(nombre || 'Resultados')
-    .replace(/[\\/?*[\]:]/g, '')
-    .substring(0, 31)
+  return `${indice + 1}-${nombreLimpio}`.substring(0, 31)
 }
 
 function exportarPodiosExcel() {
@@ -385,7 +381,7 @@ function exportarPodiosExcel() {
     gruposExcel[clave].push(g)
   })
 
-  Object.entries(gruposExcel).forEach(([grupo, gimnastas]) => {
+  Object.entries(gruposExcel).forEach(([grupo, gimnastas], index) => {
     const datosExcel = gimnastas.map((g) => ({
       Puesto: calcularPuestoAdmin(g, gimnastas, g.nivel, g.categoria),
       Apellido: g.apellido,
@@ -403,7 +399,7 @@ function exportarPodiosExcel() {
     }))
 
     const hoja = XLSX.utils.json_to_sheet(datosExcel)
-    const nombreHoja = limpiarNombreHoja(grupo)
+    const nombreHoja = limpiarNombreHoja(grupo, index)
 
     XLSX.utils.book_append_sheet(libro, hoja, nombreHoja)
   })
