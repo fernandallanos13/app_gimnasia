@@ -892,6 +892,10 @@ setImportandoExcel(false)
         : 'Ver torneos históricos'}
     </button>
 
+    <button onClick={() => navigate('/admin-inscripciones')}>
+  Ver inscripciones
+</button>
+
     {mostrarHistoricos && (
       <div className="card" style={{ maxWidth: '700px' }}>
         <h2>Torneos históricos</h2>
