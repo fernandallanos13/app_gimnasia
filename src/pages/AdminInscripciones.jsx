@@ -155,6 +155,37 @@ function AdminInscripciones() {
     obtenerInscripciones()
   }
 
+  async function eliminarImportadas() {
+  const importadas = inscripciones.filter((i) => i.estado === 'importada')
+
+  if (importadas.length === 0) {
+    alert('No hay preinscripciones marcadas como importadas.')
+    return
+  }
+
+  const confirmar = window.confirm(
+    `¿Eliminar ${importadas.length} preinscripción/es ya importadas? Esta acción no se puede deshacer.`
+  )
+
+  if (!confirmar) return
+
+  const ids = importadas.map((i) => i.id)
+
+  const { error } = await supabase
+    .from('pre_inscripciones')
+    .delete()
+    .in('id', ids)
+
+  if (error) {
+    console.error(error)
+    alert('Error al eliminar las importadas')
+    return
+  }
+
+  alert('Preinscripciones importadas eliminadas')
+  obtenerInscripciones()
+}
+
   async function eliminarInscripcion(id) {
     const confirmar = window.confirm('¿Eliminar esta preinscripción?')
 
@@ -229,6 +260,20 @@ function AdminInscripciones() {
             <button className="secondary" onClick={marcarComoImportadas}>
               Marcar como importadas
             </button>
+
+            <div className="button-row">
+            <button onClick={descargarFiltrado}>
+              Descargar Excel
+            </button>
+
+            <button className="secondary" onClick={marcarComoImportadas}>
+              Marcar como importadas
+            </button>
+
+            <button className="danger" onClick={eliminarImportadas}>
+              Eliminar importadas
+            </button>
+          </div>
           </div>
         </section>
 
