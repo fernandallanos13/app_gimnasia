@@ -219,8 +219,8 @@ const totalGeneral = grupos.reduce(
     <div className="inscripcion-page">
 
       <header className="inscripcion-header">
-        <h1>Inscripción de Gimnastas- Torneo Gimnasia artística Deheza Football Club</h1>
-        <p>13/06 - General Deheza- </p>
+        <h1>Inscripción de Gimnastas- Torneo Gimnasia artística Club Sportivo Central Argentino</h1>
+        <p>Río Tercero </p>
       </header>
 
       <main className="inscripcion-layout">
