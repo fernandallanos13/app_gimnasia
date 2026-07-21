@@ -261,19 +261,10 @@ function AdminInscripciones() {
               Marcar como importadas
             </button>
 
-            <div className="button-row">
-            <button onClick={descargarFiltrado}>
-              Descargar Excel
-            </button>
-
-            <button className="secondary" onClick={marcarComoImportadas}>
-              Marcar como importadas
-            </button>
-
             <button className="danger" onClick={eliminarImportadas}>
               Eliminar importadas
             </button>
-          </div>
+          
           </div>
         </section>
 
