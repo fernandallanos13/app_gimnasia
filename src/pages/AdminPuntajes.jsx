@@ -18,12 +18,14 @@ function AdminPuntajes() {
   const [clubFiltro, setClubFiltro] = useState('')
   const [editando, setEditando] = useState(null)
   const [valoresEditados, setValoresEditados] = useState({})
+  const [valoresOriginales, setValoresOriginales] = useState({})
   const [aparatos, setAparatos] = useState([])
   const [turnosPorGimnasta, setTurnosPorGimnasta] = useState({})
   const [torneoActual, setTorneoActual] = useState(torneoSeleccionado)
   const [inscripcionesActuales, setInscripcionesActuales] = useState(gimnastasInscriptas)
   const [puntajesActuales, setPuntajesActuales] = useState(puntajesCargados)
   const [cargando, setCargando] = useState(false)
+  const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
     obtenerAparatos()
@@ -95,7 +97,7 @@ function AdminPuntajes() {
       .maybeSingle()
 
     if (error) {
-      console.log(error)
+      console.error('Error buscando torneo:', error)
       return null
     }
 
@@ -146,12 +148,19 @@ function AdminPuntajes() {
           niveles (nombre),
           categorias (nombre)
         ),
-        aparatos (nombre)
+        aparatos (
+          id,
+          nombre
+        )
       `)
       .eq('torneo_id', torneo.id)
 
     if (inscripcionesError || puntajesError) {
-      console.log(inscripcionesError || puntajesError)
+      console.error(
+        'Error cargando puntajes:',
+        inscripcionesError || puntajesError
+      )
+
       alert('No se pudieron actualizar los puntajes')
       setCargando(false)
       return
@@ -159,7 +168,9 @@ function AdminPuntajes() {
 
     setInscripcionesActuales(inscripcionesData || [])
     setPuntajesActuales(puntajesData || [])
+
     await obtenerTurnosPorGimnasta(torneo.id)
+
     setCargando(false)
   }
 
@@ -170,7 +181,7 @@ function AdminPuntajes() {
       .order('id', { ascending: true })
 
     if (error) {
-      console.log(error)
+      console.error('Error al traer aparatos:', error)
       alert('Error al traer aparatos')
       return
     }
@@ -186,7 +197,7 @@ function AdminPuntajes() {
       .order('id', { ascending: true })
 
     if (errorTurnos) {
-      console.log(errorTurnos)
+      console.error('Error obteniendo turnos:', errorTurnos)
       return
     }
 
@@ -199,6 +210,7 @@ function AdminPuntajes() {
     }
 
     const nombresPorTurno = {}
+
     turnos.forEach((turno) => {
       nombresPorTurno[turno.id] = turno.nombre
     })
@@ -209,7 +221,7 @@ function AdminPuntajes() {
       .in('turno_id', idsTurnos)
 
     if (errorRelaciones) {
-      console.log(errorRelaciones)
+      console.error('Error obteniendo turno_gimnastas:', errorRelaciones)
       return
     }
 
@@ -221,8 +233,13 @@ function AdminPuntajes() {
 
       if (!gimnastaId || !nombreTurno) return
 
-      if (!mapa[gimnastaId]) mapa[gimnastaId] = []
-      if (!mapa[gimnastaId].includes(nombreTurno)) mapa[gimnastaId].push(nombreTurno)
+      if (!mapa[gimnastaId]) {
+        mapa[gimnastaId] = []
+      }
+
+      if (!mapa[gimnastaId].includes(nombreTurno)) {
+        mapa[gimnastaId].push(nombreTurno)
+      }
     })
 
     setTurnosPorGimnasta(mapa)
@@ -232,6 +249,7 @@ function AdminPuntajes() {
 
   inscripcionesActuales.forEach((inscripcion) => {
     const g = inscripcion.gimnastas
+
     if (!g) return
 
     const clave = `${g.apellido}-${g.nombre}-${g.club}-${g.id}`
@@ -283,37 +301,79 @@ function AdminPuntajes() {
     agrupados[clave].puntajesIds[aparato] = p.id
 
     agrupados[clave].total = Number(
-      (agrupados[clave].total + Number(p.puntaje || 0)).toFixed(2)
+      (
+        agrupados[clave].total +
+        Number(p.puntaje || 0)
+      ).toFixed(2)
     )
   })
 
   const filasBase = Object.values(agrupados)
 
   const niveles = useMemo(() => {
-    return [...new Set(filasBase.map((g) => g.nivel).filter(Boolean))].sort((a, b) => numeroNivel(a) - numeroNivel(b))
+    return [
+      ...new Set(
+        filasBase
+          .map((g) => g.nivel)
+          .filter(Boolean)
+      )
+    ].sort((a, b) => numeroNivel(a) - numeroNivel(b))
   }, [filasBase])
 
   const categorias = useMemo(() => {
-    return [...new Set(filasBase.map((g) => g.categoria).filter(Boolean))].sort()
+    return [
+      ...new Set(
+        filasBase
+          .map((g) => g.categoria)
+          .filter(Boolean)
+      )
+    ].sort()
   }, [filasBase])
 
   const clubes = useMemo(() => {
-    return [...new Set(filasBase.map((g) => g.club).filter(Boolean))].sort()
+    return [
+      ...new Set(
+        filasBase
+          .map((g) => g.club)
+          .filter(Boolean)
+      )
+    ].sort()
   }, [filasBase])
 
   const turnos = useMemo(() => {
-    return [...new Set(filasBase.flatMap((g) => g.turnos || []).filter(Boolean))].sort()
+    return [
+      ...new Set(
+        filasBase
+          .flatMap((g) => g.turnos || [])
+          .filter(Boolean)
+      )
+    ].sort()
   }, [filasBase])
 
   const filas = filasBase.filter((g) => {
     const texto = `${g.apellido} ${g.nombre}`.toLowerCase()
-    const coincideBusqueda = texto.includes(busqueda.toLowerCase())
-    const coincideNivel = nivelFiltro ? g.nivel === nivelFiltro : true
-    const coincideCategoria = categoriaFiltro ? g.categoria === categoriaFiltro : true
-    const coincideClub = clubFiltro ? g.club === clubFiltro : true
-    const coincideTurno = turnoFiltro ? (g.turnos || []).includes(turnoFiltro) : true
 
-    return coincideBusqueda && coincideNivel && coincideCategoria && coincideClub && coincideTurno
+    const coincideBusqueda = texto.includes(busqueda.toLowerCase())
+    const coincideNivel = nivelFiltro
+      ? g.nivel === nivelFiltro
+      : true
+    const coincideCategoria = categoriaFiltro
+      ? g.categoria === categoriaFiltro
+      : true
+    const coincideClub = clubFiltro
+      ? g.club === clubFiltro
+      : true
+    const coincideTurno = turnoFiltro
+      ? (g.turnos || []).includes(turnoFiltro)
+      : true
+
+    return (
+      coincideBusqueda &&
+      coincideNivel &&
+      coincideCategoria &&
+      coincideClub &&
+      coincideTurno
+    )
   })
 
   function numeroNivel(nivel) {
@@ -331,26 +391,39 @@ function AdminPuntajes() {
 
   function iniciarEdicion(g) {
     const clave = `${g.apellido}-${g.nombre}-${g.club}-${g.gimnasta_id}`
+
     setEditando(clave)
 
-    setValoresEditados({
+    const snapshot = {
       Suelo: g.Suelo,
       Salto: g.Salto,
       Viga: g.Viga,
       Paralelas: g.Paralelas
-    })
+    }
+
+    // Guardamos una copia de referencia ("lo que había cuando abrí el editor")
+    // separada de valoresEditados. La usamos en guardarEdicion para saber
+    // qué campo tocó realmente el admin y así NO reescribir los que no tocó
+    // (aunque en el medio otra jueza haya cargado un valor nuevo ahí).
+    setValoresOriginales(snapshot)
+    setValoresEditados(snapshot)
   }
 
   function cancelarEdicion() {
     setEditando(null)
     setValoresEditados({})
+    setValoresOriginales({})
   }
 
   function normalizarNumero(valor) {
-    return String(valor || '').replace(',', '.').trim()
+    return String(valor ?? '')
+      .replace(',', '.')
+      .trim()
   }
 
   async function obtenerJuezAdmin() {
+    if (!torneoActual?.id) return null
+
     const { data: existente, error: errorBuscar } = await supabase
       .from('jueces')
       .select('id')
@@ -359,10 +432,13 @@ function AdminPuntajes() {
       .maybeSingle()
 
     if (errorBuscar) {
-      console.log(errorBuscar)
+      console.error('Error buscando juez ADMIN:', errorBuscar)
+      return null
     }
 
-    if (existente) return existente
+    if (existente) {
+      return existente
+    }
 
     const { data: creado, error } = await supabase
       .from('jueces')
@@ -376,8 +452,7 @@ function AdminPuntajes() {
       .single()
 
     if (error) {
-      console.log(error)
-      alert('No se pudo crear/obtener juez ADMIN')
+      console.error('Error creando juez ADMIN:', error)
       return null
     }
 
@@ -390,56 +465,184 @@ function AdminPuntajes() {
       return
     }
 
-    const juezAdmin = await obtenerJuezAdmin()
-    if (!juezAdmin?.id) return
+    if (guardando) return
 
-    for (const aparato of aparatos) {
-      const nombreAparato = aparato.nombre
-      const valorCrudo = valoresEditados[nombreAparato]
+    setGuardando(true)
 
-      if (valorCrudo === '' || valorCrudo === undefined) continue
+    try {
+      for (const aparato of aparatos) {
+        const nombreAparato = aparato.nombre
+        const valorCrudo = valoresEditados[nombreAparato]
 
-      const valorNormalizado = normalizarNumero(valorCrudo)
-      const valor = Number(valorNormalizado)
+        if (
+          valorCrudo === '' ||
+          valorCrudo === undefined ||
+          valorCrudo === null
+        ) {
+          continue
+        }
 
-      const regexDecimal = /^\d+(\.\d{0,2})?$/
+        // CLAVE DEL FIX: si este campo es igual al que había cuando
+        // se abrió el editor, significa que el admin NO lo tocó.
+        // No lo reescribimos, así evitamos pisar un valor que otra
+        // jueza pudo haber cargado/actualizado mientras el admin
+        // tenía el formulario abierto.
+        const valorOriginal = valoresOriginales[nombreAparato]
+        const noFueModificado =
+          normalizarNumero(valorCrudo) === normalizarNumero(valorOriginal)
 
-      if (!regexDecimal.test(valorNormalizado)) {
-        alert('Máximo 2 decimales')
-        return
-      }
+        if (noFueModificado) {
+          continue
+        }
 
-      if (Number.isNaN(valor) || valor < 0 || valor > 99) {
-        alert('Los puntajes deben estar entre 0 y 99')
-        return
-      }
+        const valorNormalizado = normalizarNumero(valorCrudo)
 
-      const { error } = await supabase
-        .from('puntajes')
-        .upsert(
-          {
-            torneo_id: torneoActual.id,
-            gimnasta_id: g.gimnasta_id,
-            aparato_id: aparato.id,
-            juez_id: juezAdmin.id,
-            puntaje: Number(valor.toFixed(2))
-          },
-          {
-            onConflict: 'torneo_id,gimnasta_id,aparato_id'
+        const regexDecimal = /^\d+(\.\d{1,2})?$/
+
+        if (!regexDecimal.test(valorNormalizado)) {
+          alert(
+            `El puntaje de ${nombreAparato} debe ser un número con máximo 2 decimales`
+          )
+          return
+        }
+
+        const valor = Number(valorNormalizado)
+
+        if (
+          Number.isNaN(valor) ||
+          valor < 0 ||
+          valor > 99
+        ) {
+          alert(
+            `El puntaje de ${nombreAparato} debe estar entre 0 y 99`
+          )
+          return
+        }
+
+        const puntajeExistenteId =
+          g.puntajesIds?.[nombreAparato]
+
+        /*
+         * SI EL PUNTAJE YA EXISTE:
+         * solamente actualizamos el valor.
+         *
+         * NO cambiamos juez_id.
+         * NO hacemos upsert.
+         * NO necesitamos crear juez ADMIN.
+         */
+        if (puntajeExistenteId) {
+          const { data, error } = await supabase
+            .from('puntajes')
+            .update({
+              puntaje: Number(valor.toFixed(2))
+            })
+            .eq('id', puntajeExistenteId)
+            .eq('torneo_id', torneoActual.id)
+            .select('id, puntaje')
+            .maybeSingle()
+
+          if (error) {
+            console.error(
+              `ERROR UPDATE ${nombreAparato}:`,
+              error
+            )
+
+            alert(
+              `No se pudo actualizar ${nombreAparato}.\n\n` +
+              `${error.message || 'Error desconocido'}`
+            )
+
+            return
           }
-        )
 
-      if (error) {
-        console.log(error)
-        alert(`Error al guardar ${nombreAparato}`)
-        return
+          /*
+           * Si no hubo error pero tampoco volvió una fila,
+           * normalmente significa que alguna policy RLS
+           * está impidiendo el UPDATE.
+           */
+          if (!data) {
+            console.error(
+              `UPDATE sin fila devuelta para ${nombreAparato}. Posible bloqueo RLS.`
+            )
+
+            alert(
+              `Supabase no permitió modificar ${nombreAparato}.\n\n` +
+              'Es muy probable que la policy UPDATE de la tabla puntajes esté bloqueando la edición.'
+            )
+
+            return
+          }
+
+          continue
+        }
+
+        /*
+         * SI NO EXISTE UN PUNTAJE:
+         * recién ahí necesitamos insertar uno nuevo.
+         */
+        const juezAdmin = await obtenerJuezAdmin()
+
+        if (!juezAdmin?.id) {
+          alert(
+            'No se pudo obtener el juez ADMIN para crear un puntaje nuevo.'
+          )
+          return
+        }
+
+        const { data, error } = await supabase
+          .from('puntajes')
+          .insert([
+            {
+              torneo_id: torneoActual.id,
+              gimnasta_id: g.gimnasta_id,
+              aparato_id: aparato.id,
+              juez_id: juezAdmin.id,
+              puntaje: Number(valor.toFixed(2))
+            }
+          ])
+          .select('id, puntaje')
+          .single()
+
+        if (error) {
+          console.error(
+            `ERROR INSERT ${nombreAparato}:`,
+            error
+          )
+
+          alert(
+            `No se pudo crear el puntaje de ${nombreAparato}.\n\n` +
+            `${error.message || 'Error desconocido'}`
+          )
+
+          return
+        }
+
+        if (!data) {
+          alert(
+            `No se pudo crear el puntaje de ${nombreAparato}.`
+          )
+          return
+        }
       }
-    }
 
-    await cargarDatosPuntajes(false)
-    alert('Puntajes guardados correctamente. La tabla ya se actualizó.')
-    setEditando(null)
-    setValoresEditados({})
+      await cargarDatosPuntajes(false)
+
+      setEditando(null)
+      setValoresEditados({})
+      setValoresOriginales({})
+
+      alert('Puntajes guardados correctamente.')
+    } catch (error) {
+      console.error('Error inesperado guardando puntajes:', error)
+
+      alert(
+        `Ocurrió un error inesperado al guardar.\n\n${
+          error?.message || ''
+        }`
+      )
+    } finally {
+      setGuardando(false)
+    }
   }
 
   if (cargando) {
@@ -463,38 +666,89 @@ function AdminPuntajes() {
         />
 
         <div className="podios-filter-grid">
-          <select value={nivelFiltro} onChange={(e) => setNivelFiltro(e.target.value)}>
-            <option value="">Todos los niveles</option>
+          <select
+            value={nivelFiltro}
+            onChange={(e) => setNivelFiltro(e.target.value)}
+          >
+            <option value="">
+              Todos los niveles
+            </option>
+
             {niveles.map((nivel) => (
-              <option key={nivel} value={nivel}>{nivel}</option>
+              <option
+                key={nivel}
+                value={nivel}
+              >
+                {nivel}
+              </option>
             ))}
           </select>
 
-          <select value={categoriaFiltro} onChange={(e) => setCategoriaFiltro(e.target.value)}>
-            <option value="">Todas las categorías</option>
+          <select
+            value={categoriaFiltro}
+            onChange={(e) => setCategoriaFiltro(e.target.value)}
+          >
+            <option value="">
+              Todas las categorías
+            </option>
+
             {categorias.map((categoria) => (
-              <option key={categoria} value={categoria}>{categoria}</option>
+              <option
+                key={categoria}
+                value={categoria}
+              >
+                {categoria}
+              </option>
             ))}
           </select>
 
-          <select value={turnoFiltro} onChange={(e) => setTurnoFiltro(e.target.value)}>
-            <option value="">Todos los turnos</option>
+          <select
+            value={turnoFiltro}
+            onChange={(e) => setTurnoFiltro(e.target.value)}
+          >
+            <option value="">
+              Todos los turnos
+            </option>
+
             {turnos.map((turno) => (
-              <option key={turno} value={turno}>{turno}</option>
+              <option
+                key={turno}
+                value={turno}
+              >
+                {turno}
+              </option>
             ))}
           </select>
 
-          <select value={clubFiltro} onChange={(e) => setClubFiltro(e.target.value)}>
-            <option value="">Todos los clubes</option>
+          <select
+            value={clubFiltro}
+            onChange={(e) => setClubFiltro(e.target.value)}
+          >
+            <option value="">
+              Todos los clubes
+            </option>
+
             {clubes.map((club) => (
-              <option key={club} value={club}>{club}</option>
+              <option
+                key={club}
+                value={club}
+              >
+                {club}
+              </option>
             ))}
           </select>
 
-          <button onClick={limpiarFiltros}>Limpiar filtros</button>
+          <button onClick={limpiarFiltros}>
+            Limpiar filtros
+          </button>
         </div>
 
-        <p style={{ marginTop: '12px', fontWeight: 'bold' }}>
+        <p
+          style={{
+            marginTop: '12px',
+            fontWeight: 'bold'
+          }}
+        >
           {filas.length} gimnasta(s) encontrada(s)
         </p>
 
@@ -519,8 +773,11 @@ function AdminPuntajes() {
 
             <tbody>
               {filas.map((g) => {
-                const clave = `${g.apellido}-${g.nombre}-${g.club}-${g.gimnasta_id}`
-                const estaEditando = editando === clave
+                const clave =
+                  `${g.apellido}-${g.nombre}-${g.club}-${g.gimnasta_id}`
+
+                const estaEditando =
+                  editando === clave
 
                 return (
                   <tr key={clave}>
@@ -529,9 +786,17 @@ function AdminPuntajes() {
                     <td>{g.club}</td>
                     <td>{g.nivel}</td>
                     <td>{g.categoria}</td>
-                    <td>{(g.turnos || []).join(', ') || '-'}</td>
 
-                    {['Suelo', 'Salto', 'Viga', 'Paralelas'].map((aparato) => (
+                    <td>
+                      {(g.turnos || []).join(', ') || '-'}
+                    </td>
+
+                    {[
+                      'Suelo',
+                      'Salto',
+                      'Viga',
+                      'Paralelas'
+                    ].map((aparato) => (
                       <td key={aparato}>
                         {estaEditando ? (
                           <input
@@ -543,7 +808,9 @@ function AdminPuntajes() {
                               padding: '1px',
                               textAlign: 'center'
                             }}
-                            value={valoresEditados[aparato] || ''}
+                            value={
+                              valoresEditados[aparato] ?? ''
+                            }
                             onChange={(e) =>
                               setValoresEditados({
                                 ...valoresEditados,
@@ -561,9 +828,12 @@ function AdminPuntajes() {
                       <strong>
                         {estaEditando
                           ? Number(
-                              Object.values(valoresEditados).reduce(
+                              Object.values(
+                                valoresEditados
+                              ).reduce(
                                 (acc, val) =>
-                                  acc + Number(normalizarNumero(val) || 0),
+                                  acc +
+                                  Number(normalizarNumero(val) || 0),
                                 0
                               )
                             ).toFixed(2)
@@ -574,11 +844,18 @@ function AdminPuntajes() {
                     <td>
                       {estaEditando ? (
                         <div className="table-buttons">
-                          <button onClick={() => guardarEdicion(g)}>
-                            Guardar
+                          <button
+                            onClick={() => guardarEdicion(g)}
+                            disabled={guardando}
+                          >
+                            {guardando ? 'Guardando...' : 'Guardar'}
                           </button>
 
-                          <button className="danger" onClick={cancelarEdicion}>
+                          <button
+                            className="danger"
+                            onClick={cancelarEdicion}
+                            disabled={guardando}
+                          >
                             Cancelar
                           </button>
                         </div>
