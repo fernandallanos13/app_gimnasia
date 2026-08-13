@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { supabase } from '../services/supabase'
@@ -10,6 +10,23 @@ function ResetPassword() {
   const [confirmarPassword, setConfirmarPassword] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState('')
+  const [sesionValida, setSesionValida] = useState(null)
+
+  useEffect(() => {
+    async function chequearSesion() {
+      // Le damos un instante al cliente de Supabase para que procese
+      // el token que viene en la URL del link antes de chequear.
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      const {
+        data: { session }
+      } = await supabase.auth.getSession()
+
+      setSesionValida(!!session)
+    }
+
+    chequearSesion()
+  }, [])
 
   async function guardarNuevaPassword() {
     if (!password || password.length < 6) {
@@ -24,24 +41,45 @@ function ResetPassword() {
 
     setGuardando(true)
 
-    // Cuando se llega acá desde el link del mail de recuperación,
-    // Supabase ya dejó una sesión activa (el link trae el token en
-    // la URL). updateUser cambia la contraseña de ESA sesión.
-    const { error } = await supabase.auth.updateUser({ password })
+    try {
+      // Chequeo defensivo: si por algún motivo no hay sesión activa
+      // en este momento (el link no generó una sesión válida),
+      // avisamos en vez de quedarnos esperando para siempre.
+      const {
+        data: { session }
+      } = await supabase.auth.getSession()
 
-    setGuardando(false)
+      if (!session) {
+        alert(
+          'El link de recuperación no generó una sesión válida. ' +
+          'Puede haber vencido (duran poco tiempo) o ya haber sido ' +
+          'usado. Pedí que te manden uno nuevo y abrilo apenas llegue.'
+        )
+        return
+      }
 
-    if (error) {
-      console.log(error)
-      alert('No se pudo cambiar la contraseña: ' + error.message)
-      return
+      // Cuando se llega acá desde el link del mail de recuperación,
+      // Supabase ya dejó una sesión activa. updateUser cambia la
+      // contraseña de ESA sesión.
+      const { error } = await supabase.auth.updateUser({ password })
+
+      if (error) {
+        console.log('Error al actualizar contraseña:', error)
+        alert('No se pudo cambiar la contraseña: ' + error.message)
+        return
+      }
+
+      setMensaje('Contraseña actualizada. Ya podés ingresar con la nueva.')
+
+      setTimeout(() => {
+        navigate('/admin-login')
+      }, 2000)
+    } catch (err) {
+      console.log('Error inesperado:', err)
+      alert('Ocurrió un error inesperado: ' + err.message)
+    } finally {
+      setGuardando(false)
     }
-
-    setMensaje('Contraseña actualizada. Ya podés ingresar con la nueva.')
-
-    setTimeout(() => {
-      navigate('/admin-login')
-    }, 2000)
   }
 
   return (
@@ -50,6 +88,14 @@ function ResetPassword() {
 
       {mensaje ? (
         <p>{mensaje}</p>
+      ) : sesionValida === false ? (
+        <p>
+          Este link ya venció o ya fue usado. Pedí que te manden un
+          mail de recuperación nuevo y abrilo apenas te llegue —
+          duran poco tiempo.
+        </p>
+      ) : sesionValida === null ? (
+        <p>Verificando el link...</p>
       ) : (
         <div
           style={{
