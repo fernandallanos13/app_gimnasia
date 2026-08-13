@@ -14,6 +14,7 @@ import AdminCargasManuales from './pages/AdminCargasManuales'
 import AdminTurnos from './pages/AdminTurnos'
 import Inscripcion from './pages/Inscripcion'
 import AdminInscripciones from './pages/AdminInscripciones'
+import ResetPassword from './pages/ResetPassword'
 
 import ProtectedRoute from './components/ProtectedRoute'
 import InstalarGymScore from './components/InstalarGymScore'
@@ -26,6 +27,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route
           path="/admin"
