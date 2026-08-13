@@ -958,7 +958,14 @@ setImportandoExcel(false)
                 marginTop: '10px'
               }}
             >
-              <h3>{torneo.nombre}</h3>
+              <h3>
+                {torneo.nombre}
+                {esSuperAdmin && torneo.clubes?.nombre && (
+                  <span style={{ fontWeight: 'normal', opacity: 0.65 }}>
+                    {' '}— {torneo.clubes.nombre}
+                  </span>
+                )}
+              </h3>
 
               <button
                 onClick={() =>
@@ -1018,7 +1025,14 @@ setImportandoExcel(false)
           marginTop: '12px'
         }}
       >
-        <h3>{torneo.nombre}</h3>
+        <h3>
+          {torneo.nombre}
+          {esSuperAdmin && torneo.clubes?.nombre && (
+            <span style={{ fontWeight: 'normal', opacity: 0.65 }}>
+              {' '}— {torneo.clubes.nombre}
+            </span>
+          )}
+        </h3>
         <p><strong>Código:</strong> {torneo.codigo}</p>
 
         <button
@@ -1032,7 +1046,14 @@ setImportandoExcel(false)
   </>
 ) : (
   <>
-            <h3>{torneoSeleccionado?.nombre}</h3>
+            <h3>
+              {torneoSeleccionado?.nombre}
+              {esSuperAdmin && torneoSeleccionado?.clubes?.nombre && (
+                <span style={{ fontWeight: 'normal', opacity: 0.65 }}>
+                  {' '}— {torneoSeleccionado.clubes.nombre}
+                </span>
+              )}
+            </h3>
 
             <p>
               <strong>Código:</strong>{' '}
