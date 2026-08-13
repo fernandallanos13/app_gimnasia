@@ -4,9 +4,18 @@ import * as XLSX from 'xlsx'
 import { QRCodeCanvas } from 'qrcode.react'
 
 import { supabase } from '../services/supabase'
+import { useAuth } from '../context/AuthContext'
 
 function Admin() {
   const navigate = useNavigate()
+
+  const {
+    esSuperAdmin,
+    clubId: clubIdCuenta,
+    club: clubCuenta,
+    perfil,
+    cerrarSesion
+  } = useAuth()
 
   const [nombre, setNombre] = useState('')
   const [codigo, setCodigo] = useState('')
@@ -45,10 +54,27 @@ function Admin() {
   const [importandoExcel, setImportandoExcel] = useState(false)
 
   async function obtenerTorneos() {
-    const { data, error } = await supabase
+    let query = supabase
       .from('torneos')
-      .select('*')
+      .select(
+        esSuperAdmin
+          ? '*, clubes ( nombre )'
+          : '*'
+      )
       .order('id', { ascending: false })
+
+    // Un club_admin solo puede ver los torneos de SU club.
+    // El super admin ve todos (con el nombre del club al lado).
+    if (!esSuperAdmin) {
+      if (!clubIdCuenta) {
+        setTorneos([])
+        return
+      }
+
+      query = query.eq('club_id', clubIdCuenta)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.log(error)
@@ -80,9 +106,22 @@ function Admin() {
       return
     }
 
+    if (esSuperAdmin) {
+      alert(
+        'Como super admin no podés crear torneos directamente. ' +
+        'Ingresá con la cuenta del club correspondiente.'
+      )
+      return
+    }
+
+    if (!clubIdCuenta) {
+      alert('Tu usuario no tiene un club asignado. Consultá al super admin.')
+      return
+    }
+
     const { error } = await supabase
       .from('torneos')
-      .insert([{ nombre, codigo, estado: 'activo' }])
+      .insert([{ nombre, codigo, estado: 'activo', club_id: clubIdCuenta }])
 
     if (error) {
       console.log(error)
@@ -825,15 +864,15 @@ setImportandoExcel(false)
     img.src = qrImage
   }
 
-  async function cerrarSesion() {
-    await supabase.auth.signOut()
+  async function manejarCerrarSesion() {
+    await cerrarSesion()
     navigate('/admin-login')
   }
 
   useEffect(() => {
     obtenerTorneos()
     obtenerNivelesYCategorias()
-  }, [])
+  }, [esSuperAdmin, clubIdCuenta])
 
   useEffect(() => {
     const torneoActivo = torneos.find((torneo) => torneo.estado !== 'cerrado')
@@ -882,7 +921,13 @@ setImportandoExcel(false)
 
     <h1>Panel Admin</h1>
 
-    <button onClick={cerrarSesion}>
+    <p style={{ opacity: 0.75, marginTop: '-8px' }}>
+      {esSuperAdmin
+        ? 'Super admin — viendo todos los clubes'
+        : (clubCuenta?.nombre || perfil?.nombre || '')}
+    </p>
+
+    <button onClick={manejarCerrarSesion}>
       Cerrar sesión
     </button>
 
