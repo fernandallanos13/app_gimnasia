@@ -14,15 +14,42 @@ function ResetPassword() {
 
   useEffect(() => {
     async function chequearSesion() {
-      // Le damos un instante al cliente de Supabase para que procese
-      // el token que viene en la URL del link antes de chequear.
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      try {
+        // Supabase arma estos links de dos formas distintas según
+        // la configuración del proyecto: una trae un "code" en la
+        // URL (hay que canjearlo por una sesión a mano), la otra
+        // ya trae el token y supabase-js lo procesa solo. Cubrimos
+        // las dos para no depender de cuál esté activa.
+        const params = new URLSearchParams(window.location.search)
+        const code = params.get('code')
 
-      const {
-        data: { session }
-      } = await supabase.auth.getSession()
+        if (code) {
+          const { error: errorCanje } =
+            await supabase.auth.exchangeCodeForSession(window.location.href)
 
-      setSesionValida(!!session)
+          if (errorCanje) {
+            console.log('Error al canjear code por sesión:', errorCanje)
+          }
+        }
+
+        // Le damos un instante al cliente para terminar de procesar
+        // el link antes de chequear si quedó sesión activa.
+        await new Promise((resolve) => setTimeout(resolve, 800))
+
+        const {
+          data: { session },
+          error
+        } = await supabase.auth.getSession()
+
+        if (error) {
+          console.log('Error al verificar sesión:', error)
+        }
+
+        setSesionValida(!!session)
+      } catch (err) {
+        console.log('Error inesperado verificando el link:', err)
+        setSesionValida(false)
+      }
     }
 
     chequearSesion()
