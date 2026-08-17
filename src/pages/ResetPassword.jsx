@@ -15,11 +15,24 @@ function ResetPassword() {
   useEffect(() => {
     async function chequearSesion() {
       try {
-        // Supabase arma estos links de dos formas distintas según
-        // la configuración del proyecto: una trae un "code" en la
-        // URL (hay que canjearlo por una sesión a mano), la otra
-        // ya trae el token y supabase-js lo procesa solo. Cubrimos
-        // las dos para no depender de cuál esté activa.
+        // Si el link ya venció o ya se usó, Supabase lo marca con
+        // un "error" directo en el hash de la URL (ej:
+        // #error=access_denied&error_code=otp_expired). Lo
+        // detectamos de una para no esperar a que falle después.
+        const hashParams = new URLSearchParams(
+          window.location.hash.replace('#', '')
+        )
+        const errorEnUrl = hashParams.get('error')
+        const descripcionError = hashParams.get('error_description')
+
+        if (errorEnUrl) {
+          console.log('Error en el link:', errorEnUrl, descripcionError)
+          setSesionValida(false)
+          return
+        }
+
+        // Si el link usa el flujo PKCE (trae ?code=... en la URL),
+        // hay que canjearlo por una sesión a mano.
         const params = new URLSearchParams(window.location.search)
         const code = params.get('code')
 
