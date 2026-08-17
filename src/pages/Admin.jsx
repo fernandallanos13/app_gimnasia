@@ -931,6 +931,12 @@ setImportandoExcel(false)
       Cerrar sesión
     </button>
 
+    {esSuperAdmin && (
+      <button onClick={() => navigate('/super-admin')}>
+        Ir a Super Admin
+      </button>
+    )}
+
     <button onClick={() => setMostrarHistoricos(!mostrarHistoricos)}>
       {mostrarHistoricos
         ? 'Ocultar torneos históricos'

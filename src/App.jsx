@@ -15,8 +15,10 @@ import AdminTurnos from './pages/AdminTurnos'
 import Inscripcion from './pages/Inscripcion'
 import AdminInscripciones from './pages/AdminInscripciones'
 import ResetPassword from './pages/ResetPassword'
+import SuperAdmin from './pages/SuperAdmin'
 
 import ProtectedRoute from './components/ProtectedRoute'
+import SuperAdminRoute from './components/SuperAdminRoute'
 import InstalarGymScore from './components/InstalarGymScore'
 
 function App() {
@@ -35,6 +37,15 @@ function App() {
             <ProtectedRoute>
               <Admin />
             </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/super-admin"
+          element={
+            <SuperAdminRoute>
+              <SuperAdmin />
+            </SuperAdminRoute>
           }
         />
 
