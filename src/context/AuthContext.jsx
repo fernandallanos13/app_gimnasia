@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../services/supabase'
+import { aplicarTemaClub, resetearTema } from '../utils/tema'
 
 const AuthContext = createContext(null)
 
@@ -87,6 +88,17 @@ export function AuthProvider({ children }) {
   const esClubAdmin = perfil?.rol === 'club_admin'
   const clubId = perfil?.club_id || null
   const club = perfil?.clubes || null
+
+  // Apenas sabemos de qué club es la cuenta logueada, pintamos
+  // la app con sus colores. Super admin (o nadie logueado) usa
+  // los colores por defecto.
+  useEffect(() => {
+    if (esClubAdmin && club) {
+      aplicarTemaClub(club)
+    } else {
+      resetearTema()
+    }
+  }, [esClubAdmin, club])
 
   // Un club puede estar desactivado por el super admin (fuera de
   // su ventana de torneo). Si es así, el club_admin no debería

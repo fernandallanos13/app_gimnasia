@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../services/supabase'
+import { aplicarTemaClub } from '../utils/tema'
 
 function Resultados() {
+  const [searchParams] = useSearchParams()
+  const codigoDesdeUrl = searchParams.get('codigo') || ''
+
+  const [codigoTorneo, setCodigoTorneo] = useState(codigoDesdeUrl)
+  const [codigoConfirmado, setCodigoConfirmado] = useState(codigoDesdeUrl)
+  const [errorCodigo, setErrorCodigo] = useState('')
+
   const [torneo, setTorneo] = useState(null)
   const [podios, setPodios] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -133,36 +142,31 @@ function Resultados() {
   }
 
   async function obtenerResultados() {
-    setCargando(true)
-
-    const { data: torneoActivo, error: errorTorneo } = await supabase
-      .from('torneos')
-      .select('*')
-      .eq('estado', 'activo')
-      .limit(1)
-      .single()
-
-    if (errorTorneo || !torneoActivo) {
-      console.log(errorTorneo)
+    if (!codigoConfirmado) {
       setCargando(false)
       return
     }
 
-    const torneoId = torneoActivo.id
+    setCargando(true)
 
     const { data: torneoData, error: torneoError } = await supabase
       .from('torneos')
-      .select('*')
-      .eq('id', torneoId)
+      .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
+      .ilike('codigo', codigoConfirmado.trim())
+      .eq('estado', 'activo')
       .single()
 
     if (torneoError || !torneoData) {
       console.log(torneoError)
+      setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
       setCargando(false)
       return
     }
 
+    const torneoId = torneoData.id
+
     setTorneo(torneoData)
+    aplicarTemaClub(torneoData.clubes)
 
     if (!torneoData.resultados_publicos) {
       setCargando(false)
@@ -300,7 +304,17 @@ function Resultados() {
     return () => {
       supabase.removeChannel(canal)
     }
-  }, [])
+  }, [codigoConfirmado])
+
+  function confirmarCodigo() {
+    if (!codigoTorneo.trim()) {
+      setErrorCodigo('Escribí el código del torneo.')
+      return
+    }
+
+    setErrorCodigo('')
+    setCodigoConfirmado(codigoTorneo.trim())
+  }
 
   const podiosFiltrados = podios
     .map((grupo) => {
@@ -326,6 +340,37 @@ function Resultados() {
       return String(a.categoria || '').localeCompare(String(b.categoria || ''))
     })
 
+  if (!codigoConfirmado) {
+    return (
+      <div className="container">
+        <h1>Ver resultados</h1>
+
+        <div className="card" style={{ maxWidth: '380px' }}>
+          <p style={{ marginBottom: '14px' }}>
+            Ingresá el código del torneo que te pasó el club.
+          </p>
+
+          <input
+            type="text"
+            placeholder="Código de torneo"
+            value={codigoTorneo}
+            onChange={(e) => setCodigoTorneo(e.target.value)}
+          />
+
+          {errorCodigo && (
+            <p style={{ color: '#b00020', marginTop: '10px' }}>
+              {errorCodigo}
+            </p>
+          )}
+
+          <button onClick={confirmarCodigo} style={{ marginTop: '14px' }}>
+            Ver resultados
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (cargando) {
     return (
       <div className="container">
@@ -337,7 +382,16 @@ function Resultados() {
   if (!torneo) {
     return (
       <div className="container">
-        <h1>Torneo no encontrado</h1>
+        <h1>Código de torneo incorrecto</h1>
+        <p>{errorCodigo}</p>
+        <button
+          onClick={() => {
+            setCodigoConfirmado('')
+            setCodigoTorneo('')
+          }}
+        >
+          Probar de nuevo
+        </button>
       </div>
     )
   }

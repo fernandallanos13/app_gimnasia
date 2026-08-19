@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../services/supabase'
+import { aplicarTemaClub } from '../utils/tema'
 
 const NIVELES = [
   { id: 4, nombre: 'N1' },
@@ -33,6 +35,14 @@ function limpiarNombre(texto) {
 }
 
 function Inscripcion() {
+  const [searchParams] = useSearchParams()
+  const codigoDesdeUrl = searchParams.get('codigo') || ''
+
+  const [codigoTorneo, setCodigoTorneo] = useState(codigoDesdeUrl)
+  const [torneo, setTorneo] = useState(null)
+  const [verificandoCodigo, setVerificandoCodigo] = useState(false)
+  const [errorCodigo, setErrorCodigo] = useState('')
+
   const [club, setClub] = useState('')
   const [profeResponsable, setProfeResponsable] = useState('')
   const [nivelId, setNivelId] = useState('')
@@ -44,6 +54,40 @@ function Inscripcion() {
 
   const [grupos, setGrupos] = useState([])
   const [grupoEditandoIndex, setGrupoEditandoIndex] = useState(null)
+
+  async function verificarCodigo() {
+    if (!codigoTorneo.trim()) {
+      setErrorCodigo('Escribí el código del torneo.')
+      return
+    }
+
+    setVerificandoCodigo(true)
+    setErrorCodigo('')
+
+    const { data: torneoEncontrado, error } = await supabase
+      .from('torneos')
+      .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
+      .ilike('codigo', codigoTorneo.trim())
+      .eq('estado', 'activo')
+      .single()
+
+    setVerificandoCodigo(false)
+
+    if (error || !torneoEncontrado) {
+      setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
+      return
+    }
+
+    setTorneo(torneoEncontrado)
+    aplicarTemaClub(torneoEncontrado.clubes)
+  }
+
+  useEffect(() => {
+    if (codigoDesdeUrl) {
+      verificarCodigo()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const nivelSeleccionado = NIVELES.find(
     (n) => String(n.id) === String(nivelId)
@@ -173,6 +217,7 @@ const totalGeneral = grupos.reduce(
     grupos.forEach((grupo) => {
       grupo.gimnastas.forEach((nombreCompleto) => {
         registros.push({
+          torneo_id: torneo.id,
           club: club.trim().replace(/\s+/g, ' ').toUpperCase(),
           profe_responsable: profeResponsable
             .trim()
@@ -219,13 +264,44 @@ const totalGeneral = grupos.reduce(
     <div className="inscripcion-page">
 
       <header className="inscripcion-header">
-        <h1>Inscripción de Gimnastas- Torneo Gimnasia artística Club Sportivo Central Argentino</h1>
-        <p>Río Tercero </p>
+        <h1>
+          Inscripción de Gimnastas
+          {torneo?.clubes?.nombre ? ` — ${torneo.clubes.nombre}` : ''}
+        </h1>
+        {torneo?.nombre && <p>{torneo.nombre}</p>}
       </header>
 
       <main className="inscripcion-layout">
 
-        {!finalizado && (
+        {!torneo && (
+          <section className="inscripcion-card" style={{ maxWidth: '420px', margin: '0 auto' }}>
+            <h2>Ingresá el código del torneo</h2>
+            <p className="helper-text">
+              Te lo tiene que haber pasado el club organizador.
+            </p>
+
+            <input
+              type="text"
+              placeholder="Código de torneo"
+              value={codigoTorneo}
+              onChange={(e) => setCodigoTorneo(e.target.value)}
+            />
+
+            {errorCodigo && (
+              <p className="inscripcion-error">{errorCodigo}</p>
+            )}
+
+            <button
+              className="primary-btn"
+              onClick={verificarCodigo}
+              disabled={verificandoCodigo}
+            >
+              {verificandoCodigo ? 'Verificando...' : 'Continuar'}
+            </button>
+          </section>
+        )}
+
+        {torneo && !finalizado && (
           <>
 
             <section className="inscripcion-card">
@@ -466,7 +542,7 @@ const totalGeneral = grupos.reduce(
           background: #151515;
           color: white;
           padding: 24px 18px;
-          border-bottom: 5px solid #c1121f;
+          border-bottom: 5px solid var(--color-primario);
           text-align: center;
         }
 
@@ -517,12 +593,12 @@ const totalGeneral = grupos.reduce(
         }
 
         .listado-head h3 {
-          color: #c1121f;
+          color: var(--color-primario);
         }
 
         .ejemplo-box {
   background: #f6f6f6;
-  border-left: 5px solid #c1121f;
+  border-left: 5px solid var(--color-primario);
   border-radius: 14px;
   padding: 12px 14px;
   margin-top: 14px;
@@ -540,7 +616,7 @@ const totalGeneral = grupos.reduce(
           border-radius: 14px;
           padding: 15px;
           margin-top: 20px;
-          background: #c1121f;
+          background: var(--color-primario);
           color: white;
           font-weight: 900;
           cursor: pointer;
@@ -567,7 +643,7 @@ const totalGeneral = grupos.reduce(
 
         .grupo-item h3 {
           margin: 0;
-          color: #c1121f;
+          color: var(--color-primario);
         }
 
         .grupo-item p {
@@ -617,7 +693,7 @@ const totalGeneral = grupos.reduce(
         .total-general {
           font-size: 20px;
           font-weight: 900;
-          color: #c1121f;
+          color: var(--color-primario);
         }
 
         .success-card {
@@ -660,12 +736,12 @@ const totalGeneral = grupos.reduce(
 
 .secondary-mini-btn {
   width: 100%;
-  border: 2px solid #c1121f;
+  border: 2px solid var(--color-primario);
   border-radius: 12px;
   padding: 11px;
   margin-top: 12px;
   background: white;
-  color: #c1121f;
+  color: var(--color-primario);
   font-weight: 900;
   cursor: pointer;
 }

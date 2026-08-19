@@ -502,9 +502,15 @@ setImportandoExcel(false)
   }
 
   function copiarLinkPublico() {
-    const link = `${window.location.origin}/resultados`
+    const link = `${window.location.origin}/resultados?codigo=${torneoSeleccionado.codigo}`
     navigator.clipboard.writeText(link)
     alert('Link público copiado')
+  }
+
+  function copiarLinkInscripcion() {
+    const link = `${window.location.origin}/inscripcion?codigo=${torneoSeleccionado.codigo}`
+    navigator.clipboard.writeText(link)
+    alert('Link de inscripción copiado')
   }
 
   function iniciarEdicion(inscripcion) {
@@ -1085,6 +1091,10 @@ setImportandoExcel(false)
                 Copiar link público
               </button>
 
+              <button onClick={copiarLinkInscripcion}>
+                Copiar link de inscripción
+              </button>
+
               <button
                 className="danger"
                 onClick={() =>
@@ -1100,7 +1110,7 @@ setImportandoExcel(false)
               <p>Escaneá para ver resultados</p>
 
               <QRCodeCanvas
-                value={`${window.location.origin}/resultados`}
+                value={`${window.location.origin}/resultados?codigo=${torneoSeleccionado?.codigo || ''}`}
                 size={140}
               />
 

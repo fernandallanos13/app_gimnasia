@@ -1,3 +1,8 @@
+:root {
+  --color-primario: #c1121f;
+  --color-secundario: #e5383b;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -25,7 +30,7 @@ body {
 }
 
 h1 {
-  color: #c1121f;
+  color: var(--color-primario);
   font-size: clamp(28px, 5vw, 46px);
   text-align: center;
 }
@@ -40,7 +45,7 @@ button {
   padding: 14px 20px;
   border: none;
   border-radius: 14px;
-  background: #c1121f;
+  background: var(--color-primario);
   color: white;
   font-size: 17px;
   font-weight: bold;
@@ -49,7 +54,7 @@ button {
 }
 
 button:hover {
-  background: #e5383b;
+  background: var(--color-secundario);
   transform: scale(1.02);
 }
 
@@ -70,7 +75,7 @@ table td {
 }
 
 table th {
-  background: #c1121f;
+  background: var(--color-primario);
   color: white;
 }
 
@@ -294,12 +299,12 @@ table th {
 }
 
 .admin-btn.primary {
-  background: #be0101;
+  background: var(--color-primario);
   color: white;
 }
 
 .admin-btn.primary:hover {
-  background: #bd0000;
+  background: var(--color-secundario);
 }
 
 .admin-btn.secondary {
@@ -449,13 +454,13 @@ table th {
 
 .admin-box button,
 .admin-page button {
-  background: #c1121f;
+  background: var(--color-primario);
   color: white;
 }
 
 .admin-box button:hover,
 .admin-page button:hover {
-  background: #e5383b;
+  background: var(--color-secundario);
 }
 
 .admin-clean-dashboard {
@@ -488,12 +493,12 @@ table th {
 }
 
 .admin-box button {
-  background: #c1121f;
+  background: var(--color-primario);
   color: white;
 }
 
 .admin-box button:hover {
-  background: #e5383b;
+  background: var(--color-secundario);
 }
 
 .admin-box-actions {
@@ -534,7 +539,7 @@ table th {
 }
 
 .admin-table th {
-  background: #c1121f;
+  background: var(--color-primario);
   color: white;
   padding: 14px;
 }
@@ -570,7 +575,7 @@ table th {
 }
 
 .mini-score-button.active {
-  background: #c1121f;
+  background: var(--color-primario);
   color: white;
 }
 
@@ -597,12 +602,12 @@ table th {
   gap: 12px;
   align-items: center;
   text-align: left;
-  background: #c1121f;
+  background: var(--color-primario);
   color: white;
 }
 
 .result-category-header:hover {
-  background: #e5383b;
+  background: var(--color-secundario);
 }
 
 .result-category-header span {

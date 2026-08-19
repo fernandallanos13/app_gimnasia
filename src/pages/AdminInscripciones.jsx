@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../services/supabase'
+import { useAuth } from '../context/AuthContext'
 
 function separarNombreApellido(nombreCompleto) {
   const partes = String(nombreCompleto || '')
@@ -32,6 +33,8 @@ function normalizar(texto) {
 }
 
 function AdminInscripciones() {
+  const { esSuperAdmin, clubId: clubIdCuenta } = useAuth()
+
   const [inscripciones, setInscripciones] = useState([])
   const [cargando, setCargando] = useState(true)
   const [filtroClub, setFiltroClub] = useState('')
@@ -41,10 +44,24 @@ function AdminInscripciones() {
   async function obtenerInscripciones() {
     setCargando(true)
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('pre_inscripciones')
-      .select('*')
+      .select(esSuperAdmin ? '*' : '*, torneos!inner ( club_id )')
       .order('created_at', { ascending: false })
+
+    // Un club_admin solo ve las pre-inscripciones de SU club
+    // (a través del torneo al que quedaron asociadas).
+    if (!esSuperAdmin) {
+      if (!clubIdCuenta) {
+        setInscripciones([])
+        setCargando(false)
+        return
+      }
+
+      query = query.eq('torneos.club_id', clubIdCuenta)
+    }
+
+    const { data, error } = await query
 
     setCargando(false)
 
@@ -59,7 +76,7 @@ function AdminInscripciones() {
 
   useEffect(() => {
     obtenerInscripciones()
-  }, [])
+  }, [esSuperAdmin, clubIdCuenta])
 
   const clubes = useMemo(() => {
     return [...new Set(inscripciones.map((i) => i.club).filter(Boolean))].sort()
