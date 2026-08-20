@@ -19,6 +19,7 @@ function Admin() {
 
   const [nombre, setNombre] = useState('')
   const [codigo, setCodigo] = useState('')
+  const [fechaTorneo, setFechaTorneo] = useState('')
   const [torneos, setTorneos] = useState([])
   const [torneoSeleccionado, setTorneoSeleccionado] = useState(null)
 
@@ -121,7 +122,13 @@ function Admin() {
 
     const { error } = await supabase
       .from('torneos')
-      .insert([{ nombre, codigo, estado: 'activo', club_id: clubIdCuenta }])
+      .insert([{
+        nombre,
+        codigo,
+        estado: 'activo',
+        club_id: clubIdCuenta,
+        fecha: fechaTorneo || null
+      }])
 
     if (error) {
       console.log(error)
@@ -130,6 +137,7 @@ function Admin() {
       alert('Torneo creado')
       setNombre('')
       setCodigo('')
+      setFechaTorneo('')
       obtenerTorneos()
     }
   }
@@ -1010,6 +1018,15 @@ setImportandoExcel(false)
           value={codigo}
           onChange={(e) => setCodigo(e.target.value)}
         />
+
+        <label style={{ display: 'block', textAlign: 'left', marginTop: '10px' }}>
+          Fecha del torneo (opcional)
+          <input
+            type="date"
+            value={fechaTorneo}
+            onChange={(e) => setFechaTorneo(e.target.value)}
+          />
+        </label>
 
         <button onClick={crearTorneo}>
           Crear torneo

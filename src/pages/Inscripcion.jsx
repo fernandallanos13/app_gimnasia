@@ -263,12 +263,51 @@ const totalGeneral = grupos.reduce(
   return (
     <div className="inscripcion-page">
 
-      <header className="inscripcion-header">
+      <header
+        className="inscripcion-header"
+        style={
+          torneo?.clubes
+            ? {
+                background: `linear-gradient(135deg, ${torneo.clubes.color_primario || '#151515'}, ${torneo.clubes.color_secundario || '#151515'})`
+              }
+            : undefined
+        }
+      >
+        {torneo?.clubes?.logo_url && (
+          <img
+            src={torneo.clubes.logo_url}
+            alt={torneo.clubes.nombre}
+            style={{
+              width: '64px',
+              height: '64px',
+              objectFit: 'contain',
+              marginBottom: '10px',
+              borderRadius: '12px',
+              background: 'white',
+              padding: '6px'
+            }}
+          />
+        )}
+
         <h1>
           Inscripción de Gimnastas
           {torneo?.clubes?.nombre ? ` — ${torneo.clubes.nombre}` : ''}
         </h1>
-        {torneo?.nombre && <p>{torneo.nombre}</p>}
+
+        {torneo?.nombre && (
+          <p style={{ fontSize: '17px', fontWeight: 'bold' }}>
+            {torneo.nombre}
+            {torneo.fecha && (
+              <>
+                {' · '}
+                {new Date(torneo.fecha + 'T00:00:00').toLocaleDateString(
+                  'es-AR',
+                  { day: 'numeric', month: 'long', year: 'numeric' }
+                )}
+              </>
+            )}
+          </p>
+        )}
       </header>
 
       <main className="inscripcion-layout">

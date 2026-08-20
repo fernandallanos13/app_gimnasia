@@ -407,7 +407,51 @@ function Resultados() {
 
   return (
     <div className="container">
-      <h1>{torneo.nombre}</h1>
+      <div
+        style={
+          torneo.clubes
+            ? {
+                width: '100%',
+                background: `linear-gradient(135deg, ${torneo.clubes.color_primario || '#151515'}, ${torneo.clubes.color_secundario || '#151515'})`,
+                borderRadius: '18px',
+                padding: '20px',
+                marginBottom: '8px',
+                color: 'white'
+              }
+            : { width: '100%' }
+        }
+      >
+        {torneo.clubes?.logo_url && (
+          <img
+            src={torneo.clubes.logo_url}
+            alt={torneo.clubes.nombre}
+            style={{
+              width: '56px',
+              height: '56px',
+              objectFit: 'contain',
+              marginBottom: '8px',
+              borderRadius: '10px',
+              background: 'white',
+              padding: '5px'
+            }}
+          />
+        )}
+
+        <h1 style={torneo.clubes ? { color: 'white' } : undefined}>
+          {torneo.nombre}
+          {torneo.clubes?.nombre ? ` — ${torneo.clubes.nombre}` : ''}
+        </h1>
+
+        {torneo.fecha && (
+          <p style={{ fontWeight: 'bold', opacity: 0.95 }}>
+            {new Date(torneo.fecha + 'T00:00:00').toLocaleDateString(
+              'es-AR',
+              { day: 'numeric', month: 'long', year: 'numeric' }
+            )}
+          </p>
+        )}
+      </div>
+
       <p>Resultados en vivo</p>
 
       <p className="live-status">
