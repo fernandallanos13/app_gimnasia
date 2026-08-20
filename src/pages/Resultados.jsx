@@ -149,29 +149,30 @@ function Resultados() {
 
     setCargando(true)
 
-    const { data: torneoData, error: torneoError } = await supabase
-      .from('torneos')
-      .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
-      .ilike('codigo', codigoConfirmado.trim())
-      .eq('estado', 'activo')
-      .single()
+    try {
+      const { data: torneoData, error: torneoError } = await supabase
+        .from('torneos')
+        .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
+        .ilike('codigo', codigoConfirmado.trim())
+        .eq('estado', 'activo')
+        .single()
 
-    if (torneoError || !torneoData) {
-      console.log(torneoError)
-      setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
-      setCargando(false)
-      return
-    }
+      if (torneoError || !torneoData) {
+        console.log(torneoError)
+        setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
+        setCargando(false)
+        return
+      }
 
-    const torneoId = torneoData.id
+      const torneoId = torneoData.id
 
-    setTorneo(torneoData)
-    aplicarTemaClub(torneoData.clubes)
+      setTorneo(torneoData)
+      aplicarTemaClub(torneoData.clubes)
 
-    if (!torneoData.resultados_publicos) {
-      setCargando(false)
-      return
-    }
+      if (!torneoData.resultados_publicos) {
+        setCargando(false)
+        return
+      }
 
     const { data: inscripcionesData, error: inscripcionesError } = await supabase
       .from('inscripciones')
@@ -287,6 +288,11 @@ function Resultados() {
     setPodios(podiosCalculados)
     setUltimaActualizacion(new Date())
     setCargando(false)
+    } catch (err) {
+      console.log('Error inesperado obteniendo resultados:', err)
+      setErrorCodigo('Ocurrió un error inesperado: ' + err.message)
+      setCargando(false)
+    }
   }
 
   useEffect(() => {

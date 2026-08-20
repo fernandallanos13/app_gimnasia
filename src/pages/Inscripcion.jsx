@@ -64,22 +64,30 @@ function Inscripcion() {
     setVerificandoCodigo(true)
     setErrorCodigo('')
 
-    const { data: torneoEncontrado, error } = await supabase
-      .from('torneos')
-      .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
-      .ilike('codigo', codigoTorneo.trim())
-      .eq('estado', 'activo')
-      .single()
+    try {
+      const { data: torneoEncontrado, error } = await supabase
+        .from('torneos')
+        .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
+        .ilike('codigo', codigoTorneo.trim())
+        .eq('estado', 'activo')
+        .single()
 
-    setVerificandoCodigo(false)
+      if (error || !torneoEncontrado) {
+        console.log('Error al buscar torneo:', error)
+        setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
+        return
+      }
 
-    if (error || !torneoEncontrado) {
-      setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
-      return
+      setTorneo(torneoEncontrado)
+      aplicarTemaClub(torneoEncontrado.clubes)
+    } catch (err) {
+      console.log('Error inesperado verificando código:', err)
+      setErrorCodigo(
+        'Ocurrió un error inesperado verificando el código: ' + err.message
+      )
+    } finally {
+      setVerificandoCodigo(false)
     }
-
-    setTorneo(torneoEncontrado)
-    aplicarTemaClub(torneoEncontrado.clubes)
   }
 
   useEffect(() => {
