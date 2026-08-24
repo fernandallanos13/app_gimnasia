@@ -24,14 +24,6 @@ function separarNombreApellido(nombreCompleto) {
   }
 }
 
-function normalizar(texto) {
-  return String(texto || '')
-    .toLowerCase()
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-}
-
 function AdminInscripciones() {
   const { esSuperAdmin, clubId: clubIdCuenta, club: clubCuenta } = useAuth()
 
@@ -44,34 +36,65 @@ function AdminInscripciones() {
   async function obtenerInscripciones() {
     setCargando(true)
 
-    let query = supabase
-      .from('pre_inscripciones')
-      .select(esSuperAdmin ? '*' : '*, torneos!inner ( club_id )')
-      .order('created_at', { ascending: false })
+    try {
+      // SUPER ADMIN: puede ver todas las preinscripciones.
+      if (esSuperAdmin) {
+        const { data, error } = await supabase
+          .from('pre_inscripciones')
+          .select('*')
+          .order('created_at', { ascending: false })
 
-    // Un club_admin solo ve las pre-inscripciones de SU club
-    // (a través del torneo al que quedaron asociadas).
-    if (!esSuperAdmin) {
-      if (!clubIdCuenta) {
-        setInscripciones([])
-        setCargando(false)
+        if (error) throw error
+
+        setInscripciones(data || [])
         return
       }
 
-      query = query.eq('torneos.club_id', clubIdCuenta)
+      // CLUB ADMIN: primero obtenemos los torneos que pertenecen a su club.
+      // Esto evita depender de un JOIN embebido pre_inscripciones -> torneos,
+      // que era el que estaba provocando "Error al traer preinscripciones".
+      if (!clubIdCuenta) {
+        setInscripciones([])
+        return
+      }
+
+      const { data: torneosClub, error: errorTorneos } = await supabase
+        .from('torneos')
+        .select('id')
+        .eq('club_id', clubIdCuenta)
+
+      if (errorTorneos) throw errorTorneos
+
+      const idsTorneos = (torneosClub || []).map((torneo) => torneo.id)
+
+      if (idsTorneos.length === 0) {
+        setInscripciones([])
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('pre_inscripciones')
+        .select('*')
+        .in('torneo_id', idsTorneos)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      setInscripciones(data || [])
+    } catch (error) {
+      console.error('Error al traer preinscripciones:', error)
+      setInscripciones([])
+
+      const detalle =
+        error?.message ||
+        error?.details ||
+        error?.hint ||
+        'No se pudo consultar la base de datos.'
+
+      alert(`Error al traer preinscripciones.\n\n${detalle}`)
+    } finally {
+      setCargando(false)
     }
-
-    const { data, error } = await query
-
-    setCargando(false)
-
-    if (error) {
-      console.error(error)
-      alert('Error al traer preinscripciones')
-      return
-    }
-
-    setInscripciones(data || [])
   }
 
   useEffect(() => {
@@ -164,7 +187,7 @@ function AdminInscripciones() {
 
     if (error) {
       console.error(error)
-      alert('Error al marcar como importadas')
+      alert(`Error al marcar como importadas.\n\n${error.message || ''}`)
       return
     }
 
@@ -173,35 +196,35 @@ function AdminInscripciones() {
   }
 
   async function eliminarImportadas() {
-  const importadas = inscripciones.filter((i) => i.estado === 'importada')
+    const importadas = inscripciones.filter((i) => i.estado === 'importada')
 
-  if (importadas.length === 0) {
-    alert('No hay preinscripciones marcadas como importadas.')
-    return
+    if (importadas.length === 0) {
+      alert('No hay preinscripciones marcadas como importadas.')
+      return
+    }
+
+    const confirmar = window.confirm(
+      `¿Eliminar ${importadas.length} preinscripción/es ya importadas? Esta acción no se puede deshacer.`
+    )
+
+    if (!confirmar) return
+
+    const ids = importadas.map((i) => i.id)
+
+    const { error } = await supabase
+      .from('pre_inscripciones')
+      .delete()
+      .in('id', ids)
+
+    if (error) {
+      console.error(error)
+      alert(`Error al eliminar las importadas.\n\n${error.message || ''}`)
+      return
+    }
+
+    alert('Preinscripciones importadas eliminadas')
+    obtenerInscripciones()
   }
-
-  const confirmar = window.confirm(
-    `¿Eliminar ${importadas.length} preinscripción/es ya importadas? Esta acción no se puede deshacer.`
-  )
-
-  if (!confirmar) return
-
-  const ids = importadas.map((i) => i.id)
-
-  const { error } = await supabase
-    .from('pre_inscripciones')
-    .delete()
-    .in('id', ids)
-
-  if (error) {
-    console.error(error)
-    alert('Error al eliminar las importadas')
-    return
-  }
-
-  alert('Preinscripciones importadas eliminadas')
-  obtenerInscripciones()
-}
 
   async function eliminarInscripcion(id) {
     const confirmar = window.confirm('¿Eliminar esta preinscripción?')
@@ -215,7 +238,7 @@ function AdminInscripciones() {
 
     if (error) {
       console.error(error)
-      alert('Error al eliminar')
+      alert(`Error al eliminar.\n\n${error.message || ''}`)
       return
     }
 
@@ -289,7 +312,6 @@ function AdminInscripciones() {
             <button className="danger" onClick={eliminarImportadas}>
               Eliminar importadas
             </button>
-          
           </div>
         </section>
 
@@ -344,13 +366,22 @@ function AdminInscripciones() {
       <style>{`
         .admin-pre-page {
           min-height: 100vh;
-          background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 55%, color-mix(in srgb, var(--color-primario) 12%, white) 100%);
+          background: linear-gradient(
+            135deg,
+            #ffffff 0%,
+            #f5f5f5 55%,
+            color-mix(in srgb, var(--color-primario) 12%, white) 100%
+          );
           color: #242424;
           padding-bottom: 30px;
         }
 
         .admin-pre-header {
-          background: linear-gradient(135deg, var(--color-primario), var(--color-secundario));
+          background: linear-gradient(
+            135deg,
+            var(--color-primario),
+            var(--color-secundario)
+          );
           color: white;
           text-align: center;
           padding: 28px 16px;
@@ -389,7 +420,7 @@ function AdminInscripciones() {
           background: white;
           border-radius: 20px;
           padding: 22px;
-          box-shadow: 0 10px 28px rgba(0,0,0,.10);
+          box-shadow: 0 10px 28px rgba(0, 0, 0, .10);
         }
 
         .filters-grid {
@@ -471,7 +502,8 @@ function AdminInscripciones() {
           border-collapse: collapse;
         }
 
-        th, td {
+        th,
+        td {
           border-bottom: 1px solid #ddd;
           padding: 12px;
           text-align: left;
@@ -494,7 +526,7 @@ function AdminInscripciones() {
             width: 100%;
           }
         }
-       `}</style>
+      `}</style>
     </div>
   )
 }
