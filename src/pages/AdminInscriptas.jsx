@@ -3,9 +3,11 @@ import { useState } from 'react'
 import { supabase } from '../services/supabase'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
+import { useAuth } from '../context/AuthContext'
 
 function AdminInscriptas() {
   const location = useLocation()
+  const { club: clubCuenta } = useAuth()
 
   const {
     gimnastasInscriptas = [],
@@ -291,10 +293,21 @@ const clubes = Array.from(
 })
 
   return (
-    <div className="container admin-page">
-      <h1>Gimnastas inscriptas</h1>
+    <div className="inscriptas-page">
+      <header className="inscriptas-header">
+        {clubCuenta?.logo_url && (
+          <img
+            className="inscriptas-logo"
+            src={clubCuenta.logo_url}
+            alt={clubCuenta.nombre || 'Club'}
+          />
+        )}
+        <h1>Gimnastas inscriptas</h1>
+        {clubCuenta?.nombre && <p>{clubCuenta.nombre}</p>}
+      </header>
 
-      <div className="admin-box">
+      <main className="container admin-page inscriptas-content">
+      <div className="admin-box inscriptas-box">
         <input
           type="text"
           placeholder="Buscar por apellido, nombre o club..."
@@ -495,6 +508,84 @@ const clubes = Array.from(
           </p>
         )}
       </div>
+      </main>
+
+      <style>{`
+        .inscriptas-page {
+          min-height: 100vh;
+          background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 55%, color-mix(in srgb, var(--color-primario) 12%, white) 100%);
+          color: #242424;
+          padding-bottom: 30px;
+        }
+
+        .inscriptas-header {
+          background: linear-gradient(135deg, var(--color-primario), var(--color-secundario));
+          color: white;
+          text-align: center;
+          padding: 26px 16px;
+          border-bottom: 5px solid var(--color-primario);
+        }
+
+        .inscriptas-header h1 {
+          margin: 0;
+          color: white;
+        }
+
+        .inscriptas-header p {
+          margin: 7px 0 0;
+          font-weight: 800;
+        }
+
+        .inscriptas-logo {
+          width: 68px;
+          height: 68px;
+          object-fit: contain;
+          border-radius: 14px;
+          background: white;
+          padding: 6px;
+          margin-bottom: 10px;
+        }
+
+        .inscriptas-content {
+          width: min(1300px, calc(100% - 24px)) !important;
+          max-width: 1300px !important;
+          margin: 24px auto !important;
+        }
+
+        .inscriptas-box {
+          background: white !important;
+          border-radius: 20px !important;
+          padding: 20px !important;
+          box-shadow: 0 10px 28px rgba(0,0,0,.10);
+        }
+
+        .inscriptas-page .admin-table th {
+          background: var(--color-primario) !important;
+          color: white !important;
+        }
+
+        .inscriptas-page button:not(.danger) {
+          background: var(--color-primario) !important;
+          color: white !important;
+        }
+
+        .inscriptas-page button:not(.danger):hover {
+          background: var(--color-secundario) !important;
+        }
+
+        .inscriptas-page input:focus,
+        .inscriptas-page select:focus {
+          outline: none;
+          border-color: var(--color-primario);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primario) 15%, transparent);
+        }
+
+        @media (max-width: 700px) {
+          .inscriptas-box {
+            padding: 12px !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }

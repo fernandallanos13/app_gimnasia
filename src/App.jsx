@@ -51,15 +51,79 @@ function App() {
 
         <Route path="/jueces" element={<Jueces />} />
         <Route path="/resultados" element={<Resultados />} />
-        <Route path="/admin/inscriptas" element={<AdminInscriptas />} />
-        <Route path="/admin/puntajes" element={<AdminPuntajes />} />
-        <Route path="/admin/podios" element={<AdminPodios />} />
-        <Route path="/admin/jueces" element={<AdminJueces />} />
-        <Route path="/admin/totales" element={<AdminTotales />} />
-        <Route path="/admin/cargas-manuales" element={<AdminCargasManuales />} />
-        <Route path="/admin/turnos" element={<AdminTurnos />} />
         <Route path="/inscripcion" element={<Inscripcion />} />
-        <Route path="/admin-inscripciones" element={<AdminInscripciones />} />
+
+        <Route
+          path="/admin/inscriptas"
+          element={
+            <ProtectedRoute>
+              <AdminInscriptas />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/puntajes"
+          element={
+            <ProtectedRoute>
+              <AdminPuntajes />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/podios"
+          element={
+            <ProtectedRoute>
+              <AdminPodios />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/jueces"
+          element={
+            <ProtectedRoute>
+              <AdminJueces />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/totales"
+          element={
+            <ProtectedRoute>
+              <AdminTotales />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/cargas-manuales"
+          element={
+            <ProtectedRoute>
+              <AdminCargasManuales />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/turnos"
+          element={
+            <ProtectedRoute>
+              <AdminTurnos />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin-inscripciones"
+          element={
+            <ProtectedRoute>
+              <AdminInscripciones />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   )

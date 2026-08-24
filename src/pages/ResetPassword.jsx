@@ -3,6 +3,17 @@ import { useNavigate } from 'react-router-dom'
 
 import { supabase } from '../services/supabase'
 
+const TIMEOUT_MS = 12000
+
+function conTimeout(promesa, mensaje) {
+  return Promise.race([
+    promesa,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(mensaje)), TIMEOUT_MS)
+    )
+  ])
+}
+
 function ResetPassword() {
   const navigate = useNavigate()
 
@@ -10,15 +21,14 @@ function ResetPassword() {
   const [confirmarPassword, setConfirmarPassword] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState('')
+  const [errorPantalla, setErrorPantalla] = useState('')
   const [sesionValida, setSesionValida] = useState(null)
 
   useEffect(() => {
+    let montado = true
+
     async function chequearSesion() {
       try {
-        // Si el link ya venció o ya se usó, Supabase lo marca con
-        // un "error" directo en el hash de la URL (ej:
-        // #error=access_denied&error_code=otp_expired). Lo
-        // detectamos de una para no esperar a que falle después.
         const hashParams = new URLSearchParams(
           window.location.hash.replace('#', '')
         )
@@ -27,96 +37,161 @@ function ResetPassword() {
 
         if (errorEnUrl) {
           console.log('Error en el link:', errorEnUrl, descripcionError)
-          setSesionValida(false)
+
+          if (montado) {
+            setErrorPantalla(
+              'Este link de recuperación venció o ya fue utilizado. Solicitá uno nuevo e intentá nuevamente.'
+            )
+            setSesionValida(false)
+          }
           return
         }
 
-        // Si el link usa el flujo PKCE (trae ?code=... en la URL),
-        // hay que canjearlo por una sesión a mano.
         const params = new URLSearchParams(window.location.search)
         const code = params.get('code')
 
+        // En el flujo PKCE Supabase envía ?code=...
+        // exchangeCodeForSession debe recibir ese código, no la URL completa.
         if (code) {
-          const { error: errorCanje } =
-            await supabase.auth.exchangeCodeForSession(window.location.href)
+          const { error: errorCanje } = await conTimeout(
+            supabase.auth.exchangeCodeForSession(code),
+            'Supabase tardó demasiado en validar el enlace de recuperación.'
+          )
 
           if (errorCanje) {
             console.log('Error al canjear code por sesión:', errorCanje)
+
+            if (montado) {
+              setErrorPantalla(
+                'No se pudo validar el enlace de recuperación. Puede haber vencido o ya haber sido utilizado.'
+              )
+              setSesionValida(false)
+            }
+            return
           }
         }
-
-        // Le damos un instante al cliente para terminar de procesar
-        // el link antes de chequear si quedó sesión activa.
-        await new Promise((resolve) => setTimeout(resolve, 800))
 
         const {
           data: { session },
           error
-        } = await supabase.auth.getSession()
+        } = await conTimeout(
+          supabase.auth.getSession(),
+          'Supabase tardó demasiado en verificar la sesión.'
+        )
 
         if (error) {
           console.log('Error al verificar sesión:', error)
+
+          if (montado) {
+            setErrorPantalla(
+              'No se pudo verificar el enlace de recuperación. Solicitá uno nuevo e intentá nuevamente.'
+            )
+            setSesionValida(false)
+          }
+          return
         }
 
-        setSesionValida(!!session)
+        if (montado) {
+          setSesionValida(!!session)
+
+          if (!session) {
+            setErrorPantalla(
+              'Este link de recuperación no generó una sesión válida. Puede haber vencido o ya haber sido utilizado.'
+            )
+          }
+        }
       } catch (err) {
         console.log('Error inesperado verificando el link:', err)
-        setSesionValida(false)
+
+        if (montado) {
+          setErrorPantalla(
+            err?.message || 'No se pudo verificar el enlace de recuperación.'
+          )
+          setSesionValida(false)
+        }
       }
     }
 
     chequearSesion()
+
+    return () => {
+      montado = false
+    }
   }, [])
 
   async function guardarNuevaPassword() {
+    setErrorPantalla('')
+    setMensaje('')
+
     if (!password || password.length < 6) {
-      alert('La contraseña tiene que tener al menos 6 caracteres')
+      setErrorPantalla('La contraseña tiene que tener al menos 6 caracteres.')
       return
     }
 
     if (password !== confirmarPassword) {
-      alert('Las dos contraseñas no coinciden')
+      setErrorPantalla('Las dos contraseñas no coinciden.')
       return
     }
+
+    if (guardando) return
 
     setGuardando(true)
 
     try {
-      // Chequeo defensivo: si por algún motivo no hay sesión activa
-      // en este momento (el link no generó una sesión válida),
-      // avisamos en vez de quedarnos esperando para siempre.
       const {
-        data: { session }
-      } = await supabase.auth.getSession()
+        data: { session },
+        error: errorSesion
+      } = await conTimeout(
+        supabase.auth.getSession(),
+        'Supabase tardó demasiado en verificar la sesión.'
+      )
+
+      if (errorSesion) {
+        throw errorSesion
+      }
 
       if (!session) {
-        alert(
-          'El link de recuperación no generó una sesión válida. ' +
-          'Puede haber vencido (duran poco tiempo) o ya haber sido ' +
-          'usado. Pedí que te manden uno nuevo y abrilo apenas llegue.'
+        setSesionValida(false)
+        setErrorPantalla(
+          'El link de recuperación ya no tiene una sesión válida. Solicitá uno nuevo e intentá nuevamente.'
         )
         return
       }
 
-      // Cuando se llega acá desde el link del mail de recuperación,
-      // Supabase ya dejó una sesión activa. updateUser cambia la
-      // contraseña de ESA sesión.
-      const { error } = await supabase.auth.updateUser({ password })
+      const { error } = await conTimeout(
+        supabase.auth.updateUser({ password }),
+        'La actualización de la contraseña tardó demasiado. Volvé a intentarlo.'
+      )
 
       if (error) {
         console.log('Error al actualizar contraseña:', error)
-        alert('No se pudo cambiar la contraseña: ' + error.message)
+        setErrorPantalla('No se pudo cambiar la contraseña: ' + error.message)
         return
       }
 
-      setMensaje('Contraseña actualizada. Ya podés ingresar con la nueva.')
+      setMensaje('Contraseña actualizada correctamente. Ya podés ingresar con la nueva.')
+      setPassword('')
+      setConfirmarPassword('')
+
+      // Cerramos la sesión temporal creada por el enlace de recuperación
+      // para que el próximo acceso sea con la contraseña nueva.
+      try {
+        await conTimeout(
+          supabase.auth.signOut(),
+          'La sesión tardó demasiado en cerrarse.'
+        )
+      } catch (errorCierre) {
+        console.log('La contraseña se guardó, pero no se pudo cerrar la sesión:', errorCierre)
+      }
 
       setTimeout(() => {
-        navigate('/admin-login')
-      }, 2000)
+        navigate('/admin-login', { replace: true })
+      }, 1800)
     } catch (err) {
-      console.log('Error inesperado:', err)
-      alert('Ocurrió un error inesperado: ' + err.message)
+      console.log('Error inesperado al cambiar contraseña:', err)
+      setErrorPantalla(
+        err?.message || 'Ocurrió un error inesperado al cambiar la contraseña.'
+      )
     } finally {
       setGuardando(false)
     }
@@ -126,17 +201,26 @@ function ResetPassword() {
     <div className="container">
       <h1>Elegir nueva contraseña</h1>
 
-      {mensaje ? (
-        <p>{mensaje}</p>
-      ) : sesionValida === false ? (
-        <p>
-          Este link ya venció o ya fue usado. Pedí que te manden un
-          mail de recuperación nuevo y abrilo apenas te llegue —
-          duran poco tiempo.
+      {mensaje && <p>{mensaje}</p>}
+
+      {errorPantalla && (
+        <p style={{ color: '#b00020' }}>
+          {errorPantalla}
         </p>
-      ) : sesionValida === null ? (
+      )}
+
+      {!mensaje && sesionValida === null ? (
         <p>Verificando el link...</p>
-      ) : (
+      ) : !mensaje && sesionValida === false ? (
+        <div>
+          <p>
+            Pedí un nuevo mail de recuperación y abrí el enlace más reciente.
+          </p>
+          <button onClick={() => navigate('/admin-login')}>
+            Volver al login
+          </button>
+        </div>
+      ) : !mensaje ? (
         <div
           style={{
             display: 'flex',
@@ -150,6 +234,8 @@ function ResetPassword() {
             placeholder="Nueva contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={guardando}
+            autoComplete="new-password"
           />
 
           <input
@@ -157,13 +243,15 @@ function ResetPassword() {
             placeholder="Repetir nueva contraseña"
             value={confirmarPassword}
             onChange={(e) => setConfirmarPassword(e.target.value)}
+            disabled={guardando}
+            autoComplete="new-password"
           />
 
           <button onClick={guardarNuevaPassword} disabled={guardando}>
             {guardando ? 'Guardando...' : 'Guardar contraseña'}
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

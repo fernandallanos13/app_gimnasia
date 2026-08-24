@@ -12,7 +12,7 @@ export function AuthProvider({ children }) {
   async function cargarPerfil(userId) {
     if (!userId) {
       setPerfil(null)
-      return
+      return null
     }
 
     const { data, error } = await supabase
@@ -38,48 +38,101 @@ export function AuthProvider({ children }) {
     if (error) {
       console.log('Error al cargar perfil:', error)
       setPerfil(null)
-      return
+      return null
     }
 
     setPerfil(data)
+    return data
   }
 
   useEffect(() => {
+    let montado = true
+
     async function inicializar() {
-      const {
-        data: { session: sesionActual }
-      } = await supabase.auth.getSession()
+      try {
+        const {
+          data: { session: sesionActual },
+          error
+        } = await supabase.auth.getSession()
 
-      setSession(sesionActual)
+        if (!montado) return
 
-      if (sesionActual?.user?.id) {
-        await cargarPerfil(sesionActual.user.id)
+        if (error) {
+          console.log('Error al obtener sesión:', error)
+          setSession(null)
+          setPerfil(null)
+          return
+        }
+
+        setSession(sesionActual)
+
+        if (sesionActual?.user?.id) {
+          await cargarPerfil(sesionActual.user.id)
+        } else {
+          setPerfil(null)
+        }
+      } catch (error) {
+        console.log('Error al inicializar autenticación:', error)
+        if (montado) {
+          setSession(null)
+          setPerfil(null)
+        }
+      } finally {
+        if (montado) {
+          setCargandoAuth(false)
+        }
       }
-
-      setCargandoAuth(false)
     }
 
     inicializar()
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_evento, sesionNueva) => {
+      (_evento, sesionNueva) => {
+        if (!montado) return
+
         setSession(sesionNueva)
 
-        if (sesionNueva?.user?.id) {
-          await cargarPerfil(sesionNueva.user.id)
-        } else {
+        if (!sesionNueva?.user?.id) {
           setPerfil(null)
+          setCargandoAuth(false)
+          return
         }
+
+        // IMPORTANTE:
+        // No hacemos await de consultas a Supabase dentro de
+        // onAuthStateChange. Algunas operaciones de Auth (por ejemplo
+        // updateUser al cambiar la contraseña) pueden quedar esperando
+        // si desde este callback se inicia otra consulta y se la espera.
+        // La carga del perfil se difiere al siguiente ciclo.
+        setTimeout(async () => {
+          if (!montado) return
+
+          try {
+            await cargarPerfil(sesionNueva.user.id)
+          } catch (error) {
+            console.log('Error al recargar perfil:', error)
+            if (montado) setPerfil(null)
+          } finally {
+            if (montado) setCargandoAuth(false)
+          }
+        }, 0)
       }
     )
 
     return () => {
+      montado = false
       listener?.subscription?.unsubscribe()
     }
   }, [])
 
   async function cerrarSesion() {
-    await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      console.log('Error al cerrar sesión:', error)
+      return
+    }
+
     setSession(null)
     setPerfil(null)
   }
@@ -89,9 +142,6 @@ export function AuthProvider({ children }) {
   const clubId = perfil?.club_id || null
   const club = perfil?.clubes || null
 
-  // Apenas sabemos de qué club es la cuenta logueada, pintamos
-  // la app con sus colores. Super admin (o nadie logueado) usa
-  // los colores por defecto.
   useEffect(() => {
     if (esClubAdmin && club) {
       aplicarTemaClub(club)
@@ -100,9 +150,6 @@ export function AuthProvider({ children }) {
     }
   }, [esClubAdmin, club])
 
-  // Un club puede estar desactivado por el super admin (fuera de
-  // su ventana de torneo). Si es así, el club_admin no debería
-  // poder operar aunque su login sea válido.
   const clubHabilitado = esSuperAdmin || (esClubAdmin && club?.activo === true)
 
   return (

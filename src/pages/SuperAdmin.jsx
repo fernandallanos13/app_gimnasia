@@ -17,12 +17,16 @@ function SuperAdmin() {
   const [colorPrimarioNuevo, setColorPrimarioNuevo] = useState('#1D9E75')
   const [colorSecundarioNuevo, setColorSecundarioNuevo] = useState('#0F6E56')
   const [logoUrlNuevo, setLogoUrlNuevo] = useState('')
+  const [logoArchivoNuevo, setLogoArchivoNuevo] = useState(null)
+  const [subiendoLogoNuevo, setSubiendoLogoNuevo] = useState(false)
   const [creandoClub, setCreandoClub] = useState(false)
 
   // --- Editar club existente ---
   const [clubEditandoId, setClubEditandoId] = useState(null)
   const [edit, setEdit] = useState({})
   const [guardandoEdicion, setGuardandoEdicion] = useState(false)
+  const [logoArchivoEdit, setLogoArchivoEdit] = useState(null)
+  const [subiendoLogoEdit, setSubiendoLogoEdit] = useState(false)
 
   // --- Vincular usuario a club ---
   const [emailVincular, setEmailVincular] = useState('')
@@ -62,6 +66,51 @@ function SuperAdmin() {
       .replace(/(^-|-$)/g, '')
   }
 
+  function validarLogo(archivo) {
+    if (!archivo) return false
+
+    const tiposPermitidos = ['image/png', 'image/jpeg', 'image/webp']
+
+    if (!tiposPermitidos.includes(archivo.type)) {
+      alert('El logo debe ser PNG, JPG/JPEG o WEBP.')
+      return false
+    }
+
+    if (archivo.size > 2 * 1024 * 1024) {
+      alert('El logo no puede pesar más de 2 MB.')
+      return false
+    }
+
+    return true
+  }
+
+  async function subirLogo(archivo, identificador) {
+    if (!archivo) return null
+    if (!validarLogo(archivo)) throw new Error('Archivo de logo inválido')
+
+    const extension = archivo.name.split('.').pop()?.toLowerCase() || 'png'
+    const nombreSeguro = String(identificador || 'club')
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '-')
+
+    const ruta = `${nombreSeguro}/${Date.now()}.${extension}`
+
+    const { error: errorUpload } = await supabase.storage
+      .from('logos-clubes')
+      .upload(ruta, archivo, {
+        cacheControl: '3600',
+        upsert: true
+      })
+
+    if (errorUpload) throw errorUpload
+
+    const { data } = supabase.storage
+      .from('logos-clubes')
+      .getPublicUrl(ruta)
+
+    return data.publicUrl
+  }
+
   async function crearClub() {
     if (!nombreNuevo.trim()) {
       alert('Poné un nombre para el club')
@@ -72,24 +121,36 @@ function SuperAdmin() {
 
     setCreandoClub(true)
 
-    const { error } = await supabase.from('clubes').insert([
-      {
-        nombre: nombreNuevo.trim(),
-        slug: slugFinal,
-        color_primario: colorPrimarioNuevo,
-        color_secundario: colorSecundarioNuevo,
-        logo_url: logoUrlNuevo.trim() || null,
-        activo: true
+    try {
+      let logoFinal = logoUrlNuevo.trim() || null
+
+      if (logoArchivoNuevo) {
+        setSubiendoLogoNuevo(true)
+        logoFinal = await subirLogo(logoArchivoNuevo, slugFinal)
+        setSubiendoLogoNuevo(false)
       }
-    ])
 
-    setCreandoClub(false)
+      const { error } = await supabase.from('clubes').insert([
+        {
+          nombre: nombreNuevo.trim(),
+          slug: slugFinal,
+          color_primario: colorPrimarioNuevo,
+          color_secundario: colorSecundarioNuevo,
+          logo_url: logoFinal,
+          activo: true
+        }
+      ])
 
-    if (error) {
+      if (error) throw error
+    } catch (error) {
       console.log(error)
       alert('Error al crear el club: ' + error.message)
+      setCreandoClub(false)
+      setSubiendoLogoNuevo(false)
       return
     }
+
+    setCreandoClub(false)
 
     alert('Club creado')
     setNombreNuevo('')
@@ -97,6 +158,7 @@ function SuperAdmin() {
     setColorPrimarioNuevo('#1D9E75')
     setColorSecundarioNuevo('#0F6E56')
     setLogoUrlNuevo('')
+    setLogoArchivoNuevo(null)
     obtenerClubes()
   }
 
@@ -116,6 +178,7 @@ function SuperAdmin() {
   }
 
   function iniciarEdicion(club) {
+    setLogoArchivoEdit(null)
     setClubEditandoId(club.id)
     setEdit({
       nombre: club.nombre,
@@ -128,31 +191,48 @@ function SuperAdmin() {
   function cancelarEdicion() {
     setClubEditandoId(null)
     setEdit({})
+    setLogoArchivoEdit(null)
   }
 
   async function guardarEdicionClub(clubId) {
     setGuardandoEdicion(true)
 
-    const { error } = await supabase
-      .from('clubes')
-      .update({
-        nombre: edit.nombre,
-        color_primario: edit.color_primario,
-        color_secundario: edit.color_secundario,
-        logo_url: edit.logo_url || null
-      })
-      .eq('id', clubId)
+    try {
+      let logoFinal = edit.logo_url || null
 
-    setGuardandoEdicion(false)
+      if (logoArchivoEdit) {
+        setSubiendoLogoEdit(true)
+        const clubActual = clubes.find((club) => club.id === clubId)
+        logoFinal = await subirLogo(
+          logoArchivoEdit,
+          clubActual?.slug || clubActual?.nombre || clubId
+        )
+        setSubiendoLogoEdit(false)
+      }
 
-    if (error) {
+      const { error } = await supabase
+        .from('clubes')
+        .update({
+          nombre: edit.nombre,
+          color_primario: edit.color_primario,
+          color_secundario: edit.color_secundario,
+          logo_url: logoFinal
+        })
+        .eq('id', clubId)
+
+      if (error) throw error
+    } catch (error) {
       console.log(error)
       alert('No se pudo guardar: ' + error.message)
+      setGuardandoEdicion(false)
+      setSubiendoLogoEdit(false)
       return
     }
 
+    setGuardandoEdicion(false)
     setClubEditandoId(null)
     setEdit({})
+    setLogoArchivoEdit(null)
     obtenerClubes()
   }
 
@@ -238,15 +318,34 @@ function SuperAdmin() {
             />
           </label>
 
+          <label>
+            Escudo / logo del club:
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => setLogoArchivoNuevo(e.target.files?.[0] || null)}
+            />
+          </label>
+
+          {logoArchivoNuevo && (
+            <p style={{ margin: 0, fontSize: '13px', opacity: 0.75 }}>
+              Imagen elegida: {logoArchivoNuevo.name}
+            </p>
+          )}
+
           <input
             type="text"
-            placeholder="URL del logo (opcional)"
+            placeholder="O pegá una URL del logo (opcional)"
             value={logoUrlNuevo}
             onChange={(e) => setLogoUrlNuevo(e.target.value)}
           />
 
-          <button onClick={crearClub} disabled={creandoClub}>
-            {creandoClub ? 'Creando...' : 'Crear club'}
+          <button onClick={crearClub} disabled={creandoClub || subiendoLogoNuevo}>
+            {subiendoLogoNuevo
+              ? 'Subiendo logo...'
+              : creandoClub
+                ? 'Creando...'
+                : 'Crear club'}
           </button>
         </div>
       </div>
@@ -367,9 +466,40 @@ function SuperAdmin() {
                       />
                     </label>
 
+                    {edit.logo_url && (
+                      <img
+                        src={edit.logo_url}
+                        alt="Logo actual"
+                        style={{
+                          width: '90px',
+                          height: '90px',
+                          objectFit: 'contain',
+                          background: 'white',
+                          borderRadius: '14px',
+                          padding: '6px',
+                          border: '1px solid #ddd'
+                        }}
+                      />
+                    )}
+
+                    <label>
+                      Cambiar escudo / logo:
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(e) => setLogoArchivoEdit(e.target.files?.[0] || null)}
+                      />
+                    </label>
+
+                    {logoArchivoEdit && (
+                      <p style={{ margin: 0, fontSize: '13px', opacity: 0.75 }}>
+                        Nueva imagen: {logoArchivoEdit.name}
+                      </p>
+                    )}
+
                     <input
                       type="text"
-                      placeholder="URL del logo"
+                      placeholder="URL del logo (también podés pegar una)"
                       value={edit.logo_url}
                       onChange={(e) =>
                         setEdit({ ...edit, logo_url: e.target.value })
@@ -379,9 +509,13 @@ function SuperAdmin() {
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <button
                         onClick={() => guardarEdicionClub(club.id)}
-                        disabled={guardandoEdicion}
+                        disabled={guardandoEdicion || subiendoLogoEdit}
                       >
-                        {guardandoEdicion ? 'Guardando...' : 'Guardar'}
+                        {subiendoLogoEdit
+                          ? 'Subiendo logo...'
+                          : guardandoEdicion
+                            ? 'Guardando...'
+                            : 'Guardar'}
                       </button>
                       <button
                         className="danger"
@@ -394,6 +528,23 @@ function SuperAdmin() {
                   </div>
                 ) : (
                   <>
+                    {club.logo_url && (
+                      <img
+                        src={club.logo_url}
+                        alt={club.nombre}
+                        style={{
+                          width: '72px',
+                          height: '72px',
+                          objectFit: 'contain',
+                          background: 'white',
+                          borderRadius: '14px',
+                          padding: '6px',
+                          border: '1px solid #ddd',
+                          marginBottom: '8px'
+                        }}
+                      />
+                    )}
+
                     <h3>
                       {club.nombre}{' '}
                       <span

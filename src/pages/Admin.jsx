@@ -933,9 +933,31 @@ setImportandoExcel(false)
   return (
   <div className="container">
 
-    <h1>Panel Admin</h1>
+    {!esSuperAdmin && clubCuenta?.logo_url && (
+      <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+        <img
+          src={clubCuenta.logo_url}
+          alt={clubCuenta.nombre || 'Club'}
+          style={{
+            width: '110px',
+            height: '110px',
+            objectFit: 'contain',
+            background: 'white',
+            borderRadius: '20px',
+            padding: '8px',
+            boxShadow: '0 8px 24px rgba(0,0,0,.12)'
+          }}
+        />
+      </div>
+    )}
 
-    <p style={{ opacity: 0.75, marginTop: '-8px' }}>
+    <h1 style={{ textAlign: !esSuperAdmin ? 'center' : undefined }}>Panel Admin</h1>
+
+    <p style={{
+      opacity: 0.75,
+      marginTop: '-8px',
+      textAlign: !esSuperAdmin ? 'center' : undefined
+    }}>
       {esSuperAdmin
         ? 'Super admin — viendo todos los clubes'
         : (clubCuenta?.nombre || perfil?.nombre || '')}

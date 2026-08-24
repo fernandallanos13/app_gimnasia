@@ -33,7 +33,7 @@ function normalizar(texto) {
 }
 
 function AdminInscripciones() {
-  const { esSuperAdmin, clubId: clubIdCuenta } = useAuth()
+  const { esSuperAdmin, clubId: clubIdCuenta, club: clubCuenta } = useAuth()
 
   const [inscripciones, setInscripciones] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -225,7 +225,15 @@ function AdminInscripciones() {
   return (
     <div className="admin-pre-page">
       <header className="admin-pre-header">
+        {clubCuenta?.logo_url && (
+          <img
+            className="admin-pre-logo"
+            src={clubCuenta.logo_url}
+            alt={clubCuenta.nombre || 'Club'}
+          />
+        )}
         <h1>Preinscripciones</h1>
+        {clubCuenta?.nombre && <h2>{clubCuenta.nombre}</h2>}
         <p>Revisá, filtrá y descargá el Excel compatible con el sistema.</p>
       </header>
 
@@ -336,22 +344,38 @@ function AdminInscripciones() {
       <style>{`
         .admin-pre-page {
           min-height: 100vh;
-          background: #f4f4f4;
+          background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 55%, color-mix(in srgb, var(--color-primario) 12%, white) 100%);
           color: #242424;
           padding-bottom: 30px;
         }
 
         .admin-pre-header {
-          background: #151515;
+          background: linear-gradient(135deg, var(--color-primario), var(--color-secundario));
           color: white;
           text-align: center;
           padding: 28px 16px;
-          border-bottom: 5px solid #c1121f;
+          border-bottom: 5px solid var(--color-primario);
         }
 
         .admin-pre-header h1 {
           margin: 0;
           color: white;
+        }
+
+        .admin-pre-header h2 {
+          margin: 6px 0 4px;
+          color: white;
+          font-size: 18px;
+        }
+
+        .admin-pre-logo {
+          width: 68px;
+          height: 68px;
+          object-fit: contain;
+          border-radius: 14px;
+          background: white;
+          padding: 6px;
+          margin-bottom: 10px;
         }
 
         .admin-pre-container {
@@ -389,12 +413,12 @@ function AdminInscripciones() {
 
         .count-box {
           margin-top: 18px;
-          background: #f7e7e8;
-          border: 1px solid #efc4c8;
+          background: color-mix(in srgb, var(--color-primario) 10%, white);
+          border: 1px solid color-mix(in srgb, var(--color-primario) 25%, white);
           padding: 14px;
           border-radius: 14px;
           font-weight: 900;
-          color: #9b0d17;
+          color: var(--color-primario);
         }
 
         .button-row {
@@ -405,7 +429,7 @@ function AdminInscripciones() {
         }
 
         button {
-          background: #c1121f;
+          background: var(--color-primario);
           color: white;
           border: none;
           border-radius: 12px;
@@ -416,8 +440,17 @@ function AdminInscripciones() {
 
         button.secondary {
           background: white;
-          color: #c1121f;
-          border: 2px solid #c1121f;
+          color: var(--color-primario);
+          border: 2px solid var(--color-primario);
+        }
+
+        button:not(.danger):hover {
+          background: var(--color-secundario);
+        }
+
+        button.secondary:hover {
+          background: color-mix(in srgb, var(--color-primario) 8%, white);
+          color: var(--color-primario);
         }
 
         button.danger {
@@ -447,7 +480,7 @@ function AdminInscripciones() {
 
         th {
           background: #f1f1f1;
-          color: #9b0d17;
+          color: var(--color-primario);
           text-transform: uppercase;
           font-size: 13px;
         }

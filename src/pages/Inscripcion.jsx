@@ -55,35 +55,94 @@ function Inscripcion() {
   const [grupos, setGrupos] = useState([])
   const [grupoEditandoIndex, setGrupoEditandoIndex] = useState(null)
 
-  async function verificarCodigo() {
-    if (!codigoTorneo.trim()) {
+  function conTimeout(promesa, milisegundos = 10000) {
+    return Promise.race([
+      promesa,
+      new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(
+            new Error(
+              'La conexión está tardando demasiado. Revisá tu conexión a internet e intentá nuevamente.'
+            )
+          )
+        }, milisegundos)
+      })
+    ])
+  }
+
+  async function verificarCodigo(codigoRecibido = codigoTorneo) {
+    const codigoLimpio = String(codigoRecibido || '').trim()
+
+    if (!codigoLimpio) {
       setErrorCodigo('Escribí el código del torneo.')
       return
     }
 
+    setCodigoTorneo(codigoLimpio)
     setVerificandoCodigo(true)
     setErrorCodigo('')
+    setTorneo(null)
 
     try {
-      const { data: torneoEncontrado, error } = await supabase
-        .from('torneos')
-        .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
-        .ilike('codigo', codigoTorneo.trim())
-        .eq('estado', 'activo')
-        .single()
+      const { data: torneoEncontrado, error: errorTorneo } = await conTimeout(
+        supabase
+          .from('torneos')
+          .select('*')
+          .ilike('codigo', codigoLimpio)
+          .eq('estado', 'activo')
+          .maybeSingle()
+      )
 
-      if (error || !torneoEncontrado) {
-        console.log('Error al buscar torneo:', error)
+      if (errorTorneo) {
+        console.error('Error al buscar torneo:', errorTorneo)
+        setErrorCodigo(
+          'No se pudo verificar el torneo. Intentá nuevamente en unos segundos.'
+        )
+        return
+      }
+
+      if (!torneoEncontrado) {
         setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
         return
       }
 
-      setTorneo(torneoEncontrado)
-      aplicarTemaClub(torneoEncontrado.clubes)
+      let datosClub = null
+
+      if (torneoEncontrado.club_id) {
+        try {
+          const { data: clubEncontrado, error: errorClub } = await conTimeout(
+            supabase
+              .from('clubes')
+              .select('id, nombre, color_primario, color_secundario, logo_url')
+              .eq('id', torneoEncontrado.club_id)
+              .maybeSingle()
+          )
+
+          if (errorClub) {
+            console.error('Error al buscar datos del club:', errorClub)
+          } else {
+            datosClub = clubEncontrado
+          }
+        } catch (errorClub) {
+          console.error('No se pudieron cargar los datos visuales del club:', errorClub)
+        }
+      }
+
+      const torneoCompleto = {
+        ...torneoEncontrado,
+        clubes: datosClub
+      }
+
+      setTorneo(torneoCompleto)
+
+      if (datosClub) {
+        aplicarTemaClub(datosClub)
+      }
     } catch (err) {
-      console.log('Error inesperado verificando código:', err)
+      console.error('Error inesperado verificando código:', err)
       setErrorCodigo(
-        'Ocurrió un error inesperado verificando el código: ' + err.message
+        err?.message ||
+          'Ocurrió un error inesperado verificando el código. Intentá nuevamente.'
       )
     } finally {
       setVerificandoCodigo(false)
@@ -91,8 +150,8 @@ function Inscripcion() {
   }
 
   useEffect(() => {
-    if (codigoDesdeUrl) {
-      verificarCodigo()
+    if (codigoDesdeUrl.trim()) {
+      verificarCodigo(codigoDesdeUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
