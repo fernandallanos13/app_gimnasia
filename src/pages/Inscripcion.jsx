@@ -25,6 +25,53 @@ const CATEGORIAS = [
   { id: 11, nombre: 'Mayores 16+ Años' }
 ]
 
+
+function formatearFechaTorneo(valor) {
+  if (!valor) return ''
+
+  const texto = String(valor).trim()
+
+  // Supabase DATE: YYYY-MM-DD. Lo formateamos sin pasar por Date
+  // para evitar problemas de zona horaria o "Invalid Date".
+  const fechaISO = texto.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (fechaISO) {
+    const [, anio, mes, dia] = fechaISO
+    const meses = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ]
+    const numeroMes = Number(mes)
+    if (numeroMes >= 1 && numeroMes <= 12) {
+      return `${Number(dia)} de ${meses[numeroMes - 1]} de ${anio}`
+    }
+  }
+
+  // También soporta fechas guardadas como DD/MM/YYYY.
+  const fechaArgentina = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (fechaArgentina) {
+    const [, dia, mes, anio] = fechaArgentina
+    const meses = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ]
+    const numeroMes = Number(mes)
+    if (numeroMes >= 1 && numeroMes <= 12) {
+      return `${Number(dia)} de ${meses[numeroMes - 1]} de ${anio}`
+    }
+  }
+
+  const fecha = new Date(texto)
+  if (!Number.isNaN(fecha.getTime())) {
+    return fecha.toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  }
+
+  return texto
+}
+
 function limpiarNombre(texto) {
   return String(texto || '')
     .replace(/^\s*\d+[.)-]?\s*/g, '')
@@ -55,94 +102,35 @@ function Inscripcion() {
   const [grupos, setGrupos] = useState([])
   const [grupoEditandoIndex, setGrupoEditandoIndex] = useState(null)
 
-  function conTimeout(promesa, milisegundos = 10000) {
-    return Promise.race([
-      promesa,
-      new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(
-            new Error(
-              'La conexión está tardando demasiado. Revisá tu conexión a internet e intentá nuevamente.'
-            )
-          )
-        }, milisegundos)
-      })
-    ])
-  }
-
-  async function verificarCodigo(codigoRecibido = codigoTorneo) {
-    const codigoLimpio = String(codigoRecibido || '').trim()
-
-    if (!codigoLimpio) {
+  async function verificarCodigo() {
+    if (!codigoTorneo.trim()) {
       setErrorCodigo('Escribí el código del torneo.')
       return
     }
 
-    setCodigoTorneo(codigoLimpio)
     setVerificandoCodigo(true)
     setErrorCodigo('')
-    setTorneo(null)
 
     try {
-      const { data: torneoEncontrado, error: errorTorneo } = await conTimeout(
-        supabase
-          .from('torneos')
-          .select('*')
-          .ilike('codigo', codigoLimpio)
-          .eq('estado', 'activo')
-          .maybeSingle()
-      )
+      const { data: torneoEncontrado, error } = await supabase
+        .from('torneos')
+        .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
+        .ilike('codigo', codigoTorneo.trim())
+        .eq('estado', 'activo')
+        .single()
 
-      if (errorTorneo) {
-        console.error('Error al buscar torneo:', errorTorneo)
-        setErrorCodigo(
-          'No se pudo verificar el torneo. Intentá nuevamente en unos segundos.'
-        )
-        return
-      }
-
-      if (!torneoEncontrado) {
+      if (error || !torneoEncontrado) {
+        console.log('Error al buscar torneo:', error)
         setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
         return
       }
 
-      let datosClub = null
-
-      if (torneoEncontrado.club_id) {
-        try {
-          const { data: clubEncontrado, error: errorClub } = await conTimeout(
-            supabase
-              .from('clubes')
-              .select('id, nombre, color_primario, color_secundario, logo_url')
-              .eq('id', torneoEncontrado.club_id)
-              .maybeSingle()
-          )
-
-          if (errorClub) {
-            console.error('Error al buscar datos del club:', errorClub)
-          } else {
-            datosClub = clubEncontrado
-          }
-        } catch (errorClub) {
-          console.error('No se pudieron cargar los datos visuales del club:', errorClub)
-        }
-      }
-
-      const torneoCompleto = {
-        ...torneoEncontrado,
-        clubes: datosClub
-      }
-
-      setTorneo(torneoCompleto)
-
-      if (datosClub) {
-        aplicarTemaClub(datosClub)
-      }
+      setTorneo(torneoEncontrado)
+      aplicarTemaClub(torneoEncontrado.clubes)
     } catch (err) {
-      console.error('Error inesperado verificando código:', err)
+      console.log('Error inesperado verificando código:', err)
       setErrorCodigo(
-        err?.message ||
-          'Ocurrió un error inesperado verificando el código. Intentá nuevamente.'
+        'Ocurrió un error inesperado verificando el código: ' + err.message
       )
     } finally {
       setVerificandoCodigo(false)
@@ -150,8 +138,8 @@ function Inscripcion() {
   }
 
   useEffect(() => {
-    if (codigoDesdeUrl.trim()) {
-      verificarCodigo(codigoDesdeUrl)
+    if (codigoDesdeUrl) {
+      verificarCodigo()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -367,10 +355,7 @@ const totalGeneral = grupos.reduce(
             {torneo.fecha && (
               <>
                 {' · '}
-                {new Date(torneo.fecha + 'T00:00:00').toLocaleDateString(
-                  'es-AR',
-                  { day: 'numeric', month: 'long', year: 'numeric' }
-                )}
+                {formatearFechaTorneo(torneo.fecha)}
               </>
             )}
           </p>
