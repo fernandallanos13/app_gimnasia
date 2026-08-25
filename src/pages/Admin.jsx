@@ -32,6 +32,8 @@ function Admin() {
   const [profe, setProfe] = useState('')
   const [nivelId, setNivelId] = useState('')
   const [categoriaId, setCategoriaId] = useState('')
+  const [turnoId, setTurnoId] = useState('')
+  const [turnosDisponibles, setTurnosDisponibles] = useState([])
 
   const [gimnastasInscriptas, setGimnastasInscriptas] = useState([])
 
@@ -99,6 +101,28 @@ function Admin() {
       setNiveles(nivelesData)
       setCategorias(categoriasData)
     }
+  }
+
+  async function obtenerTurnosDisponibles(torneoId) {
+    if (!torneoId) {
+      setTurnosDisponibles([])
+      setTurnoId('')
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('turnos')
+      .select('id, nombre')
+      .eq('torneo_id', torneoId)
+      .order('id', { ascending: true })
+
+    if (error) {
+      console.log('Error al traer turnos:', error)
+      setTurnosDisponibles([])
+      return
+    }
+
+    setTurnosDisponibles(data || [])
   }
 
   async function crearTorneo() {
@@ -284,8 +308,44 @@ if (errorCargaManual) {
   return
 }
 
-alert('Gimnasta cargada e inscripta')
+if (turnoId) {
+  const { data: ultimoOrden, error: errorOrden } = await supabase
+    .from('turno_gimnastas')
+    .select('orden')
+    .eq('turno_id', Number(turnoId))
+    .order('orden', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
+  if (errorOrden) {
+    console.log('Error al consultar el orden del turno:', errorOrden)
+    alert('La gimnasta se cargó e inscribió, pero no se pudo asignar al turno.')
+  } else {
+    const nuevoOrden = Number(ultimoOrden?.orden || 0) + 1
+
+    const { error: errorTurno } = await supabase
+      .from('turno_gimnastas')
+      .insert([{
+        turno_id: Number(turnoId),
+        torneo_id: torneoSeleccionado.id,
+        gimnasta_id: gimnastaCreada.id,
+        orden: nuevoOrden
+      }])
+
+    if (errorTurno) {
+      console.log('Error al asignar gimnasta al turno:', errorTurno)
+      alert('La gimnasta se cargó e inscribió, pero no se pudo asignar al turno.')
+    } else {
+      const turnoNombre = turnosDisponibles.find(
+        (turno) => String(turno.id) === String(turnoId)
+      )?.nombre
+
+      alert(`Gimnasta cargada, inscripta y asignada a ${turnoNombre || 'su turno'}.`)
+    }
+  }
+} else {
+  alert('Gimnasta cargada e inscripta')
+}
 
   setNombreGimnasta('')
   setApellidoGimnasta('')
@@ -293,6 +353,7 @@ alert('Gimnasta cargada e inscripta')
   setProfe('')
   setNivelId('')
   setCategoriaId('')
+  setTurnoId('')
 
   obtenerGimnastasInscriptas(torneoSeleccionado.id)
 }
@@ -903,6 +964,15 @@ setImportandoExcel(false)
     obtenerPuntajesCargados(torneoActivo.id)
   }, [torneos, torneoSeleccionado?.id])
 
+  useEffect(() => {
+    if (torneoSeleccionado?.id) {
+      obtenerTurnosDisponibles(torneoSeleccionado.id)
+    } else {
+      setTurnosDisponibles([])
+      setTurnoId('')
+    }
+  }, [torneoSeleccionado?.id])
+
   const gimnastasOrdenadas = [...gimnastasInscriptas].sort((a, b) => {
     const ga = a.gimnastas
     const gb = b.gimnastas
@@ -1329,6 +1399,30 @@ setImportandoExcel(false)
               </option>
             ))}
           </select>
+
+          <select
+            value={turnoId}
+            onChange={(e) => setTurnoId(e.target.value)}
+          >
+            <option value="">
+              Sin turno asignado (opcional)
+            </option>
+
+            {turnosDisponibles.map((turno) => (
+              <option
+                key={turno.id}
+                value={turno.id}
+              >
+                {turno.nombre}
+              </option>
+            ))}
+          </select>
+
+          {turnosDisponibles.length === 0 && (
+            <p style={{ fontSize: '13px', opacity: 0.7 }}>
+              Todavía no hay turnos creados para este torneo. Podés cargar la gimnasta sin asignarla.
+            </p>
+          )}
 
           <button onClick={cargarGimnasta}>
             Cargar gimnasta

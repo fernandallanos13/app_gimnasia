@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import { aplicarTemaClub } from '../utils/tema'
 
-const NIVELES = [
+const NIVELES_FALLBACK = [
   { id: 4, nombre: 'N1' },
   { id: 5, nombre: 'N2' },
   { id: 6, nombre: 'N3' },
@@ -11,8 +11,7 @@ const NIVELES = [
   { id: 8, nombre: 'N5' },
   { id: 14, nombre: 'N3 USAG' },
   { id: 15, nombre: 'N4 USAG' },
-  { id: 16, nombre: 'N5 USAG' },
-  { id: 17, nombre: 'FEDERADAS' }
+  { id: 16, nombre: 'N5 USAG' }
 ]
 
 const CATEGORIAS = [
@@ -25,15 +24,12 @@ const CATEGORIAS = [
   { id: 11, nombre: 'Mayores 16+ Años' }
 ]
 
-
 function formatearFechaTorneo(valor) {
   if (!valor) return ''
 
   const texto = String(valor).trim()
-
-  // Supabase DATE: YYYY-MM-DD. Lo formateamos sin pasar por Date
-  // para evitar problemas de zona horaria o "Invalid Date".
   const fechaISO = texto.match(/^(\d{4})-(\d{2})-(\d{2})/)
+
   if (fechaISO) {
     const [, anio, mes, dia] = fechaISO
     const meses = [
@@ -41,13 +37,14 @@ function formatearFechaTorneo(valor) {
       'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
     ]
     const numeroMes = Number(mes)
+
     if (numeroMes >= 1 && numeroMes <= 12) {
       return `${Number(dia)} de ${meses[numeroMes - 1]} de ${anio}`
     }
   }
 
-  // También soporta fechas guardadas como DD/MM/YYYY.
   const fechaArgentina = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+
   if (fechaArgentina) {
     const [, dia, mes, anio] = fechaArgentina
     const meses = [
@@ -55,12 +52,14 @@ function formatearFechaTorneo(valor) {
       'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
     ]
     const numeroMes = Number(mes)
+
     if (numeroMes >= 1 && numeroMes <= 12) {
       return `${Number(dia)} de ${meses[numeroMes - 1]} de ${anio}`
     }
   }
 
   const fecha = new Date(texto)
+
   if (!Number.isNaN(fecha.getTime())) {
     return fecha.toLocaleDateString('es-AR', {
       day: 'numeric',
@@ -101,36 +100,114 @@ function Inscripcion() {
 
   const [grupos, setGrupos] = useState([])
   const [grupoEditandoIndex, setGrupoEditandoIndex] = useState(null)
+  const [nivelesDisponibles, setNivelesDisponibles] = useState(NIVELES_FALLBACK)
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
 
-  async function verificarCodigo() {
-    if (!codigoTorneo.trim()) {
+  async function cargarNiveles() {
+    const { data, error } = await supabase
+      .from('niveles')
+      .select('id, nombre')
+      .order('id', { ascending: true })
+
+    if (error) {
+      console.log('Error al traer niveles:', error)
+      setNivelesDisponibles(NIVELES_FALLBACK)
+      return
+    }
+
+    setNivelesDisponibles(data || NIVELES_FALLBACK)
+  }
+
+  function conTimeout(promesa, milisegundos = 10000) {
+    return Promise.race([
+      promesa,
+      new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(
+            new Error(
+              'La conexión está tardando demasiado. Revisá tu conexión a internet e intentá nuevamente.'
+            )
+          )
+        }, milisegundos)
+      })
+    ])
+  }
+
+  async function verificarCodigo(codigoRecibido = codigoTorneo) {
+    const codigoLimpio = String(codigoRecibido || '').trim()
+
+    if (!codigoLimpio) {
       setErrorCodigo('Escribí el código del torneo.')
       return
     }
 
+    setCodigoTorneo(codigoLimpio)
     setVerificandoCodigo(true)
     setErrorCodigo('')
+    setTorneo(null)
 
     try {
-      const { data: torneoEncontrado, error } = await supabase
-        .from('torneos')
-        .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
-        .ilike('codigo', codigoTorneo.trim())
-        .eq('estado', 'activo')
-        .single()
+      const { data: torneoEncontrado, error: errorTorneo } = await conTimeout(
+        supabase
+          .from('torneos')
+          .select('*')
+          .ilike('codigo', codigoLimpio)
+          .eq('estado', 'activo')
+          .maybeSingle()
+      )
 
-      if (error || !torneoEncontrado) {
-        console.log('Error al buscar torneo:', error)
+      if (errorTorneo) {
+        console.error('Error al buscar torneo:', errorTorneo)
+        setErrorCodigo(
+          'No se pudo verificar el torneo. Intentá nuevamente en unos segundos.'
+        )
+        return
+      }
+
+      if (!torneoEncontrado) {
         setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
         return
       }
 
-      setTorneo(torneoEncontrado)
-      aplicarTemaClub(torneoEncontrado.clubes)
+      let datosClub = null
+
+      if (torneoEncontrado.club_id) {
+        try {
+          const { data: clubEncontrado, error: errorClub } = await conTimeout(
+            supabase
+              .from('clubes')
+              .select('id, nombre, color_primario, color_secundario, logo_url')
+              .eq('id', torneoEncontrado.club_id)
+              .maybeSingle()
+          )
+
+          if (errorClub) {
+            console.error('Error al buscar datos del club:', errorClub)
+          } else {
+            datosClub = clubEncontrado
+          }
+        } catch (errorClub) {
+          console.error('No se pudieron cargar los datos visuales del club:', errorClub)
+        }
+      }
+
+      const torneoCompleto = {
+        ...torneoEncontrado,
+        clubes: datosClub
+      }
+
+      setTorneo(torneoCompleto)
+
+      if (datosClub) {
+        aplicarTemaClub(datosClub)
+      }
+
+      await cargarNiveles()
     } catch (err) {
-      console.log('Error inesperado verificando código:', err)
+      console.error('Error inesperado verificando código:', err)
       setErrorCodigo(
-        'Ocurrió un error inesperado verificando el código: ' + err.message
+        err?.message ||
+          'Ocurrió un error inesperado verificando el código. Intentá nuevamente.'
       )
     } finally {
       setVerificandoCodigo(false)
@@ -138,13 +215,13 @@ function Inscripcion() {
   }
 
   useEffect(() => {
-    if (codigoDesdeUrl) {
-      verificarCodigo()
+    if (codigoDesdeUrl.trim()) {
+      verificarCodigo(codigoDesdeUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const nivelSeleccionado = NIVELES.find(
+  const nivelSeleccionado = nivelesDisponibles.find(
     (n) => String(n.id) === String(nivelId)
   )
 
@@ -258,7 +335,7 @@ const totalGeneral = grupos.reduce(
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-  async function finalizarCarga() {
+  async function guardarCargaConfirmada() {
     if (grupos.length === 0) {
       setMensaje('Primero agregá al menos un grupo.')
       return
@@ -300,7 +377,18 @@ const totalGeneral = grupos.reduce(
       return
     }
 
+    setMostrarConfirmacion(false)
     setFinalizado(true)
+  }
+
+  function solicitarConfirmacion() {
+    if (grupos.length === 0) {
+      setMensaje('Primero agregá al menos un grupo.')
+      return
+    }
+
+    setMensaje('')
+    setMostrarConfirmacion(true)
   }
 
   function nuevaCarga() {
@@ -312,6 +400,7 @@ const totalGeneral = grupos.reduce(
     setMensaje('')
     setGuardando(false)
     setFinalizado(false)
+    setMostrarConfirmacion(false)
     setGrupos([])
   }
 
@@ -430,7 +519,7 @@ const totalGeneral = grupos.reduce(
                 >
                   <option value="">Seleccionar nivel</option>
 
-                  {NIVELES.map((nivel) => (
+                  {nivelesDisponibles.map((nivel) => (
                     <option key={nivel.id} value={nivel.id}>
                       {nivel.nombre}
                     </option>
@@ -459,7 +548,7 @@ const totalGeneral = grupos.reduce(
   <h3>Listado de gimnastas</h3>
 
   <p>
-    Una gimnasta por línea.
+    Una gimnasta por línea, escribiendo primero el APELLIDO y después el NOMBRE.
     No uses números ni comas.
   </p>
 
@@ -472,16 +561,16 @@ const totalGeneral = grupos.reduce(
     <strong>Ejemplo correcto:</strong>
 
     <p>
-      Juana Pérez
+      PÉREZ JUANA
       <br />
-      Martina Gómez
+      GÓMEZ MARTINA
       <br />
-      Sofía del Valle Gómez
+      DEL VALLE GÓMEZ SOFÍA
     </p>
   </div>
 
   <div className="Nombre y Apellido">
-  <p><br/> NOMBRE Y APELLIDO <br/></p>
+  <p><br/> APELLIDO Y NOMBRE <br/></p>
   </div>
 </div>
 
@@ -580,7 +669,7 @@ const totalGeneral = grupos.reduce(
 
                   <button
                     className="primary-btn"
-                    onClick={finalizarCarga}
+                    onClick={solicitarConfirmacion}
                     disabled={guardando}
                   >
                     {guardando
@@ -594,6 +683,73 @@ const totalGeneral = grupos.reduce(
             </section>
 
           </>
+        )}
+
+        {mostrarConfirmacion && !finalizado && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,.55)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+              zIndex: 9999
+            }}
+          >
+            <div
+              className="inscripcion-card"
+              style={{ width: 'min(560px, 100%)', maxHeight: '85vh', overflowY: 'auto' }}
+            >
+              <h2>Confirmar preinscripción</h2>
+              <p className="helper-text">
+                Revisá las cantidades por nivel y categoría antes de confirmar.
+              </p>
+
+              <div className="resumen-box">
+                <p><strong>Club:</strong> {club || '-'}</p>
+                <p><strong>Profe:</strong> {profeResponsable || '-'}</p>
+              </div>
+
+              <div className="grupos-lista" style={{ marginTop: '16px' }}>
+                {grupos.map((grupo, index) => (
+                  <div
+                    key={`${grupo.nivel_id}-${grupo.categoria_id}-${index}`}
+                    className="grupo-item"
+                    style={{ padding: '12px' }}
+                  >
+                    <strong>{grupo.nivel} · {grupo.categoria}</strong>
+                    <span style={{ display: 'block', marginTop: '4px' }}>
+                      {grupo.gimnastas.length} gimnasta{grupo.gimnastas.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="totales-box" style={{ marginTop: '16px' }}>
+                <h3>Total a confirmar: {totalGeneral} gimnastas</h3>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '18px' }}>
+                <button
+                  className="secondary-mini-btn"
+                  onClick={() => setMostrarConfirmacion(false)}
+                  disabled={guardando}
+                >
+                  Volver y revisar
+                </button>
+
+                <button
+                  className="primary-btn"
+                  onClick={guardarCargaConfirmada}
+                  disabled={guardando}
+                >
+                  {guardando ? 'Confirmando...' : 'Confirmar inscripción'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {finalizado && (

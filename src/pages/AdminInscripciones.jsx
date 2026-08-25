@@ -19,8 +19,8 @@ function separarNombreApellido(nombreCompleto) {
   }
 
   return {
-    nombre: partes.slice(0, -1).join(' '),
-    apellido: partes.slice(-1).join(' ')
+    apellido: partes[0],
+    nombre: partes.slice(1).join(' ')
   }
 }
 
