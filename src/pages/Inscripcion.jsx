@@ -335,51 +335,200 @@ const totalGeneral = grupos.reduce(
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-  async function guardarCargaConfirmada() {
-    if (grupos.length === 0) {
-      setMensaje('Primero agregá al menos un grupo.')
+async function guardarCargaConfirmada() {
+  if (grupos.length === 0) {
+    setMensaje('Primero agregá al menos un grupo.')
+    return
+  }
+
+  const torneoId = Number(torneo?.id)
+
+  if (!torneoId || Number.isNaN(torneoId)) {
+    setMostrarConfirmacion(false)
+    setMensaje(
+      'No se pudo identificar el torneo. La inscripción NO fue guardada. Volvé a ingresar con el código del torneo e intentá nuevamente.'
+    )
+    return
+  }
+
+  setGuardando(true)
+  setMensaje('')
+
+  try {
+    // Verificamos nuevamente el torneo justo antes de guardar.
+    // Así evitamos cargas sin torneo o asociadas a un torneo incorrecto.
+    const { data: torneoActivo, error: errorTorneoActivo } =
+      await conTimeout(
+        supabase
+          .from('torneos')
+          .select('id, estado')
+          .eq('id', torneoId)
+          .eq('estado', 'activo')
+          .maybeSingle()
+      )
+
+    if (errorTorneoActivo) {
+      console.error(
+        'Error verificando torneo antes de guardar:',
+        errorTorneoActivo
+      )
+
+      setMostrarConfirmacion(false)
+
+      setMensaje(
+        'No se pudo verificar el torneo. La inscripción NO fue guardada. No vuelvas a cargar todo: avisá al club organizador.'
+      )
+
       return
     }
 
-    setGuardando(true)
-    setMensaje('')
+    if (!torneoActivo) {
+      setMostrarConfirmacion(false)
+
+      setMensaje(
+        'El torneo ya no está activo o no pudo identificarse. La inscripción NO fue guardada.'
+      )
+
+      return
+    }
 
     const registros = []
 
     grupos.forEach((grupo) => {
       grupo.gimnastas.forEach((nombreCompleto) => {
         registros.push({
-          torneo_id: torneo.id,
-          club: club.trim().replace(/\s+/g, ' ').toUpperCase(),
+          torneo_id: torneoId,
+
+          club: club
+            .trim()
+            .replace(/\s+/g, ' ')
+            .toUpperCase(),
+
           profe_responsable: profeResponsable
             .trim()
             .replace(/\s+/g, ' ')
             .toUpperCase(),
+
           nivel_id: grupo.nivel_id,
           nivel: grupo.nivel,
+
           categoria_id: grupo.categoria_id,
           categoria: grupo.categoria,
+
           nombre_completo: nombreCompleto,
+
           estado: 'pendiente'
         })
       })
     })
 
-    const { error } = await supabase
-      .from('pre_inscripciones')
-      .insert(registros)
-
-    setGuardando(false)
-
-    if (error) {
-      console.error(error)
-      setMensaje('Error al guardar la inscripción.')
+    if (registros.length === 0) {
+      setMostrarConfirmacion(false)
+      setMensaje('No hay gimnastas para guardar.')
       return
     }
 
+    const {
+      data: filasGuardadas,
+      error
+    } = await conTimeout(
+      supabase
+        .from('pre_inscripciones')
+        .insert(registros)
+        .select('id, torneo_id, nombre_completo'),
+      15000
+    )
+
+    if (error) {
+      console.error(
+        'Error guardando preinscripción:',
+        error
+      )
+
+      setMostrarConfirmacion(false)
+
+      const detalle = String(
+        error?.message || ''
+      ).toLowerCase()
+
+      const esErrorTorneo =
+        detalle.includes('torneo_id') ||
+        error?.code === '23502' ||
+        error?.code === '23514'
+
+      if (esErrorTorneo) {
+        setMensaje(
+          'La inscripción NO fue guardada porque no pudo asociarse correctamente al torneo. No vuelvas a cargarla: avisá al club organizador.'
+        )
+      } else {
+        setMensaje(
+          `La inscripción NO fue guardada. ${
+            error?.message ||
+            'Ocurrió un error al guardar.'
+          } No vuelvas a cargar todo hasta verificarlo.`
+        )
+      }
+
+      return
+    }
+
+    const cantidadGuardada =
+      filasGuardadas?.length || 0
+
+    const todasConTorneoCorrecto =
+      (filasGuardadas || []).every(
+        (fila) =>
+          Number(fila.torneo_id) === torneoId
+      )
+
+    if (
+      cantidadGuardada !== registros.length ||
+      !todasConTorneoCorrecto
+    ) {
+      console.error(
+        'La verificación posterior al guardado no coincidió:',
+        {
+          esperadas: registros.length,
+          guardadas: cantidadGuardada,
+          torneoId,
+          filasGuardadas
+        }
+      )
+
+      setMostrarConfirmacion(false)
+
+      setMensaje(
+        'La carga necesita verificación. No vuelvas a inscribir a las gimnastas. Avisá al club organizador para revisar la carga.'
+      )
+
+      return
+    }
+
+    // Solo mostramos éxito si Supabase confirmó
+    // todas las filas y todas quedaron asociadas
+    // al torneo correcto.
     setMostrarConfirmacion(false)
     setFinalizado(true)
+
+  } catch (err) {
+    console.error(
+      'Error inesperado guardando inscripción:',
+      err
+    )
+
+    setMostrarConfirmacion(false)
+
+    setMensaje(
+      `${
+        err?.message ||
+        'Ocurrió un error inesperado.'
+      } La inscripción NO se confirmó. No vuelvas a cargar todo hasta verificarlo.`
+    )
+
+  } finally {
+    setGuardando(false)
   }
+}
 
   function solicitarConfirmacion() {
     if (grupos.length === 0) {
