@@ -38,7 +38,20 @@ function AdminPuntajes() {
     const torneoId = torneoActual?.id || torneoSeleccionado?.id
     if (!torneoId) return
 
-    const refrescar = () => cargarDatosPuntajes(false)
+    // Los cambios pueden llegar en ráfaga cuando varias juezas cargan
+    // puntajes al mismo tiempo. En vez de lanzar una recarga completa
+    // por cada evento, agrupamos los eventos cercanos y hacemos una sola.
+    let refrescoPendiente = null
+
+    const refrescar = () => {
+      if (refrescoPendiente) {
+        clearTimeout(refrescoPendiente)
+      }
+
+      refrescoPendiente = setTimeout(() => {
+        cargarDatosPuntajes(false)
+      }, 500)
+    }
 
     const canal = supabase
       .channel(`admin-puntajes-en-vivo-${torneoId}`)
@@ -83,6 +96,10 @@ function AdminPuntajes() {
       .subscribe()
 
     return () => {
+      if (refrescoPendiente) {
+        clearTimeout(refrescoPendiente)
+      }
+
       supabase.removeChannel(canal)
     }
   }, [torneoActual?.id, torneoSeleccionado?.id])
