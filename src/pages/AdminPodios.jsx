@@ -2,9 +2,11 @@ import { useLocation } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../services/supabase'
+import { useAuth } from '../context/AuthContext'
 
 function AdminPodios() {
   const location = useLocation()
+  const { clubId: clubIdCuenta } = useAuth()
 
   const {
     puntajesCargados = [],
@@ -46,10 +48,15 @@ function AdminPodios() {
     if (torneoSeleccionado?.id) return torneoSeleccionado
     if (torneoActual?.id) return torneoActual
 
+    if (!clubIdCuenta) {
+      return null
+    }
+
     const { data, error } = await supabase
       .from('torneos')
       .select('*')
       .eq('estado', 'activo')
+      .eq('club_id', clubIdCuenta)
       .limit(1)
       .maybeSingle()
 

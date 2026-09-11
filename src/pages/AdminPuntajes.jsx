@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { supabase } from '../services/supabase'
+import { useAuth } from '../context/AuthContext'
 
 function AdminPuntajes() {
   const location = useLocation()
+  const { esSuperAdmin, clubId: clubIdCuenta } = useAuth()
 
   const {
     puntajesCargados = [],
@@ -89,10 +91,22 @@ function AdminPuntajes() {
     if (torneoSeleccionado?.id) return torneoSeleccionado
     if (torneoActual?.id) return torneoActual
 
+    // Sin torneo en el estado de navegación (por ejemplo, si se
+    // refrescó la página o se entró directo por URL): buscamos el
+    // torneo activo, pero SOLO del club de la cuenta logueada.
+    // Nunca de otro club, aunque tenga un torneo activo también.
+    if (!clubIdCuenta) {
+      // Super admin sin un torneo puntual elegido: no hay un
+      // "default" seguro entre todos los clubes, así que no
+      // mostramos ninguno en vez de arriesgar mostrar el de otro.
+      return null
+    }
+
     const { data, error } = await supabase
       .from('torneos')
       .select('*')
       .eq('estado', 'activo')
+      .eq('club_id', clubIdCuenta)
       .limit(1)
       .maybeSingle()
 
