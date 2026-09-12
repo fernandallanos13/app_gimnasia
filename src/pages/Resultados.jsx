@@ -118,6 +118,26 @@ function Resultados() {
     return match ? Number(match[0]) : 999
   }
 
+  function ordenCategoria(categoria) {
+    const texto = String(categoria || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '')
+
+    const orden = [
+      'miniatura',
+      'premini',
+      'mini',
+      'preinfantil',
+      'infantil',
+      'juvenil'
+    ]
+
+    const indice = orden.findIndex((item) => texto.includes(item))
+    return indice === -1 ? 999 : indice
+  }
+
   function formatearFecha(fecha) {
     if (!fecha) return ''
 
@@ -425,6 +445,11 @@ function Resultados() {
       const nivelB = numeroNivel(b.nivel)
 
       if (nivelA !== nivelB) return nivelA - nivelB
+
+      const categoriaA = ordenCategoria(a.categoria)
+      const categoriaB = ordenCategoria(b.categoria)
+
+      if (categoriaA !== categoriaB) return categoriaA - categoriaB
 
       return String(a.categoria || '').localeCompare(
         String(b.categoria || ''),

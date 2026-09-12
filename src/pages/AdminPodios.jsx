@@ -301,6 +301,26 @@ function AdminPodios() {
     })
   }
 
+  function ordenCategoria(categoria) {
+    const texto = String(categoria || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '')
+
+    const orden = [
+      'miniatura',
+      'premini',
+      'mini',
+      'preinfantil',
+      'infantil',
+      'juvenil'
+    ]
+
+    const indice = orden.findIndex((item) => texto.includes(item))
+    return indice === -1 ? 999 : indice
+  }
+
   function limpiarNombreHoja(nombre, indice) {
     const nombreLimpio = String(nombre || 'Resultados')
       .replace(/[\\/?*[\]:]/g, '')
@@ -425,6 +445,11 @@ function AdminPodios() {
 
           const categoriaA = String(gimnastasA[0]?.categoria || '')
           const categoriaB = String(gimnastasB[0]?.categoria || '')
+
+          const ordenA = ordenCategoria(categoriaA)
+          const ordenB = ordenCategoria(categoriaB)
+
+          if (ordenA !== ordenB) return ordenA - ordenB
 
           return categoriaA.localeCompare(
             categoriaB,
