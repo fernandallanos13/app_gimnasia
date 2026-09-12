@@ -221,6 +221,68 @@ function AdminTurnos() {
     obtenerTurnos()
   }
 
+  function numeroNivelDesdeNombre(nombreNivel) {
+    const match = String(nombreNivel || '').match(/\d+/)
+    return match ? Number(match[0]) : 999
+  }
+
+  function obtenerGimnastaPorId(id) {
+    return gimnastasInscriptas.find(
+      (i) => i.gimnastas?.id === id
+    )?.gimnastas
+  }
+
+  function ordenarTurnoPor(tipo) {
+    if (ordenManual.length < 2) return
+
+    const normalizar = (texto) =>
+      String(texto || '')
+        .trim()
+        .toLocaleLowerCase('es')
+
+    const compararTexto = (a, b) =>
+      normalizar(a).localeCompare(normalizar(b), 'es')
+
+    const nuevoOrden = [...ordenManual].sort((idA, idB) => {
+      const a = obtenerGimnastaPorId(idA)
+      const b = obtenerGimnastaPorId(idB)
+
+      if (!a || !b) return 0
+
+      const clubA = a.club || ''
+      const clubB = b.club || ''
+      const nivelA = numeroNivelDesdeNombre(a.niveles?.nombre)
+      const nivelB = numeroNivelDesdeNombre(b.niveles?.nombre)
+      const apellidoA = a.apellido || ''
+      const apellidoB = b.apellido || ''
+      const nombreA = a.nombre || ''
+      const nombreB = b.nombre || ''
+
+      if (tipo === 'club') {
+        const porClub = compararTexto(clubA, clubB)
+        if (porClub !== 0) return porClub
+      }
+
+      if (tipo === 'nivel') {
+        if (nivelA !== nivelB) return nivelA - nivelB
+      }
+
+      if (tipo === 'club-nivel') {
+        const porClub = compararTexto(clubA, clubB)
+        if (porClub !== 0) return porClub
+
+        if (nivelA !== nivelB) return nivelA - nivelB
+      }
+
+      const porApellido = compararTexto(apellidoA, apellidoB)
+      if (porApellido !== 0) return porApellido
+
+      return compararTexto(nombreA, nombreB)
+    })
+
+    setOrdenManual(nuevoOrden)
+  }
+
   function moverArriba(index) {
     if (index === 0) return
 
@@ -386,6 +448,76 @@ function AdminTurnos() {
     obtenerTurnos()
   }
 
+  async function cambiarPublicacionTurno(turno, estado) {
+    const accion = estado === 'finalizado' ? 'PUBLICAR' : 'OCULTAR'
+
+    const confirmar = window.confirm(
+      `${accion} los resultados de las categorías incluidas en "${turno.nombre}"?`
+    )
+
+    if (!confirmar) return
+
+    const { data, error } = await supabase
+      .from('turno_gimnastas')
+      .select(`
+        gimnastas (
+          niveles (nombre),
+          categorias (nombre)
+        )
+      `)
+      .eq('turno_id', turno.id)
+      .eq('torneo_id', torneoSeleccionado.id)
+
+    if (error) {
+      console.log(error)
+      alert('No se pudieron obtener las categorías del turno')
+      return
+    }
+
+    const categoriasDelTurno = [
+      ...new Map(
+        (data || [])
+          .map((item) => {
+            const nivel = item.gimnastas?.niveles?.nombre
+            const categoria = item.gimnastas?.categorias?.nombre
+
+            if (!nivel || !categoria) return null
+
+            return {
+              nivel,
+              categoria,
+              estado
+            }
+          })
+          .filter(Boolean)
+          .map((item) => [`${item.nivel}|||${item.categoria}`, item])
+      ).values()
+    ]
+
+    if (categoriasDelTurno.length === 0) {
+      alert('Este turno no tiene categorías para publicar.')
+      return
+    }
+
+    const { error: errorEstado } = await supabase
+      .from('estados_resultados')
+      .upsert(categoriasDelTurno, {
+        onConflict: 'nivel,categoria'
+      })
+
+    if (errorEstado) {
+      console.log(errorEstado)
+      alert('No se pudo cambiar la publicación de los resultados')
+      return
+    }
+
+    alert(
+      estado === 'finalizado'
+        ? `Resultados publicados para ${categoriasDelTurno.length} categoría(s) del turno.`
+        : `Resultados ocultados para ${categoriasDelTurno.length} categoría(s) del turno.`
+    )
+  }
+
   function cancelarEdicionTurno() {
     setTurnoEditando(null)
     setNombreTurno('')
@@ -443,7 +575,45 @@ function AdminTurnos() {
         </p>
 
         <div className="admin-box">
-          <h3>Orden manual</h3>
+          <h3>Orden del turno</h3>
+
+          {ordenManual.length > 1 && (
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                flexWrap: 'wrap',
+                marginBottom: '12px'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => ordenarTurnoPor('club')}
+              >
+                Ordenar por club
+              </button>
+
+              <button
+                type="button"
+                onClick={() => ordenarTurnoPor('nivel')}
+              >
+                Ordenar por nivel
+              </button>
+
+              <button
+                type="button"
+                onClick={() => ordenarTurnoPor('club-nivel')}
+              >
+                Ordenar por club + nivel
+              </button>
+            </div>
+          )}
+
+          {turnoEditando && ordenManual.length > 1 && (
+            <p style={{ marginTop: 0, opacity: 0.75 }}>
+              Podés reordenar el turno ya creado y después tocar “Guardar cambios”.
+            </p>
+          )}
 
           {ordenManual.length === 0 ? (
             <p>No hay gimnastas seleccionadas.</p>
@@ -470,6 +640,10 @@ function AdminTurnos() {
 
                   <span>
                     {gimnasta.apellido} {gimnasta.nombre}
+                    {' · '}
+                    {gimnasta.club || 'Sin club'}
+                    {' · '}
+                    {gimnasta.niveles?.nombre || 'Sin nivel'}
                   </span>
 
                   <button onClick={() => moverArriba(index)}>
@@ -570,6 +744,19 @@ function AdminTurnos() {
               </strong>
 
               <div className="table-buttons">
+                <button
+                  onClick={() => cambiarPublicacionTurno(turno, 'finalizado')}
+                  style={{ background: '#198754' }}
+                >
+                  Publicar resultados
+                </button>
+
+                <button
+                  onClick={() => cambiarPublicacionTurno(turno, 'pendiente')}
+                >
+                  Ocultar resultados
+                </button>
+
                 <button onClick={() => editarTurno(turno)}>
                   Editar turno
                 </button>

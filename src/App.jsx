@@ -125,6 +125,35 @@ function App() {
           }
         />
       </Routes>
+
+      <footer
+        style={{
+          textAlign: 'center',
+          padding: '18px 12px 24px',
+          fontSize: '13px',
+          opacity: 0.78,
+          lineHeight: 1.6
+        }}
+      >
+        <div>
+          <strong>GymScore</strong> · Desarrollado por Fernanda Llanos Aberastain · 2026
+        </div>
+        <div style={{ marginTop: '6px' }}>
+          ¿Querés GymScore en tu torneo?{' '}
+          <a
+            href="https://wa.me/5493571323650?text=Hola%20Fernanda%21%20Vi%20GymScore%20en%20un%20torneo%20de%20gimnasia%20y%20quisiera%20recibir%20informaci%C3%B3n%20para%20usarlo%20en%20nuestro%20torneo."
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontWeight: 700,
+              textDecoration: 'underline',
+              color: 'inherit'
+            }}
+          >
+            Contactame por WhatsApp
+          </a>
+        </div>
+      </footer>
     </BrowserRouter>
   )
 }
