@@ -118,6 +118,32 @@ function Resultados() {
     return match ? Number(match[0]) : 999
   }
 
+  function formatearFecha(fecha) {
+    if (!fecha) return ''
+
+    const texto = String(fecha).trim()
+    let fechaObj
+
+    // Si viene como YYYY-MM-DD, la interpretamos localmente para evitar
+    // corrimientos de zona horaria y "Invalid Date".
+    const soloFecha = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+
+    if (soloFecha) {
+      const [, anio, mes, dia] = soloFecha
+      fechaObj = new Date(Number(anio), Number(mes) - 1, Number(dia))
+    } else {
+      fechaObj = new Date(texto)
+    }
+
+    if (Number.isNaN(fechaObj.getTime())) return ''
+
+    return fechaObj.toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  }
+
   async function obtenerResultados() {
     if (!codigoConfirmado) {
       setCargando(false)
@@ -285,17 +311,15 @@ function Resultados() {
       const grupos = {}
 
       Object.values(gimnastasBase).forEach((g) => {
-        // Agrupamos además por turno: si el mismo nivel/categoría está
-        // dividido en dos turnos, cada turno mantiene su propia publicación.
-        const clave = `${g.turno_id || 'sin-turno'}|||${g.nivel}|||${g.categoria}`
+        // En la vista pública agrupamos SOLO por nivel + categoría.
+        // El turno se usa internamente para decidir si cada gimnasta
+        // puede mostrar sus puntajes, pero nunca se muestra al público.
+        const clave = `${g.nivel}|||${g.categoria}`
 
         if (!grupos[clave]) {
           grupos[clave] = {
-            turno_id: g.turno_id,
-            turno_nombre: g.turno_nombre,
             nivel: g.nivel,
             categoria: g.categoria,
-            publicado: g.publicado,
             gimnastas: []
           }
         }
@@ -304,43 +328,46 @@ function Resultados() {
       })
 
       const calculados = Object.entries(grupos).map(([clave, grupo]) => {
-        if (!grupo.publicado) {
-          return {
-            clave,
-            ...grupo,
-            gimnastas: [...grupo.gimnastas].sort((a, b) => {
-              if (a.orden_turno !== b.orden_turno) {
-                return a.orden_turno - b.orden_turno
-              }
+        const grupoPublicado =
+          grupo.gimnastas.length > 0 &&
+          grupo.gimnastas.every((g) => g.publicado)
 
-              return a.nombre.localeCompare(b.nombre, 'es')
-            })
-          }
+        let mapaPuestos = new Map()
+
+        // Cada categoría pertenece completa a un turno.
+        // Cuando ese turno se publica, la categoría muestra de inmediato
+        // sus puntajes y puestos.
+        if (grupoPublicado) {
+          const conPuestos = calcularPuestos(
+            grupo.gimnastas,
+            grupo.categoria,
+            grupo.nivel
+          )
+
+          mapaPuestos = new Map(
+            conPuestos.map((g) => [g.id, g.puesto])
+          )
         }
-
-        const conPuestos = calcularPuestos(
-          grupo.gimnastas,
-          grupo.categoria,
-          grupo.nivel
-        )
-
-        const mapaPuestos = new Map(
-          conPuestos.map((g) => [g.id, g.puesto])
-        )
 
         return {
           clave,
           ...grupo,
+          publicado: grupoPublicado,
           gimnastas: [...grupo.gimnastas]
             .map((g) => ({
               ...g,
-              puesto: mapaPuestos.get(g.id) || ''
+              puesto: grupoPublicado
+                ? (mapaPuestos.get(g.id) || '')
+                : ''
             }))
             .sort((a, b) => {
-              const totalA = Number(a.total || 0)
-              const totalB = Number(b.total || 0)
+              if (grupoPublicado) {
+                const totalA = Number(a.total || 0)
+                const totalB = Number(b.total || 0)
 
-              if (totalA !== totalB) return totalB - totalA
+                if (totalA !== totalB) return totalB - totalA
+              }
+
               return a.nombre.localeCompare(b.nombre, 'es')
             })
         }
@@ -394,19 +421,16 @@ function Resultados() {
     }))
     .filter((grupo) => grupo.gimnastas.length > 0)
     .sort((a, b) => {
-      const nombreTurnoA = String(a.turno_nombre || '')
-      const nombreTurnoB = String(b.turno_nombre || '')
-
-      if (nombreTurnoA !== nombreTurnoB) {
-        return nombreTurnoA.localeCompare(nombreTurnoB, 'es', { numeric: true })
-      }
-
       const nivelA = numeroNivel(a.nivel)
       const nivelB = numeroNivel(b.nivel)
 
       if (nivelA !== nivelB) return nivelA - nivelB
 
-      return String(a.categoria || '').localeCompare(String(b.categoria || ''), 'es')
+      return String(a.categoria || '').localeCompare(
+        String(b.categoria || ''),
+        'es',
+        { numeric: true, sensitivity: 'base' }
+      )
     })
 
   if (!codigoConfirmado) {
@@ -511,12 +535,9 @@ function Resultados() {
           {torneo.clubes?.nombre ? ` — ${torneo.clubes.nombre}` : ''}
         </h1>
 
-        {torneo.fecha && (
+        {formatearFecha(torneo.fecha) && (
           <p style={{ fontWeight: 'bold', opacity: 0.95 }}>
-            {new Date(torneo.fecha + 'T00:00:00').toLocaleDateString(
-              'es-AR',
-              { day: 'numeric', month: 'long', year: 'numeric' }
-            )}
+            {formatearFecha(torneo.fecha)}
           </p>
         )}
       </div>
@@ -573,7 +594,7 @@ function Resultados() {
               </strong>
 
               <small>
-                {grupo.turno_nombre} · {grupo.gimnastas.length} gimnasta(s) ·{' '}
+                {grupo.gimnastas.length} gimnasta(s) ·{' '}
                 {grupo.publicado ? 'Resultados publicados' : 'Resultados pendientes'}
               </small>
             </button>
@@ -614,7 +635,7 @@ function Resultados() {
               ) : (
                 <div style={{ padding: '12px 10px 16px' }}>
                   <p style={{ marginTop: 0, fontWeight: 600 }}>
-                    🔒 Los puntajes y puestos se publicarán después de la premiación de este turno.
+                    🔒 Los puntajes y puestos se publicarán después de la premiación.
                   </p>
 
                   <div className="table-wrapper">

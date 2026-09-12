@@ -19,7 +19,6 @@ function AdminPodios() {
   const [categoriaFiltro, setCategoriaFiltro] = useState('')
   const [clubFiltro, setClubFiltro] = useState('')
   const [gruposAbiertos, setGruposAbiertos] = useState({})
-  const [estados, setEstados] = useState({})
   const [cargando, setCargando] = useState(true)
   const [torneoActual, setTorneoActual] = useState(torneoSeleccionado)
   const [inscripcionesActuales, setInscripcionesActuales] = useState(gimnastasInscriptas)
@@ -27,14 +26,12 @@ function AdminPodios() {
 
   useEffect(() => {
     cargarDatosPodios()
-    cargarEstados()
   }, [torneoSeleccionado?.id])
 
   useEffect(() => {
     const canal = supabase
       .channel('admin-podios-en-vivo')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'puntajes' }, () => cargarDatosPodios(false))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_resultados' }, () => cargarEstados())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inscripciones' }, () => cargarDatosPodios(false))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'gimnastas' }, () => cargarDatosPodios(false))
       .subscribe()
@@ -304,48 +301,6 @@ function AdminPodios() {
     })
   }
 
-  async function cambiarEstado(nivel, categoria, estado) {
-    const { error } = await supabase
-      .from('estados_resultados')
-      .upsert(
-        {
-          nivel,
-          categoria,
-          estado
-        },
-        {
-          onConflict: 'nivel,categoria'
-        }
-      )
-
-    if (error) {
-      console.log(error)
-      alert('Error al cambiar estado')
-      return
-    }
-
-    cargarEstados()
-  }
-
-  async function cargarEstados() {
-    const { data, error } = await supabase
-      .from('estados_resultados')
-      .select('*')
-
-    if (error) {
-      console.log(error)
-      return
-    }
-
-    const mapa = {}
-
-    ;(data || []).forEach((e) => {
-      mapa[`${e.nivel} - ${e.categoria}`] = e.estado
-    })
-
-    setEstados(mapa)
-  }
-
   function limpiarNombreHoja(nombre, indice) {
     const nombreLimpio = String(nombre || 'Resultados')
       .replace(/[\\/?*[\]:]/g, '')
@@ -468,25 +423,22 @@ function AdminPodios() {
 
           if (nivelA !== nivelB) return nivelA - nivelB
 
-          return grupoA.localeCompare(grupoB)
+          const categoriaA = String(gimnastasA[0]?.categoria || '')
+          const categoriaB = String(gimnastasB[0]?.categoria || '')
+
+          return categoriaA.localeCompare(
+            categoriaB,
+            'es',
+            { numeric: true, sensitivity: 'base' }
+          )
         })
         .map(([grupo, gimnastas]) => {
           const abierto = gruposAbiertos[grupo]
-          const claveEstado = `${gimnastas[0]?.nivel} - ${gimnastas[0]?.categoria}`
-          const estadoActual = estados[claveEstado] || 'pendiente'
-
-          const colorEstado =
-            estadoActual === 'finalizado'
-              ? '#19eb19'
-              : estadoActual === 'cargando'
-                ? '#f77f00'
-                : '#d62828'
 
           return (
             <div
               className="result-category-card podio-card"
               key={grupo}
-              style={{ borderLeft: `12px solid ${colorEstado}` }}
             >
               <div
                 className="podio-header"
@@ -515,32 +467,7 @@ function AdminPodios() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '16px', whiteSpace: 'nowrap' }}>
                   <span>{gimnastas.length} gim.</span>
-                  <span>|</span>
-                  <span>{estadoActual}</span>
                 </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '6px', marginTop: '8px', marginBottom: '6px' }}>
-                <button
-                  style={{ fontSize: '13px', padding: '5px 10px', minWidth: '40px', maxWidth: '75px', borderRadius: '6px' }}
-                  onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'pendiente')}
-                >
-                  Pend.
-                </button>
-
-                <button
-                  style={{ fontSize: '13px', padding: '5px 10px', minWidth: '40px', maxWidth: '75px', borderRadius: '6px' }}
-                  onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'cargando')}
-                >
-                  Cargando
-                </button>
-
-                <button
-                  style={{ fontSize: '13px', padding: '5px 10px', minWidth: '40px', maxWidth: '75px', borderRadius: '6px' }}
-                  onClick={() => cambiarEstado(gimnastas[0]?.nivel, gimnastas[0]?.categoria, 'finalizado')}
-                >
-                  Final.
-                </button>
               </div>
 
               {abierto && (
