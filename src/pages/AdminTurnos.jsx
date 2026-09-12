@@ -138,6 +138,51 @@ function AdminTurnos() {
       return apellidoA.localeCompare(apellidoB)
     })
 
+  function agregarIdsALaSeleccion(ids) {
+    const nuevosIds = [...new Set(ids)]
+
+    setSeleccionadas((prev) => {
+      const combinado = [...prev]
+
+      nuevosIds.forEach((id) => {
+        if (!combinado.includes(id)) combinado.push(id)
+      })
+
+      return combinado
+    })
+
+    setOrdenManual((prev) => {
+      const combinado = [...prev]
+
+      nuevosIds.forEach((id) => {
+        if (!combinado.includes(id)) combinado.push(id)
+      })
+
+      return combinado
+    })
+  }
+
+  function seleccionarTodo() {
+    agregarIdsALaSeleccion(
+      gimnastasInscriptas
+        .map((i) => i.gimnastas?.id)
+        .filter(Boolean)
+    )
+  }
+
+  function seleccionarFiltradas() {
+    agregarIdsALaSeleccion(
+      filtradas
+        .map((i) => i.gimnastas?.id)
+        .filter(Boolean)
+    )
+  }
+
+  function deseleccionarTodo() {
+    setSeleccionadas([])
+    setOrdenManual([])
+  }
+
   function toggleSeleccion(gimnastaId) {
     setSeleccionadas((prev) => {
       if (prev.includes(gimnastaId)) {
@@ -448,73 +493,43 @@ function AdminTurnos() {
     obtenerTurnos()
   }
 
-  async function cambiarPublicacionTurno(turno, estado) {
-    const accion = estado === 'finalizado' ? 'PUBLICAR' : 'OCULTAR'
+  async function cambiarPublicacionTurno(turno, publicado) {
+    const accion = publicado ? 'PUBLICAR' : 'OCULTAR'
 
     const confirmar = window.confirm(
-      `${accion} los resultados de las categorías incluidas en "${turno.nombre}"?`
+      `${accion} los resultados de "${turno.nombre}"?`
     )
 
     if (!confirmar) return
 
-    const { data, error } = await supabase
-      .from('turno_gimnastas')
-      .select(`
-        gimnastas (
-          niveles (nombre),
-          categorias (nombre)
-        )
-      `)
-      .eq('turno_id', turno.id)
-      .eq('torneo_id', torneoSeleccionado.id)
+    const { error } = await supabase
+      .from('publicacion_turnos')
+      .upsert(
+        [
+          {
+            torneo_id: torneoSeleccionado.id,
+            turno_id: turno.id,
+            publicado,
+            publicado_en: publicado ? new Date().toISOString() : null
+          }
+        ],
+        {
+          onConflict: 'torneo_id,turno_id'
+        }
+      )
 
     if (error) {
       console.log(error)
-      alert('No se pudieron obtener las categorías del turno')
-      return
-    }
-
-    const categoriasDelTurno = [
-      ...new Map(
-        (data || [])
-          .map((item) => {
-            const nivel = item.gimnastas?.niveles?.nombre
-            const categoria = item.gimnastas?.categorias?.nombre
-
-            if (!nivel || !categoria) return null
-
-            return {
-              nivel,
-              categoria,
-              estado
-            }
-          })
-          .filter(Boolean)
-          .map((item) => [`${item.nivel}|||${item.categoria}`, item])
-      ).values()
-    ]
-
-    if (categoriasDelTurno.length === 0) {
-      alert('Este turno no tiene categorías para publicar.')
-      return
-    }
-
-    const { error: errorEstado } = await supabase
-      .from('estados_resultados')
-      .upsert(categoriasDelTurno, {
-        onConflict: 'nivel,categoria'
-      })
-
-    if (errorEstado) {
-      console.log(errorEstado)
-      alert('No se pudo cambiar la publicación de los resultados')
+      alert(
+        'No se pudo cambiar la publicación del turno. Verificá que hayas ejecutado primero el SQL de publicación por turnos.'
+      )
       return
     }
 
     alert(
-      estado === 'finalizado'
-        ? `Resultados publicados para ${categoriasDelTurno.length} categoría(s) del turno.`
-        : `Resultados ocultados para ${categoriasDelTurno.length} categoría(s) del turno.`
+      publicado
+        ? `Resultados de "${turno.nombre}" publicados.`
+        : `Resultados de "${turno.nombre}" ocultados.`
     )
   }
 
@@ -569,6 +584,41 @@ function AdminTurnos() {
             </option>
           ))}
         </select>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap',
+            marginTop: '10px',
+            marginBottom: '10px'
+          }}
+        >
+          <button
+            type="button"
+            onClick={seleccionarFiltradas}
+            disabled={filtradas.length === 0}
+          >
+            Seleccionar todo lo filtrado ({filtradas.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={seleccionarTodo}
+            disabled={gimnastasInscriptas.length === 0}
+          >
+            Seleccionar TODAS ({gimnastasInscriptas.length})
+          </button>
+
+          <button
+            type="button"
+            className="danger"
+            onClick={deseleccionarTodo}
+            disabled={seleccionadas.length === 0}
+          >
+            Deseleccionar todo
+          </button>
+        </div>
 
         <p>
           Seleccionadas: <strong>{seleccionadas.length}</strong>
@@ -745,14 +795,14 @@ function AdminTurnos() {
 
               <div className="table-buttons">
                 <button
-                  onClick={() => cambiarPublicacionTurno(turno, 'finalizado')}
+                  onClick={() => cambiarPublicacionTurno(turno, true)}
                   style={{ background: '#198754' }}
                 >
                   Publicar resultados
                 </button>
 
                 <button
-                  onClick={() => cambiarPublicacionTurno(turno, 'pendiente')}
+                  onClick={() => cambiarPublicacionTurno(turno, false)}
                 >
                   Ocultar resultados
                 </button>

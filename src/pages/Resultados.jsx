@@ -12,16 +12,14 @@ function Resultados() {
   const [errorCodigo, setErrorCodigo] = useState('')
 
   const [torneo, setTorneo] = useState(null)
-  const [podios, setPodios] = useState([])
+  const [gruposResultados, setGruposResultados] = useState([])
   const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [categoriasAbiertas, setCategoriasAbiertas] = useState({})
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null)
-  const [estadosResultados, setEstadosResultados] = useState({})
 
   function esMiniatura(categoria) {
-    const texto = String(categoria || '').toLowerCase().trim()
-    return texto.includes('miniatura')
+    return String(categoria || '').toLowerCase().trim().includes('miniatura')
   }
 
   function mostrarPuntaje(valor, categoria) {
@@ -29,7 +27,7 @@ function Resultados() {
       return Number(valor) > 0 ? '🙂' : ''
     }
 
-    return valor || ''
+    return Number(valor || 0).toFixed(2)
   }
 
   function mostrarTotal(g, categoria) {
@@ -72,10 +70,7 @@ function Resultados() {
       .sort((a, b) => Number(b.total || 0) - Number(a.total || 0))
 
     if (esMiniatura(categoria)) {
-      return ordenados.map((g) => ({
-        ...g,
-        puesto: '🙂'
-      }))
+      return ordenados.map((g) => ({ ...g, puesto: '🙂' }))
     }
 
     const nivelTexto = String(nivel || '').toUpperCase().trim()
@@ -93,10 +88,7 @@ function Resultados() {
 
       if (nivelTexto === 'N2' || nivelTexto === 'N3') {
         if (posicionPorPuntaje <= 6) {
-          return {
-            ...g,
-            puesto: `${posicionPorPuntaje}°`
-          }
+          return { ...g, puesto: `${posicionPorPuntaje}°` }
         }
 
         const resto = ordenados.filter((item) => {
@@ -110,23 +102,8 @@ function Resultados() {
         }
       }
 
-      return {
-        ...g,
-        puesto: `${posicionPorPuntaje}°`
-      }
+      return { ...g, puesto: `${posicionPorPuntaje}°` }
     })
-  }
-
-  function colorEstadoResultado(estado) {
-    if (estado === 'finalizado') return '#19eb19'
-    if (estado === 'cargando') return '#f77f00'
-    return '#d62828'
-  }
-
-  function textoEstadoResultado(estado) {
-    if (estado === 'finalizado') return 'Resultados publicados'
-    if (estado === 'cargando') return 'En competencia'
-    return 'Resultados pendientes'
   }
 
   function toggleCategoria(clave) {
@@ -160,6 +137,7 @@ function Resultados() {
       if (torneoError || !torneoData) {
         console.log(torneoError)
         setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
+        setTorneo(null)
         setCargando(false)
         return
       }
@@ -174,50 +152,91 @@ function Resultados() {
         return
       }
 
-      const { data: inscripcionesData, error: inscripcionesError } = await supabase
-        .from('inscripciones')
-        .select(`
-          gimnastas (
-            id,
-            nombre,
-            apellido,
-            club,
-            niveles (nombre),
-            categorias (nombre)
-          )
-        `)
-        .eq('torneo_id', torneoId)
+      const [
+        { data: inscripcionesData, error: inscripcionesError },
+        { data: relacionesTurnos, error: relacionesError },
+        { data: publicacionesData, error: publicacionesError }
+      ] = await Promise.all([
+        supabase
+          .from('inscripciones')
+          .select(`
+            gimnastas (
+              id,
+              nombre,
+              apellido,
+              club,
+              niveles (nombre),
+              categorias (nombre)
+            )
+          `)
+          .eq('torneo_id', torneoId),
 
-      const { data: estadosData, error: estadosError } = await supabase
-        .from('estados_resultados')
-        .select('*')
+        supabase
+          .from('turno_gimnastas')
+          .select(`
+            gimnasta_id,
+            turno_id,
+            orden,
+            turnos (
+              id,
+              nombre
+            )
+          `)
+          .eq('torneo_id', torneoId),
 
-      if (inscripcionesError || estadosError) {
-        console.log(inscripcionesError || estadosError)
+        supabase
+          .from('publicacion_turnos')
+          .select('turno_id, publicado')
+          .eq('torneo_id', torneoId)
+      ])
+
+      if (inscripcionesError || relacionesError || publicacionesError) {
+        console.log(inscripcionesError || relacionesError || publicacionesError)
         setCargando(false)
         return
       }
 
-      const mapaEstados = {}
+      const mapaPublicacion = new Map(
+        (publicacionesData || []).map((item) => [
+          Number(item.turno_id),
+          item.publicado === true
+        ])
+      )
 
-      ;(estadosData || []).forEach((estado) => {
-        mapaEstados[`${estado.nivel} - ${estado.categoria}`] = estado.estado
+      const mapaTurnosPorGimnasta = new Map()
+
+      ;(relacionesTurnos || []).forEach((item) => {
+        if (!mapaTurnosPorGimnasta.has(item.gimnasta_id)) {
+          mapaTurnosPorGimnasta.set(item.gimnasta_id, {
+            turno_id: item.turno_id,
+            turno_nombre: item.turnos?.nombre || `Turno ${item.turno_id}`,
+            orden: item.orden || 9999
+          })
+        }
       })
 
-      setEstadosResultados(mapaEstados)
-
-      const agrupados = {}
+      const gimnastasBase = {}
 
       ;(inscripcionesData || []).forEach((item) => {
-        const gimnasta = item.gimnastas
-        if (!gimnasta) return
+        const g = item.gimnastas
+        if (!g) return
 
-        agrupados[gimnasta.id] = {
-          id: gimnasta.id,
-          nombre: `${gimnasta.apellido}, ${gimnasta.nombre}`,
-          club: gimnasta.club || '',
-          nivel: gimnasta.niveles?.nombre || '',
-          categoria: gimnasta.categorias?.nombre || '',
+        const relacionTurno = mapaTurnosPorGimnasta.get(g.id)
+        const turnoId = relacionTurno?.turno_id || null
+        const publicado = turnoId
+          ? mapaPublicacion.get(Number(turnoId)) === true
+          : false
+
+        gimnastasBase[g.id] = {
+          id: g.id,
+          nombre: `${g.apellido}, ${g.nombre}`,
+          club: g.club || '',
+          nivel: g.niveles?.nombre || '',
+          categoria: g.categorias?.nombre || '',
+          turno_id: turnoId,
+          turno_nombre: relacionTurno?.turno_nombre || 'Sin turno',
+          orden_turno: relacionTurno?.orden || 9999,
+          publicado,
           Suelo: 0,
           Salto: 0,
           Viga: 0,
@@ -227,13 +246,8 @@ function Resultados() {
         }
       })
 
-      // Solo pedimos puntajes de las categorías que el admin ya publicó.
-      // Así la pantalla pública no descarga puntajes pendientes.
-      const idsPublicados = Object.values(agrupados)
-        .filter((g) => {
-          const claveEstado = `${g.nivel} - ${g.categoria}`
-          return mapaEstados[claveEstado] === 'finalizado'
-        })
+      const idsPublicados = Object.values(gimnastasBase)
+        .filter((g) => g.publicado)
         .map((g) => g.id)
 
       let puntajesData = []
@@ -260,58 +274,64 @@ function Resultados() {
 
       ;(puntajesData || []).forEach((item) => {
         const aparato = item.aparatos?.nombre
-        const gimnastaId = item.gimnasta_id
+        const g = gimnastasBase[item.gimnasta_id]
 
-        if (!gimnastaId || !aparato) return
-        if (!agrupados[gimnastaId]) return
+        if (!g || !aparato || !g.publicado) return
 
-        agrupados[gimnastaId][aparato] = Number(item.puntaje)
-        agrupados[gimnastaId].total = Number(
-          (
-            agrupados[gimnastaId].total +
-            Number(item.puntaje)
-          ).toFixed(2)
-        )
+        g[aparato] = Number(item.puntaje)
+        g.total = Number((g.total + Number(item.puntaje)).toFixed(2))
       })
 
       const grupos = {}
 
-      Object.values(agrupados).forEach((g) => {
-        const clave = `${g.nivel}|||${g.categoria}`
+      Object.values(gimnastasBase).forEach((g) => {
+        // Agrupamos además por turno: si el mismo nivel/categoría está
+        // dividido en dos turnos, cada turno mantiene su propia publicación.
+        const clave = `${g.turno_id || 'sin-turno'}|||${g.nivel}|||${g.categoria}`
 
         if (!grupos[clave]) {
-          grupos[clave] = []
-        }
-
-        grupos[clave].push(g)
-      })
-
-      const podiosCalculados = Object.entries(grupos).map(([clave, gimnastas]) => {
-        const [nivel, categoria] = clave.split('|||')
-        const claveEstado = `${nivel} - ${categoria}`
-        const publicado = mapaEstados[claveEstado] === 'finalizado'
-
-        if (!publicado) {
-          return {
-            clave,
-            nivel,
-            categoria,
-            gimnastas: [...gimnastas].sort((a, b) =>
-              a.nombre.localeCompare(b.nombre, 'es')
-            )
+          grupos[clave] = {
+            turno_id: g.turno_id,
+            turno_nombre: g.turno_nombre,
+            nivel: g.nivel,
+            categoria: g.categoria,
+            publicado: g.publicado,
+            gimnastas: []
           }
         }
 
-        const conPuestos = calcularPuestos(gimnastas, categoria, nivel)
+        grupos[clave].gimnastas.push(g)
+      })
+
+      const calculados = Object.entries(grupos).map(([clave, grupo]) => {
+        if (!grupo.publicado) {
+          return {
+            clave,
+            ...grupo,
+            gimnastas: [...grupo.gimnastas].sort((a, b) => {
+              if (a.orden_turno !== b.orden_turno) {
+                return a.orden_turno - b.orden_turno
+              }
+
+              return a.nombre.localeCompare(b.nombre, 'es')
+            })
+          }
+        }
+
+        const conPuestos = calcularPuestos(
+          grupo.gimnastas,
+          grupo.categoria,
+          grupo.nivel
+        )
+
         const mapaPuestos = new Map(
           conPuestos.map((g) => [g.id, g.puesto])
         )
 
         return {
           clave,
-          nivel,
-          categoria,
-          gimnastas: [...gimnastas]
+          ...grupo,
+          gimnastas: [...grupo.gimnastas]
             .map((g) => ({
               ...g,
               puesto: mapaPuestos.get(g.id) || ''
@@ -326,7 +346,7 @@ function Resultados() {
         }
       })
 
-      setPodios(podiosCalculados)
+      setGruposResultados(calculados)
       setUltimaActualizacion(new Date())
       setCargando(false)
     } catch (err) {
@@ -341,11 +361,12 @@ function Resultados() {
 
     const canal = supabase
       .channel('resultados-en-vivo')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'puntajes' }, () => obtenerResultados())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_resultados' }, () => obtenerResultados())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inscripciones' }, () => obtenerResultados())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gimnastas' }, () => obtenerResultados())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'torneos' }, () => obtenerResultados())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'puntajes' }, obtenerResultados)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'publicacion_turnos' }, obtenerResultados)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'turno_gimnastas' }, obtenerResultados)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inscripciones' }, obtenerResultados)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gimnastas' }, obtenerResultados)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'torneos' }, obtenerResultados)
       .subscribe()
 
     return () => {
@@ -363,28 +384,29 @@ function Resultados() {
     setCodigoConfirmado(codigoTorneo.trim())
   }
 
-  const podiosFiltrados = podios
-    .map((grupo) => {
-      const gimnastasFiltradas = grupo.gimnastas.filter((g) => {
+  const gruposFiltrados = gruposResultados
+    .map((grupo) => ({
+      ...grupo,
+      gimnastas: grupo.gimnastas.filter((g) => {
         const texto = `${g.nombre} ${g.club}`.toLowerCase()
         return texto.includes(busqueda.toLowerCase())
       })
-
-      return {
-        ...grupo,
-        gimnastas: gimnastasFiltradas
-      }
-    })
+    }))
     .filter((grupo) => grupo.gimnastas.length > 0)
     .sort((a, b) => {
+      const nombreTurnoA = String(a.turno_nombre || '')
+      const nombreTurnoB = String(b.turno_nombre || '')
+
+      if (nombreTurnoA !== nombreTurnoB) {
+        return nombreTurnoA.localeCompare(nombreTurnoB, 'es', { numeric: true })
+      }
+
       const nivelA = numeroNivel(a.nivel)
       const nivelB = numeroNivel(b.nivel)
 
-      if (nivelA !== nivelB) {
-        return nivelA - nivelB
-      }
+      if (nivelA !== nivelB) return nivelA - nivelB
 
-      return String(a.categoria || '').localeCompare(String(b.categoria || ''))
+      return String(a.categoria || '').localeCompare(String(b.categoria || ''), 'es')
     })
 
   if (!codigoConfirmado) {
@@ -500,8 +522,8 @@ function Resultados() {
       </div>
 
       <p>
-        Las categorías y gimnastas pueden consultarse durante el torneo.
-        Los puntajes y puestos se publican después de la premiación.
+        Podés consultar las gimnastas durante el torneo. Los puntajes y puestos
+        de cada turno aparecen únicamente después de su premiación.
       </p>
 
       <p className="live-status">
@@ -527,21 +549,18 @@ function Resultados() {
         />
       </div>
 
-      {podiosFiltrados.map((grupo) => {
+      {gruposFiltrados.map((grupo) => {
         const abierta = busqueda.trim()
           ? true
           : categoriasAbiertas[grupo.clave]
-
-        const claveEstado = `${grupo.nivel} - ${grupo.categoria}`
-        const estadoActual = estadosResultados[claveEstado] || 'pendiente'
-        const publicado = estadoActual === 'finalizado'
-        const colorEstado = colorEstadoResultado(estadoActual)
 
         return (
           <div
             key={grupo.clave}
             className="result-category-card"
-            style={{ borderLeft: `12px solid ${colorEstado}` }}
+            style={{
+              borderLeft: `12px solid ${grupo.publicado ? '#19eb19' : '#d62828'}`
+            }}
           >
             <button
               className="result-category-header"
@@ -554,12 +573,13 @@ function Resultados() {
               </strong>
 
               <small>
-                {grupo.gimnastas.length} gimnasta(s) · {textoEstadoResultado(estadoActual)}
+                {grupo.turno_nombre} · {grupo.gimnastas.length} gimnasta(s) ·{' '}
+                {grupo.publicado ? 'Resultados publicados' : 'Resultados pendientes'}
               </small>
             </button>
 
             {abierta && (
-              publicado ? (
+              grupo.publicado ? (
                 <div className="table-wrapper">
                   <table className="admin-table">
                     <thead>
@@ -578,18 +598,14 @@ function Resultados() {
                     <tbody>
                       {grupo.gimnastas.map((g) => (
                         <tr key={g.id}>
-                          <td>
-                            <strong>{g.puesto}</strong>
-                          </td>
+                          <td><strong>{g.puesto}</strong></td>
                           <td>{g.nombre}</td>
                           <td>{g.club}</td>
                           <td>{mostrarPuntaje(g.Suelo, grupo.categoria)}</td>
                           <td>{mostrarPuntaje(g.Salto, grupo.categoria)}</td>
                           <td>{mostrarPuntaje(g.Viga, grupo.categoria)}</td>
                           <td>{mostrarPuntaje(g.Paralelas, grupo.categoria)}</td>
-                          <td>
-                            <strong>{mostrarTotal(g, grupo.categoria)}</strong>
-                          </td>
+                          <td><strong>{mostrarTotal(g, grupo.categoria)}</strong></td>
                         </tr>
                       ))}
                     </tbody>
@@ -598,7 +614,7 @@ function Resultados() {
               ) : (
                 <div style={{ padding: '12px 10px 16px' }}>
                   <p style={{ marginTop: 0, fontWeight: 600 }}>
-                    🔒 Los puntajes y puestos se publicarán después de la premiación.
+                    🔒 Los puntajes y puestos se publicarán después de la premiación de este turno.
                   </p>
 
                   <div className="table-wrapper">
@@ -627,7 +643,7 @@ function Resultados() {
         )
       })}
 
-      {podiosFiltrados.length === 0 && (
+      {gruposFiltrados.length === 0 && (
         <p>No se encontraron gimnastas con esa búsqueda.</p>
       )}
     </div>
