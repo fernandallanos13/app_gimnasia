@@ -513,11 +513,17 @@ function AdminPodios() {
                     </thead>
 
                     <tbody>
-                      {gimnastas.map((g) => (
-                        <tr key={g.id}>
+                      {gimnastas.map((g) => {
+                        const puesto = calcularPuestoAdmin(g, gimnastas, g.nivel, g.categoria)
+                        const puestosDelGrupo = [...new Set(gimnastas.map((item) =>
+                          calcularPuestoAdmin(item, gimnastas, item.nivel, item.categoria)
+                        ))]
+                        const indicePuesto = puestosDelGrupo.indexOf(puesto)
+                        return (
+                        <tr key={g.id} style={{ backgroundColor: indicePuesto % 2 === 0 ? '#edf0f3' : '#ffffff' }}>
                           <td>
                             <strong>
-                              {calcularPuestoAdmin(g, gimnastas, g.nivel, g.categoria)}
+                              {puesto}
                             </strong>
                           </td>
                           <td>{g.apellido}</td>
@@ -535,7 +541,8 @@ function AdminPodios() {
                             </strong>
                           </td>
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

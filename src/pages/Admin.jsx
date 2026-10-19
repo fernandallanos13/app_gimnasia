@@ -180,6 +180,7 @@ function Admin() {
         nivel_id,
         categoria_id,
         nombre_completo_normalizado,
+        sexo,
         niveles (nombre),
         categorias (nombre)
       )

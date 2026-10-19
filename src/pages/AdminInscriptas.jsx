@@ -28,6 +28,7 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
   const [editProfe, setEditProfe] = useState('')
   const [editNivelId, setEditNivelId] = useState('')
   const [editCategoriaId, setEditCategoriaId] = useState('')
+  const [editSexo, setEditSexo] = useState('femenino')
 
   const normalizarTexto = (texto) =>
     String(texto || '')
@@ -61,6 +62,7 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
     setEditProfe(g.profe || '')
     setEditNivelId(g.nivel_id || '')
     setEditCategoriaId(g.categoria_id || '')
+    setEditSexo(g.sexo || 'femenino')
   }
 
   function cancelarEdicion() {
@@ -71,6 +73,7 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
     setEditProfe('')
     setEditNivelId('')
     setEditCategoriaId('')
+    setEditSexo('femenino')
   }
 
   async function guardarEdicion(gimnastaId) {
@@ -100,7 +103,8 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
         club: editClub.trim(),
         profe: editProfe.trim(),
         nivel_id: Number(editNivelId),
-        categoria_id: Number(editCategoriaId)
+        categoria_id: Number(editCategoriaId),
+        sexo: editSexo
       })
       .eq('id', gimnastaId)
 
@@ -144,6 +148,7 @@ const [filtroCategoria, setFiltroCategoria] = useState('')
             profe: editProfe.trim(),
             nivel_id: Number(editNivelId),
             categoria_id: Number(editCategoriaId),
+            sexo: editSexo,
             niveles: {
               nombre: nivelNombre
             },
@@ -391,6 +396,7 @@ const clubes = Array.from(
                 <th>Profe</th>
                 <th>Nivel</th>
                 <th>Categoría</th>
+                <th>Sexo</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -459,6 +465,13 @@ const clubes = Array.from(
                         </td>
 
                         <td>
+                          <select value={editSexo} onChange={(e) => setEditSexo(e.target.value)}>
+                            <option value="femenino">Femenino</option>
+                            <option value="masculino">Masculino</option>
+                          </select>
+                        </td>
+
+                        <td>
                           <div className="table-buttons">
                             <button onClick={() => guardarEdicion(g.id)}>
                               Guardar
@@ -478,6 +491,7 @@ const clubes = Array.from(
                         <td>{g?.profe}</td>
                         <td>{g?.niveles?.nombre}</td>
                         <td>{g?.categorias?.nombre}</td>
+                        <td>{g?.sexo === 'masculino' ? 'Masculino' : 'Femenino'}</td>
 
                         <td>
                           <div className="table-buttons">
