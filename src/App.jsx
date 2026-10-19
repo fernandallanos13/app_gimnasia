@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 
 import Home from './pages/Home'
 import AdminLogin from './pages/AdminLogin'
@@ -22,11 +23,25 @@ import SuperAdminRoute from './components/SuperAdminRoute'
 import InstalarGymScore from './components/InstalarGymScore'
 import CreditoGymScore from './components/CreditoGymScore'
 
-function App() {
+function ContenidoApp() {
+  const location = useLocation()
+
+  // Páginas públicas con crédito superior, sin footer duplicado.
+  const paginasPublicas = [
+    '/',
+    '/resultados',
+    '/inscripcion'
+  ]
+
+  const esPaginaPublica = paginasPublicas.includes(
+    location.pathname.replace(/\/+$/, '') || '/'
+  )
+
   return (
-    <BrowserRouter>
+    <>
       <InstalarGymScore />
-      <CreditoGymScore />
+
+      {esPaginaPublica && <CreditoGymScore />}
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -128,34 +143,45 @@ function App() {
         />
       </Routes>
 
-      <footer
-        style={{
-          textAlign: 'center',
-          padding: '18px 12px 24px',
-          fontSize: '13px',
-          opacity: 0.78,
-          lineHeight: 1.6
-        }}
-      >
-        <div>
-          <strong>GymScore</strong> · Desarrollado por Fernanda Llanos Aberastain · 2026
-        </div>
-        <div style={{ marginTop: '6px' }}>
-          ¿Querés GymScore en tu torneo?{' '}
-          <a
-            href="https://wa.me/5493571323650?text=Hola%20Fernanda%21%20Vi%20GymScore%20en%20un%20torneo%20de%20gimnasia%20y%20quisiera%20recibir%20informaci%C3%B3n%20para%20usarlo%20en%20nuestro%20torneo."
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontWeight: 700,
-              textDecoration: 'underline',
-              color: 'inherit'
-            }}
-          >
-            Contactame por WhatsApp
-          </a>
-        </div>
-      </footer>
+      {!esPaginaPublica && (
+        <footer
+          style={{
+            textAlign: 'center',
+            padding: '18px 12px 24px',
+            fontSize: '13px',
+            opacity: 0.78,
+            lineHeight: 1.6
+          }}
+        >
+          <div>
+            <strong>GymScore</strong> · Desarrollado por Fernanda Llanos Aberastain · 2026
+          </div>
+
+          <div style={{ marginTop: '6px' }}>
+            ¿Querés GymScore en tu torneo?{' '}
+            <a
+              href="https://wa.me/5493571323650?text=Hola%20Fernanda%21%20Vi%20GymScore%20en%20un%20torneo%20de%20gimnasia%20y%20quisiera%20recibir%20informaci%C3%B3n%20para%20usarlo%20en%20nuestro%20torneo."
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontWeight: 700,
+                textDecoration: 'underline',
+                color: 'inherit'
+              }}
+            >
+              Contactame por WhatsApp
+            </a>
+          </div>
+        </footer>
+      )}
+    </>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <ContenidoApp />
     </BrowserRouter>
   )
 }
