@@ -1,0 +1,42 @@
+.gym-credito {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  padding: 9px 16px;
+  border-bottom: 1px solid #f2d3e5;
+  background: rgba(255, 248, 252, .97);
+  box-shadow: 0 2px 10px rgba(59, 29, 61, .07);
+  color: #442343;
+  font-family: inherit;
+}
+.gym-credito__texto { display: flex; flex-direction: column; gap: 2px; line-height: 1.35; font-size: 12px; }
+.gym-credito__texto strong { font-size: 13px; }
+.gym-credito__texto b { font-weight: 700; }
+.gym-credito__contacto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 8px 13px;
+  background: #167a4b;
+  color: #fff !important;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.gym-credito__contacto:hover { background: #0c6038; }
+.gym-credito__contacto:focus-visible { outline: 3px solid #e843a1; outline-offset: 3px; }
+@media (max-width: 520px) {
+  .gym-credito { justify-content: space-between; gap: 8px; padding: 7px 10px; }
+  .gym-credito__texto { font-size: 10px; }
+  .gym-credito__texto strong { font-size: 11px; }
+  .gym-credito__contacto { padding: 8px 10px; font-size: 11px; }
+}

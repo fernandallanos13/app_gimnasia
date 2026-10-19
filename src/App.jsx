@@ -20,11 +20,13 @@ import SuperAdmin from './pages/SuperAdmin'
 import ProtectedRoute from './components/ProtectedRoute'
 import SuperAdminRoute from './components/SuperAdminRoute'
 import InstalarGymScore from './components/InstalarGymScore'
+import CreditoGymScore from './components/CreditoGymScore'
 
 function App() {
   return (
     <BrowserRouter>
       <InstalarGymScore />
+      <CreditoGymScore />
 
       <Routes>
         <Route path="/" element={<Home />} />
