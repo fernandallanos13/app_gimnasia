@@ -89,6 +89,7 @@ function AdminPodios() {
           nombre,
           apellido,
           club,
+          sexo,
           niveles (nombre),
           categorias (nombre)
         )
@@ -105,6 +106,7 @@ function AdminPodios() {
           nombre,
           apellido,
           club,
+          sexo,
           niveles (nombre),
           categorias (nombre)
         ),
@@ -136,6 +138,7 @@ function AdminPodios() {
         apellido: g.apellido,
         nombre: g.nombre,
         club: g.club || '',
+        sexo: g.sexo === 'masculino' ? 'masculino' : 'femenino',
         nivel: g.niveles?.nombre || '',
         categoria: g.categorias?.nombre || '',
         Suelo: '',
@@ -207,11 +210,22 @@ function AdminPodios() {
       })
   }, [filasBase, busqueda, nivelFiltro, categoriaFiltro, clubFiltro])
 
+  // Clasificaciones completas, sin depender de filtros visuales.
+  const gruposCompletos = useMemo(() => {
+    const mapa = {}
+    filasBase.filter((g) => Number(g.total || 0) > 0).forEach((g) => {
+      const clave = `${g.nivel} - ${g.categoria} - ${g.sexo}`
+      if (!mapa[clave]) mapa[clave] = []
+      mapa[clave].push(g)
+    })
+    return mapa
+  }, [filasBase])
+
   const grupos = useMemo(() => {
     const mapa = {}
 
     filasFiltradas.forEach((g) => {
-      const clave = `${g.nivel} - ${g.categoria}`
+      const clave = `${g.nivel} - ${g.categoria} - ${g.sexo}`
       if (!mapa[clave]) mapa[clave] = []
       mapa[clave].push(g)
     })
@@ -334,7 +348,7 @@ function AdminPodios() {
     const gruposExcel = {}
 
     filasFiltradas.forEach((g) => {
-      const clave = `${g.nivel} - ${g.categoria}`
+      const clave = `${g.nivel} - ${g.categoria} - ${g.sexo}`
 
       if (!gruposExcel[clave]) {
         gruposExcel[clave] = []
@@ -352,7 +366,7 @@ function AdminPodios() {
 
     entradas.forEach(([grupo, gimnastas], index) => {
       const datosExcel = gimnastas.map((g) => ({
-        Puesto: calcularPuestoAdmin(g, gimnastas, g.nivel, g.categoria),
+        Puesto: calcularPuestoAdmin(g, gruposCompletos[grupo] || [], g.nivel, g.categoria),
         Apellido: g.apellido,
         Nombre: g.nombre,
         Club: g.club,
@@ -514,9 +528,9 @@ function AdminPodios() {
 
                     <tbody>
                       {gimnastas.map((g) => {
-                        const puesto = calcularPuestoAdmin(g, gimnastas, g.nivel, g.categoria)
+                        const puesto = calcularPuestoAdmin(g, gruposCompletos[grupo] || [], g.nivel, g.categoria)
                         const puestosDelGrupo = [...new Set(gimnastas.map((item) =>
-                          calcularPuestoAdmin(item, gimnastas, item.nivel, item.categoria)
+                          calcularPuestoAdmin(item, gruposCompletos[grupo] || [], item.nivel, item.categoria)
                         ))]
                         const indicePuesto = puestosDelGrupo.indexOf(puesto)
                         return (
