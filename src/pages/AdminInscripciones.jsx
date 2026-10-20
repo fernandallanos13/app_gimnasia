@@ -760,6 +760,222 @@ function AdminInscripciones() {
 )}
 </section>
 </main>
+
+      
+      <style>{`
+        .admin-pre-page {
+          min-height: 100vh;
+          background: linear-gradient(
+            135deg,
+            #ffffff 0%,
+            #f5f5f5 55%,
+            color-mix(in srgb, var(--color-primario) 12%, white) 100%
+          );
+          color: #242424;
+          padding-bottom: 30px;
+        }
+
+        .admin-pre-header {
+          background: linear-gradient(
+            135deg,
+            var(--color-primario),
+            var(--color-secundario)
+          );
+          color: white;
+          text-align: center;
+          padding: 28px 16px;
+          border-bottom: 5px solid var(--color-primario);
+        }
+
+        .admin-pre-header h1 {
+          margin: 0;
+          color: white;
+        }
+
+        .admin-pre-header h2 {
+          margin: 6px 0 4px;
+          color: white;
+          font-size: 18px;
+        }
+
+        .admin-pre-logo {
+          width: 68px;
+          height: 68px;
+          object-fit: contain;
+          border-radius: 14px;
+          background: white;
+          padding: 6px;
+          margin-bottom: 10px;
+        }
+
+        .admin-pre-container {
+          width: min(1200px, calc(100% - 24px));
+          margin: 24px auto;
+          display: grid;
+          gap: 20px;
+        }
+
+        .admin-pre-card {
+          background: white;
+          border-radius: 20px;
+          padding: 22px;
+          box-shadow: 0 10px 28px rgba(0, 0, 0, .10);
+        }
+
+        .filters-grid {
+          display: grid;
+          grid-template-columns: repeat(
+            auto-fit,
+            minmax(220px, 1fr)
+          );
+          gap: 14px;
+        }
+
+        .admin-pre-card label {
+          display: block;
+          font-weight: 800;
+        }
+
+        .admin-pre-card select {
+          width: 100%;
+          margin-top: 8px;
+          padding: 12px;
+          border-radius: 12px;
+          border: 1px solid #ccc;
+          font-size: 15px;
+        }
+
+        .count-box {
+          margin-top: 18px;
+          background: color-mix(
+            in srgb,
+            var(--color-primario) 10%,
+            white
+          );
+          border: 1px solid color-mix(
+            in srgb,
+            var(--color-primario) 25%,
+            white
+          );
+          padding: 14px;
+          border-radius: 14px;
+          font-weight: 900;
+          color: var(--color-primario);
+        }
+
+        .button-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          margin-top: 16px;
+        }
+
+        .admin-pre-card button {
+          background: var(--color-primario);
+          color: white;
+          border: none;
+          border-radius: 12px;
+          padding: 12px 18px;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .admin-pre-card button.secondary {
+          background: white;
+          color: var(--color-primario);
+          border: 2px solid var(--color-primario);
+        }
+
+        .admin-pre-card button:not(.danger):not(.secondary):hover {
+          background: var(--color-secundario);
+        }
+
+        .admin-pre-card button.secondary:hover {
+          background: color-mix(
+            in srgb,
+            var(--color-primario) 8%,
+            white
+          );
+          color: var(--color-primario);
+        }
+
+        .admin-pre-card button.danger {
+          background: #333;
+        }
+
+        .admin-pre-card button.small {
+          padding: 8px 10px;
+          font-size: 12px;
+        }
+
+        .pre-actions {
+          display: flex;
+          gap: 6px;
+        }
+
+        .pre-edit-input {
+          min-width: 150px;
+          max-width: 230px;
+          padding: 9px;
+          border: 1px solid #bbb;
+          border-radius: 9px;
+          font: inherit;
+        }
+
+        .admin-pre-card td select {
+          min-width: 130px;
+          padding: 9px;
+        }
+
+        .admin-pre-card button:disabled {
+          opacity: .55;
+          cursor: not-allowed;
+        }
+
+        .table-wrap {
+          overflow-x: auto;
+        }
+
+        .admin-pre-card table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        .admin-pre-card th,
+        .admin-pre-card td {
+          border-bottom: 1px solid #ddd;
+          padding: 12px;
+          text-align: left;
+          white-space: nowrap;
+        }
+
+        .admin-pre-card th {
+          background: #f1f1f1;
+          color: var(--color-primario);
+          text-transform: uppercase;
+          font-size: 13px;
+        }
+
+        @media (max-width: 700px) {
+          .admin-pre-container {
+            width: calc(100% - 20px);
+            margin: 16px auto;
+          }
+
+          .admin-pre-card {
+            padding: 14px;
+          }
+
+          .button-row {
+            flex-direction: column;
+          }
+
+          .button-row button {
+            width: 100%;
+          }
+        }
+      `}</style>
+      
 </div>
 )
 }
