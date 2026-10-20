@@ -740,8 +740,28 @@ function AdminInscripciones() {
                                 </button>
                               )}
 
-                              <button
-                                className="danger small"
-                                disabled={
-                                  editandoId !== null
-     
+                              
+<button
+  className="danger small"
+  disabled={editandoId !== null}
+  onClick={() => eliminarInscripcion(item.id)}
+>
+  Eliminar
+</button>
+</div>
+)}
+</td>
+</tr>
+)
+})}
+</tbody>
+</table>
+</div>
+)}
+</section>
+</main>
+</div>
+)
+}
+
+export default AdminInscripciones
