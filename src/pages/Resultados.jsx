@@ -201,7 +201,8 @@ function Resultados() {
       const [
         { data: inscripcionesData, error: inscripcionesError },
         { data: relacionesTurnos, error: relacionesError },
-        { data: publicacionesData, error: publicacionesError }
+        { data: publicacionesData, error: publicacionesError },
+        { data: ajustesData, error: ajustesError }
       ] = await Promise.all([
         supabase
           .from('inscripciones')
@@ -211,6 +212,7 @@ function Resultados() {
               nombre,
               apellido,
               club,
+              sexo,
               niveles (nombre),
               categorias (nombre)
             )
@@ -233,15 +235,19 @@ function Resultados() {
         supabase
           .from('publicacion_turnos')
           .select('turno_id, publicado')
+          .eq('torneo_id', torneoId),
+        supabase.from('ajustes_podios')
+          .select('gimnasta_id, puesto_manual')
           .eq('torneo_id', torneoId)
       ])
 
-      if (inscripcionesError || relacionesError || publicacionesError) {
-        console.log(inscripcionesError || relacionesError || publicacionesError)
+      if (inscripcionesError || relacionesError || publicacionesError || ajustesError) {
+        console.log(inscripcionesError || relacionesError || publicacionesError || ajustesError)
         setCargando(false)
         return
       }
 
+      const mapaAjustes = new Map((ajustesData || []).map(a => [a.gimnasta_id, a.puesto_manual]))
       const mapaPublicacion = new Map(
         (publicacionesData || []).map((item) => [
           Number(item.turno_id),
@@ -277,6 +283,7 @@ function Resultados() {
           id: g.id,
           nombre: `${g.apellido}, ${g.nombre}`,
           club: g.club || '',
+          sexo: g.sexo === 'masculino' ? 'masculino' : 'femenino',
           nivel: g.niveles?.nombre || '',
           categoria: g.categorias?.nombre || '',
           turno_id: turnoId,
@@ -358,10 +365,8 @@ function Resultados() {
         // Cuando ese turno se publica, la categoría muestra de inmediato
         // sus puntajes y puestos.
         if (grupoPublicado) {
-          const conPuestos = calcularPuestos(
-            grupo.gimnastas,
-            grupo.categoria,
-            grupo.nivel
+          const conPuestos = ['femenino', 'masculino'].flatMap(sexo =>
+            calcularPuestos(grupo.gimnastas.filter(g => g.sexo === sexo), grupo.categoria, grupo.nivel)
           )
 
           mapaPuestos = new Map(
@@ -377,10 +382,11 @@ function Resultados() {
             .map((g) => ({
               ...g,
               puesto: grupoPublicado
-                ? (mapaPuestos.get(g.id) || '')
+                ? (mapaAjustes.get(g.id) || mapaPuestos.get(g.id) || '')
                 : ''
             }))
             .sort((a, b) => {
+              if (a.sexo !== b.sexo) return a.sexo.localeCompare(b.sexo)
               if (grupoPublicado) {
                 const totalA = Number(a.total || 0)
                 const totalB = Number(b.total || 0)
@@ -413,6 +419,7 @@ function Resultados() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'turno_gimnastas' }, obtenerResultados)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inscripciones' }, obtenerResultados)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'gimnastas' }, obtenerResultados)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ajustes_podios' }, obtenerResultados)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'torneos' }, obtenerResultados)
       .subscribe()
 
@@ -632,6 +639,7 @@ function Resultados() {
                       <tr>
                         <th>Puesto</th>
                         <th>Gimnasta</th>
+                        <th>Sexo</th>
                         <th>Club</th>
                         <th>Suelo</th>
                         <th>Salto</th>
@@ -646,6 +654,7 @@ function Resultados() {
                         <tr key={g.id}>
                           <td><strong>{g.puesto}</strong></td>
                           <td>{g.nombre}</td>
+                          <td>{g.sexo === 'masculino' ? 'Masculino' : 'Femenino'}</td>
                           <td>{g.club}</td>
                           <td>{mostrarPuntaje(g.Suelo, grupo.categoria)}</td>
                           <td>{mostrarPuntaje(g.Salto, grupo.categoria)}</td>
@@ -668,6 +677,7 @@ function Resultados() {
                       <thead>
                         <tr>
                           <th>Gimnasta</th>
+                          <th>Sexo</th>
                           <th>Club</th>
                         </tr>
                       </thead>
@@ -676,6 +686,7 @@ function Resultados() {
                         {grupo.gimnastas.map((g) => (
                           <tr key={g.id}>
                             <td>{g.nombre}</td>
+                            <td>{g.sexo === 'masculino' ? 'Masculino' : 'Femenino'}</td>
                             <td>{g.club}</td>
                           </tr>
                         ))}
