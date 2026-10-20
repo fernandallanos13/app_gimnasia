@@ -1,7 +1,18 @@
+
 import { useEffect, useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../services/supabase'
 import { useAuth } from '../context/AuthContext'
+
+const CATEGORIAS = [
+  { id: 5, nombre: 'Miniatura 3-4-5 Años' },
+  { id: 6, nombre: 'Pre-Mini 6-7 Años' },
+  { id: 7, nombre: 'Mini 8-9 Años' },
+  { id: 8, nombre: 'Pre-Infantil 10-11 Años' },
+  { id: 9, nombre: 'Infantil 12-13 Años' },
+  { id: 10, nombre: 'Juvenil 14-15 Años' },
+  { id: 11, nombre: 'Mayores 16+ Años' }
+]
 
 function separarNombreApellido(nombreCompleto) {
   const partes = String(nombreCompleto || '')
@@ -25,19 +36,25 @@ function separarNombreApellido(nombreCompleto) {
 }
 
 function AdminInscripciones() {
-  const { esSuperAdmin, clubId: clubIdCuenta, club: clubCuenta } = useAuth()
+  const {
+    esSuperAdmin,
+    clubId: clubIdCuenta,
+    club: clubCuenta
+  } = useAuth()
 
   const [inscripciones, setInscripciones] = useState([])
   const [cargando, setCargando] = useState(true)
   const [filtroClub, setFiltroClub] = useState('')
   const [filtroNivel, setFiltroNivel] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
+  const [editandoId, setEditandoId] = useState(null)
+  const [borrador, setBorrador] = useState({})
+  const [guardando, setGuardando] = useState(false)
 
   async function obtenerInscripciones() {
     setCargando(true)
 
     try {
-      // SUPER ADMIN: puede ver todas las preinscripciones.
       if (esSuperAdmin) {
         const { data, error } = await supabase
           .from('pre_inscripciones')
@@ -50,22 +67,21 @@ function AdminInscripciones() {
         return
       }
 
-      // CLUB ADMIN: primero obtenemos los torneos que pertenecen a su club.
-      // Esto evita depender de un JOIN embebido pre_inscripciones -> torneos,
-      // que era el que estaba provocando "Error al traer preinscripciones".
       if (!clubIdCuenta) {
         setInscripciones([])
         return
       }
 
-      const { data: torneosClub, error: errorTorneos } = await supabase
-        .from('torneos')
-        .select('id')
-        .eq('club_id', clubIdCuenta)
+      const { data: torneosClub, error: errorTorneos } =
+        await supabase
+          .from('torneos')
+          .select('id')
+          .eq('club_id', clubIdCuenta)
 
       if (errorTorneos) throw errorTorneos
 
-      const idsTorneos = (torneosClub || []).map((torneo) => torneo.id)
+      const idsTorneos = (torneosClub || [])
+        .map((torneo) => torneo.id)
 
       if (idsTorneos.length === 0) {
         setInscripciones([])
@@ -91,7 +107,9 @@ function AdminInscripciones() {
         error?.hint ||
         'No se pudo consultar la base de datos.'
 
-      alert(`Error al traer preinscripciones.\n\n${detalle}`)
+      alert(
+        `Error al traer preinscripciones.\n\n${detalle}`
+      )
     } finally {
       setCargando(false)
     }
@@ -102,28 +120,54 @@ function AdminInscripciones() {
   }, [esSuperAdmin, clubIdCuenta])
 
   const clubes = useMemo(() => {
-    return [...new Set(inscripciones.map((i) => i.club).filter(Boolean))].sort()
+    return [
+      ...new Set(
+        inscripciones.map((i) => i.club).filter(Boolean)
+      )
+    ].sort()
   }, [inscripciones])
 
   const niveles = useMemo(() => {
-    return [...new Set(inscripciones.map((i) => i.nivel).filter(Boolean))].sort()
+    return [
+      ...new Set(
+        inscripciones.map((i) => i.nivel).filter(Boolean)
+      )
+    ].sort()
   }, [inscripciones])
 
   const categorias = useMemo(() => {
-    return [...new Set(inscripciones.map((i) => i.categoria).filter(Boolean))].sort()
+    return [
+      ...new Set(
+        inscripciones.map((i) => i.categoria).filter(Boolean)
+      )
+    ].sort()
   }, [inscripciones])
 
   const filtradas = inscripciones.filter((i) => {
-    const coincideClub = filtroClub ? i.club === filtroClub : true
-    const coincideNivel = filtroNivel ? i.nivel === filtroNivel : true
-    const coincideCategoria = filtroCategoria ? i.categoria === filtroCategoria : true
+    const coincideClub = filtroClub
+      ? i.club === filtroClub
+      : true
 
-    return coincideClub && coincideNivel && coincideCategoria
+    const coincideNivel = filtroNivel
+      ? i.nivel === filtroNivel
+      : true
+
+    const coincideCategoria = filtroCategoria
+      ? i.categoria === filtroCategoria
+      : true
+
+    return (
+      coincideClub &&
+      coincideNivel &&
+      coincideCategoria
+    )
   })
 
   function convertirParaExcel(lista) {
     return lista.map((item) => {
-      const separado = separarNombreApellido(item.nombre_completo)
+      const separado = separarNombreApellido(
+        item.nombre_completo
+      )
 
       return {
         nombre: separado.nombre,
@@ -138,7 +182,9 @@ function AdminInscripciones() {
 
   function descargarExcel(lista, nombreArchivo) {
     if (lista.length === 0) {
-      alert('No hay inscripciones para descargar con esos filtros.')
+      alert(
+        'No hay inscripciones para descargar con esos filtros.'
+      )
       return
     }
 
@@ -147,7 +193,12 @@ function AdminInscripciones() {
     const hoja = XLSX.utils.json_to_sheet(datosExcel)
     const libro = XLSX.utils.book_new()
 
-    XLSX.utils.book_append_sheet(libro, hoja, 'Inscriptas')
+    XLSX.utils.book_append_sheet(
+      libro,
+      hoja,
+      'Inscriptas'
+    )
+
     XLSX.writeFile(libro, nombreArchivo)
   }
 
@@ -166,9 +217,142 @@ function AdminInscripciones() {
     descargarExcel(filtradas, nombreArchivo)
   }
 
+  function comenzarEdicion(item) {
+    if (item.estado === 'importada') {
+      alert(
+        'Esta inscripción ya está marcada como importada. No se puede editar desde aquí.'
+      )
+      return
+    }
+
+    setEditandoId(item.id)
+
+    setBorrador({
+      nombre_completo: item.nombre_completo || '',
+      club: item.club || '',
+      profe_responsable: item.profe_responsable || '',
+      nivel: item.nivel || '',
+      categoria: item.categoria || ''
+    })
+  }
+
+  function cambiarCampo(campo, valor) {
+    setBorrador((anterior) => ({
+      ...anterior,
+      [campo]: valor
+    }))
+  }
+
+  async function guardarEdicion(item) {
+    const datos = Object.fromEntries(
+      Object.entries(borrador).map(([clave, valor]) => [
+        clave,
+        String(valor)
+          .trim()
+          .replace(/\s+/g, ' ')
+      ])
+    )
+
+    if (
+      !datos.nombre_completo ||
+      !datos.club ||
+      !datos.nivel ||
+      !datos.categoria
+    ) {
+      alert(
+        'Completá nombre completo, club, nivel y categoría.'
+      )
+      return
+    }
+
+    const cambios = { ...datos }
+
+    if (datos.nivel !== item.nivel) {
+      const { data, error } = await supabase
+        .from('niveles')
+        .select('id, nombre')
+        .eq('nombre', datos.nivel)
+        .maybeSingle()
+
+      if (error || !data) {
+        alert(
+          'No se pudo encontrar el nivel en Supabase. No se guardaron cambios.'
+        )
+        return
+      }
+
+      cambios.nivel_id = data.id
+    }
+
+    if (datos.categoria !== item.categoria) {
+      const data = CATEGORIAS.find(
+        (c) => c.nombre === datos.categoria
+      )
+
+      if (!data) {
+        alert(
+          'No se pudo encontrar la categoría en Supabase. No se guardaron cambios.'
+        )
+        return
+      }
+
+      cambios.categoria_id = data.id
+    }
+
+    setGuardando(true)
+
+    try {
+      const { data, error } = await supabase
+        .from('pre_inscripciones')
+        .update(cambios)
+        .eq('id', item.id)
+        .neq('estado', 'importada')
+        .select('*')
+
+      if (error) throw error
+
+      if (!data?.length) {
+        throw new Error(
+          'No se pudo confirmar la edición. Revisá los permisos de Supabase o si la inscripción ya fue importada.'
+        )
+      }
+
+      setInscripciones((anteriores) =>
+        anteriores.map((i) =>
+          i.id === item.id ? data[0] : i
+        )
+      )
+
+      setEditandoId(null)
+      setBorrador({})
+    } catch (error) {
+      console.error(
+        'Error editando preinscripción:',
+        error
+      )
+
+      alert(
+        `No se pudo guardar la edición.\n\n${
+          error.message || 'Error desconocido'
+        }`
+      )
+    } finally {
+      setGuardando(false)
+    }
+  }
+
   async function marcarComoImportadas() {
+    if (editandoId !== null) {
+      alert(
+        'Guardá o cancelá la edición antes de continuar.'
+      )
+      return
+    }
+
     if (filtradas.length === 0) {
-      alert('No hay inscripciones filtradas para marcar.')
+      alert(
+        'No hay inscripciones filtradas para marcar.'
+      )
       return
     }
 
@@ -187,7 +371,11 @@ function AdminInscripciones() {
 
     if (error) {
       console.error(error)
-      alert(`Error al marcar como importadas.\n\n${error.message || ''}`)
+      alert(
+        `Error al marcar como importadas.\n\n${
+          error.message || ''
+        }`
+      )
       return
     }
 
@@ -196,10 +384,14 @@ function AdminInscripciones() {
   }
 
   async function eliminarImportadas() {
-    const importadas = inscripciones.filter((i) => i.estado === 'importada')
+    const importadas = inscripciones.filter(
+      (i) => i.estado === 'importada'
+    )
 
     if (importadas.length === 0) {
-      alert('No hay preinscripciones marcadas como importadas.')
+      alert(
+        'No hay preinscripciones marcadas como importadas.'
+      )
       return
     }
 
@@ -218,7 +410,11 @@ function AdminInscripciones() {
 
     if (error) {
       console.error(error)
-      alert(`Error al eliminar las importadas.\n\n${error.message || ''}`)
+      alert(
+        `Error al eliminar las importadas.\n\n${
+          error.message || ''
+        }`
+      )
       return
     }
 
@@ -227,7 +423,9 @@ function AdminInscripciones() {
   }
 
   async function eliminarInscripcion(id) {
-    const confirmar = window.confirm('¿Eliminar esta preinscripción?')
+    const confirmar = window.confirm(
+      '¿Eliminar esta preinscripción?'
+    )
 
     if (!confirmar) return
 
@@ -238,7 +436,11 @@ function AdminInscripciones() {
 
     if (error) {
       console.error(error)
-      alert(`Error al eliminar.\n\n${error.message || ''}`)
+      alert(
+        `Error al eliminar.\n\n${
+          error.message || ''
+        }`
+      )
       return
     }
 
@@ -255,9 +457,17 @@ function AdminInscripciones() {
             alt={clubCuenta.nombre || 'Club'}
           />
         )}
+
         <h1>Preinscripciones</h1>
-        {clubCuenta?.nombre && <h2>{clubCuenta.nombre}</h2>}
-        <p>Revisá, filtrá y descargá el Excel compatible con el sistema.</p>
+
+        {clubCuenta?.nombre && (
+          <h2>{clubCuenta.nombre}</h2>
+        )}
+
+        <p>
+          Revisá, filtrá y descargá el Excel compatible
+          con el sistema.
+        </p>
       </header>
 
       <main className="admin-pre-container">
@@ -267,30 +477,54 @@ function AdminInscripciones() {
           <div className="filters-grid">
             <label>
               Club
-              <select value={filtroClub} onChange={(e) => setFiltroClub(e.target.value)}>
+              <select
+                value={filtroClub}
+                onChange={(e) =>
+                  setFiltroClub(e.target.value)
+                }
+              >
                 <option value="">Todos</option>
                 {clubes.map((club) => (
-                  <option key={club} value={club}>{club}</option>
+                  <option key={club} value={club}>
+                    {club}
+                  </option>
                 ))}
               </select>
             </label>
 
             <label>
               Nivel
-              <select value={filtroNivel} onChange={(e) => setFiltroNivel(e.target.value)}>
+              <select
+                value={filtroNivel}
+                onChange={(e) =>
+                  setFiltroNivel(e.target.value)
+                }
+              >
                 <option value="">Todos</option>
                 {niveles.map((nivel) => (
-                  <option key={nivel} value={nivel}>{nivel}</option>
+                  <option key={nivel} value={nivel}>
+                    {nivel}
+                  </option>
                 ))}
               </select>
             </label>
 
             <label>
               Categoría
-              <select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)}>
+              <select
+                value={filtroCategoria}
+                onChange={(e) =>
+                  setFiltroCategoria(e.target.value)
+                }
+              >
                 <option value="">Todas</option>
                 {categorias.map((categoria) => (
-                  <option key={categoria} value={categoria}>{categoria}</option>
+                  <option
+                    key={categoria}
+                    value={categoria}
+                  >
+                    {categoria}
+                  </option>
                 ))}
               </select>
             </label>
@@ -305,11 +539,17 @@ function AdminInscripciones() {
               Descargar Excel
             </button>
 
-            <button className="secondary" onClick={marcarComoImportadas}>
+            <button
+              className="secondary"
+              onClick={marcarComoImportadas}
+            >
               Marcar como importadas
             </button>
 
-            <button className="danger" onClick={eliminarImportadas}>
+            <button
+              className="danger"
+              onClick={eliminarImportadas}
+            >
               Eliminar importadas
             </button>
           </div>
@@ -321,7 +561,9 @@ function AdminInscripciones() {
           {cargando ? (
             <p>Cargando...</p>
           ) : filtradas.length === 0 ? (
-            <p>No hay preinscripciones con esos filtros.</p>
+            <p>
+              No hay preinscripciones con esos filtros.
+            </p>
           ) : (
             <div className="table-wrap">
               <table>
@@ -333,202 +575,174 @@ function AdminInscripciones() {
                     <th>Categoría</th>
                     <th>Nombre completo</th>
                     <th>Estado</th>
-                    <th></th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {filtradas.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.club}</td>
-                      <td>{item.profe_responsable || '-'}</td>
-                      <td>{item.nivel}</td>
-                      <td>{item.categoria}</td>
-                      <td>{item.nombre_completo}</td>
-                      <td>{item.estado || 'pendiente'}</td>
-                      <td>
-                        <button
-                          className="danger small"
-                          onClick={() => eliminarInscripcion(item.id)}
-                        >
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </main>
+                  {filtradas.map((item) => {
+                    const editando =
+                      editandoId === item.id
 
-      <style>{`
-        .admin-pre-page {
-          min-height: 100vh;
-          background: linear-gradient(
-            135deg,
-            #ffffff 0%,
-            #f5f5f5 55%,
-            color-mix(in srgb, var(--color-primario) 12%, white) 100%
-          );
-          color: #242424;
-          padding-bottom: 30px;
-        }
+                    const campo = (nombre) => (
+                      <input
+                        aria-label={nombre.replaceAll(
+                          '_',
+                          ' '
+                        )}
+                        value={borrador[nombre] || ''}
+                        onChange={(e) =>
+                          cambiarCampo(
+                            nombre,
+                            e.target.value
+                          )
+                        }
+                        disabled={guardando}
+                        className="pre-edit-input"
+                      />
+                    )
 
-        .admin-pre-header {
-          background: linear-gradient(
-            135deg,
-            var(--color-primario),
-            var(--color-secundario)
-          );
-          color: white;
-          text-align: center;
-          padding: 28px 16px;
-          border-bottom: 5px solid var(--color-primario);
-        }
+                    return (
+                      <tr key={item.id}>
+                        <td>
+                          {editando
+                            ? campo('club')
+                            : item.club}
+                        </td>
 
-        .admin-pre-header h1 {
-          margin: 0;
-          color: white;
-        }
+                        <td>
+                          {editando
+                            ? campo('profe_responsable')
+                            : (
+                              item.profe_responsable || '-'
+                            )}
+                        </td>
 
-        .admin-pre-header h2 {
-          margin: 6px 0 4px;
-          color: white;
-          font-size: 18px;
-        }
+                        <td>
+                          {editando ? (
+                            <select
+                              value={borrador.nivel || ''}
+                              onChange={(e) =>
+                                cambiarCampo(
+                                  'nivel',
+                                  e.target.value
+                                )
+                              }
+                              disabled={guardando}
+                            >
+                              {[
+                                ...new Set(
+                                  [
+                                    item.nivel,
+                                    ...niveles
+                                  ].filter(Boolean)
+                                )
+                              ].map((n) => (
+                                <option
+                                  key={n}
+                                  value={n}
+                                >
+                                  {n}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            item.nivel
+                          )}
+                        </td>
 
-        .admin-pre-logo {
-          width: 68px;
-          height: 68px;
-          object-fit: contain;
-          border-radius: 14px;
-          background: white;
-          padding: 6px;
-          margin-bottom: 10px;
-        }
+                        <td>
+                          {editando ? (
+                            <select
+                              value={
+                                borrador.categoria || ''
+                              }
+                              onChange={(e) =>
+                                cambiarCampo(
+                                  'categoria',
+                                  e.target.value
+                                )
+                              }
+                              disabled={guardando}
+                            >
+                              {[
+                                ...new Set(
+                                  [
+                                    item.categoria,
+                                    ...CATEGORIAS.map(
+                                      (c) => c.nombre
+                                    )
+                                  ].filter(Boolean)
+                                )
+                              ].map((c) => (
+                                <option
+                                  key={c}
+                                  value={c}
+                                >
+                                  {c}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            item.categoria
+                          )}
+                        </td>
 
-        .admin-pre-container {
-          width: min(1200px, calc(100% - 24px));
-          margin: 24px auto;
-          display: grid;
-          gap: 20px;
-        }
+                        <td>
+                          {editando
+                            ? campo('nombre_completo')
+                            : item.nombre_completo}
+                        </td>
 
-        .admin-pre-card {
-          background: white;
-          border-radius: 20px;
-          padding: 22px;
-          box-shadow: 0 10px 28px rgba(0, 0, 0, .10);
-        }
+                        <td>
+                          {item.estado || 'pendiente'}
+                        </td>
 
-        .filters-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 14px;
-        }
+                        <td>
+                          {editando ? (
+                            <div className="pre-actions">
+                              <button
+                                className="small"
+                                disabled={guardando}
+                                onClick={() =>
+                                  guardarEdicion(item)
+                                }
+                              >
+                                {guardando
+                                  ? 'Guardando...'
+                                  : 'Guardar'}
+                              </button>
 
-        label {
-          font-weight: 800;
-        }
+                              <button
+                                className="secondary small"
+                                disabled={guardando}
+                                onClick={() => {
+                                  setEditandoId(null)
+                                  setBorrador({})
+                                }}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="pre-actions">
+                              {item.estado !==
+                                'importada' && (
+                                <button
+                                  className="small"
+                                  disabled={
+                                    editandoId !== null
+                                  }
+                                  onClick={() =>
+                                    comenzarEdicion(item)
+                                  }
+                                >
+                                  Editar
+                                </button>
+                              )}
 
-        select {
-          width: 100%;
-          margin-top: 8px;
-          padding: 12px;
-          border-radius: 12px;
-          border: 1px solid #ccc;
-          font-size: 15px;
-        }
-
-        .count-box {
-          margin-top: 18px;
-          background: color-mix(in srgb, var(--color-primario) 10%, white);
-          border: 1px solid color-mix(in srgb, var(--color-primario) 25%, white);
-          padding: 14px;
-          border-radius: 14px;
-          font-weight: 900;
-          color: var(--color-primario);
-        }
-
-        .button-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin-top: 16px;
-        }
-
-        button {
-          background: var(--color-primario);
-          color: white;
-          border: none;
-          border-radius: 12px;
-          padding: 12px 18px;
-          font-weight: 900;
-          cursor: pointer;
-        }
-
-        button.secondary {
-          background: white;
-          color: var(--color-primario);
-          border: 2px solid var(--color-primario);
-        }
-
-        button:not(.danger):hover {
-          background: var(--color-secundario);
-        }
-
-        button.secondary:hover {
-          background: color-mix(in srgb, var(--color-primario) 8%, white);
-          color: var(--color-primario);
-        }
-
-        button.danger {
-          background: #333;
-        }
-
-        button.small {
-          padding: 8px 10px;
-          font-size: 12px;
-        }
-
-        .table-wrap {
-          overflow-x: auto;
-        }
-
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        th,
-        td {
-          border-bottom: 1px solid #ddd;
-          padding: 12px;
-          text-align: left;
-          white-space: nowrap;
-        }
-
-        th {
-          background: #f1f1f1;
-          color: var(--color-primario);
-          text-transform: uppercase;
-          font-size: 13px;
-        }
-
-        @media (max-width: 700px) {
-          .button-row {
-            flex-direction: column;
-          }
-
-          button {
-            width: 100%;
-          }
-        }
-      `}</style>
-    </div>
-  )
-}
-
-export default AdminInscripciones
+                              <button
+                                className="danger small"
+                                disabled={
+                                  editandoId !== null
+     
