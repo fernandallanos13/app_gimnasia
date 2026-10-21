@@ -475,6 +475,39 @@ function AdminPodios() {
 
   return (
     <div className="container admin-page">
+      <style>{`
+        .admin-page .podio-card .admin-table .podio-fila-por-puesto td {
+          background-color: inherit;
+        }
+        .admin-page .podio-card .admin-table .podio-fila-por-puesto:hover td {
+          background-color: inherit;
+        }
+        .admin-page .podio-card .admin-table .podio-edicion-celda {
+          width: 1%;
+          white-space: nowrap !important;
+        }
+        .admin-page .podio-card .podio-edicion-acciones {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 4px;
+          flex-wrap: wrap;
+        }
+        .admin-page .podio-card .admin-table .podio-edicion-acciones button {
+          width: auto !important;
+          min-width: 0 !important;
+          max-width: none !important;
+          font-size: 11px !important;
+          line-height: 1.1 !important;
+          padding: 5px 7px !important;
+          border-radius: 6px;
+          margin: 0;
+        }
+        .admin-page .podio-card .admin-table .podio-edicion-acciones input {
+          width: 65px !important;
+          max-width: 65px !important;
+        }
+      `}</style>
       <h1>Podios y resultados</h1>
       <p style={{ marginTop: '-8px', opacity: 0.8 }}>
         Torneo: <strong>{torneoActual.nombre}</strong>
@@ -557,7 +590,7 @@ function AdminPodios() {
                   gap: '8px',
                   padding: '5px 8px',
                   cursor: 'pointer',
-                  background: '#c81020',
+                  background: 'var(--color-primario)',
                   borderRadius: '12px',
                   color: 'white',
                   minHeight: 'auto'
@@ -581,7 +614,6 @@ function AdminPodios() {
                     <thead>
                       <tr>
                         <th>Puesto</th>
-                        <th>Corrección</th>
                         <th>Apellido</th>
                         <th>Nombre</th>
                         <th>Club</th>
@@ -590,6 +622,7 @@ function AdminPodios() {
                         <th>Viga</th>
                         <th>Paralelas</th>
                         <th>Total</th>
+                        <th>Editar</th>
                       </tr>
                     </thead>
 
@@ -598,28 +631,13 @@ function AdminPodios() {
                         const puesto = puestoDefinitivo(g)
                         const puestosDelGrupo = [...new Set(gimnastas.map(item => puestoDefinitivo(item)))]
                         const indicePuesto = puestosDelGrupo.indexOf(puesto)
+                        const fondoPuesto = indicePuesto % 2 === 0 ? '#ffffff' : '#e9eef4'
                         return (
-                        <tr key={g.id} style={{ backgroundColor: indicePuesto % 2 === 0 ? '#edf0f3' : '#ffffff' }}>
+                        <tr key={g.id} className="podio-fila-por-puesto" style={{ backgroundColor: fondoPuesto }}>
                           <td>
                             <strong>
                               {puesto}
                             </strong>
-                          </td>
-                          <td>
-                            {editandoPuesto === g.id ? (
-                              <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                                <input aria-label="Puesto manual" style={{ width: 75 }}
-                                  value={puestoBorrador} onChange={e => setPuestoBorrador(e.target.value)} />
-                                <button disabled={guardandoPuesto} onClick={() => guardarPuesto(g)}>Guardar</button>
-                                <button disabled={guardandoPuesto} onClick={() => setEditandoPuesto(null)}>Cancelar</button>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                <button onClick={() => { setEditandoPuesto(g.id); setPuestoBorrador(puesto) }}>Editar</button>
-                                {ajustes[g.id] && <button disabled={guardandoPuesto} onClick={() => restaurarPuesto(g)}>Restablecer</button>}
-                                {ajusteDesactualizado(g) && <span title="El puntaje cambió desde la corrección manual" style={{ color: '#ad5700' }}>⚠ Revisar puntaje</span>}
-                              </div>
-                            )}
                           </td>
                           <td>{g.apellido}</td>
                           <td>{g.nombre}</td>
@@ -634,6 +652,22 @@ function AdminPodios() {
                                 ? '🙂'
                                 : Number(g.total || 0).toFixed(2)}
                             </strong>
+                          </td>
+                          <td className="podio-edicion-celda">
+                            {editandoPuesto === g.id ? (
+                              <div className="podio-edicion-acciones">
+                                <input aria-label="Puesto manual" style={{ width: 75 }}
+                                  value={puestoBorrador} onChange={e => setPuestoBorrador(e.target.value)} />
+                                <button disabled={guardandoPuesto} onClick={() => guardarPuesto(g)}>Guardar</button>
+                                <button disabled={guardandoPuesto} onClick={() => setEditandoPuesto(null)}>Cancelar</button>
+                              </div>
+                            ) : (
+                              <div className="podio-edicion-acciones">
+                                <button onClick={() => { setEditandoPuesto(g.id); setPuestoBorrador(puesto) }}>Editar</button>
+                                {ajustes[g.id] && <button disabled={guardandoPuesto} onClick={() => restaurarPuesto(g)}>Restablecer</button>}
+                                {ajusteDesactualizado(g) && <span title="El puntaje cambió desde la corrección manual" style={{ color: '#ad5700' }}>⚠ Revisar puntaje</span>}
+                              </div>
+                            )}
                           </td>
                         </tr>
                         )
