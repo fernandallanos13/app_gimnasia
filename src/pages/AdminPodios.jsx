@@ -1,25 +1,245 @@
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../services/supabase'
-import { aplicarTemaClub } from '../utils/tema'
+import { useAuth } from '../context/AuthContext'
 
-function Resultados() {
-  const [searchParams] = useSearchParams()
-  const codigoDesdeUrl = searchParams.get('codigo') || ''
+function AdminPodios() {
+  const location = useLocation()
+  const { clubId: clubIdCuenta } = useAuth()
 
-  const [codigoTorneo, setCodigoTorneo] = useState(codigoDesdeUrl)
-  const [codigoConfirmado, setCodigoConfirmado] = useState(codigoDesdeUrl)
-  const [errorCodigo, setErrorCodigo] = useState('')
+  const {
+    puntajesCargados = [],
+    gimnastasInscriptas = [],
+    torneoSeleccionado = null
+  } = location.state || {}
 
-  const [torneo, setTorneo] = useState(null)
-  const [gruposResultados, setGruposResultados] = useState([])
-  const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [categoriasAbiertas, setCategoriasAbiertas] = useState({})
-  const [ultimaActualizacion, setUltimaActualizacion] = useState(null)
+  const [nivelFiltro, setNivelFiltro] = useState('')
+  const [categoriaFiltro, setCategoriaFiltro] = useState('')
+  const [clubFiltro, setClubFiltro] = useState('')
+  const [gruposAbiertos, setGruposAbiertos] = useState({})
+  const [cargando, setCargando] = useState(true)
+  const [torneoActual, setTorneoActual] = useState(torneoSeleccionado)
+  const [inscripcionesActuales, setInscripcionesActuales] = useState(gimnastasInscriptas)
+  const [puntajesActuales, setPuntajesActuales] = useState(puntajesCargados)
+  const [ajustes, setAjustes] = useState({})
+  const [editandoPuesto, setEditandoPuesto] = useState(null)
+  const [puestoBorrador, setPuestoBorrador] = useState('')
+  const [guardandoPuesto, setGuardandoPuesto] = useState(false)
+
+  useEffect(() => {
+    cargarDatosPodios()
+  }, [torneoSeleccionado?.id])
+
+  useEffect(() => {
+    const canal = supabase
+      .channel('admin-podios-en-vivo')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'puntajes' }, () => cargarDatosPodios(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inscripciones' }, () => cargarDatosPodios(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gimnastas' }, () => cargarDatosPodios(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ajustes_podios' }, () => cargarDatosPodios(false))
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(canal)
+    }
+  }, [torneoActual?.id])
+
+  async function obtenerTorneoParaPodios() {
+    if (torneoSeleccionado?.id) return torneoSeleccionado
+    if (torneoActual?.id) return torneoActual
+
+    if (!clubIdCuenta) {
+      return null
+    }
+
+    const { data, error } = await supabase
+      .from('torneos')
+      .select('*')
+      .eq('estado', 'activo')
+      .eq('club_id', clubIdCuenta)
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      console.log(error)
+      return null
+    }
+
+    return data
+  }
+
+  async function cargarDatosPodios(mostrarCarga = true) {
+    if (mostrarCarga) setCargando(true)
+
+    const torneo = await obtenerTorneoParaPodios()
+
+    if (!torneo?.id) {
+      setTorneoActual(null)
+      setInscripcionesActuales([])
+      setPuntajesActuales([])
+      setCargando(false)
+      return
+    }
+
+    setTorneoActual(torneo)
+
+    const { data: inscripcionesData, error: inscripcionesError } = await supabase
+      .from('inscripciones')
+      .select(`
+        id,
+        gimnastas (
+          id,
+          nombre,
+          apellido,
+          club,
+          sexo,
+          niveles (nombre),
+          categorias (nombre)
+        )
+      `)
+      .eq('torneo_id', torneo.id)
+
+    const { data: puntajesData, error: puntajesError } = await supabase
+      .from('puntajes')
+      .select(`
+        id,
+        puntaje,
+        gimnastas (
+          id,
+          nombre,
+          apellido,
+          club,
+          sexo,
+          niveles (nombre),
+          categorias (nombre)
+        ),
+        aparatos (nombre)
+      `)
+      .eq('torneo_id', torneo.id)
+
+    if (inscripcionesError || puntajesError) {
+      console.log(inscripcionesError || puntajesError)
+      alert('No se pudieron actualizar los podios')
+      setCargando(false)
+      return
+    }
+
+    const { data: ajustesData, error: ajustesError } = await supabase
+      .from('ajustes_podios')
+      .select('gimnasta_id, puesto_manual, puntaje_referencia')
+      .eq('torneo_id', torneo.id)
+    if (ajustesError) {
+      console.error('No se pudieron cargar ajustes de podios:', ajustesError)
+      alert('No se pudieron cargar los puestos manuales.')
+      setCargando(false)
+      return
+    }
+    setAjustes(Object.fromEntries((ajustesData || []).map(a => [a.gimnasta_id, a])))
+    setInscripcionesActuales(inscripcionesData || [])
+    setPuntajesActuales(puntajesData || [])
+    setCargando(false)
+  }
+
+  const filasBase = useMemo(() => {
+    const agrupados = {}
+
+    ;(inscripcionesActuales || []).forEach((inscripcion) => {
+      const g = inscripcion.gimnastas
+      if (!g) return
+
+      agrupados[g.id] = {
+        id: g.id,
+        apellido: g.apellido,
+        nombre: g.nombre,
+        club: g.club || '',
+        sexo: g.sexo === 'masculino' ? 'masculino' : 'femenino',
+        nivel: g.niveles?.nombre || '',
+        categoria: g.categorias?.nombre || '',
+        Suelo: '',
+        Salto: '',
+        Viga: '',
+        Paralelas: '',
+        total: 0
+      }
+    })
+
+    ;(puntajesActuales || []).forEach((p) => {
+      const g = p.gimnastas
+      const aparato = p.aparatos?.nombre
+
+      if (!g || !aparato) return
+      if (!agrupados[g.id]) return
+
+      const puntaje = Number(p.puntaje || 0)
+
+      agrupados[g.id][aparato] = puntaje.toFixed(2)
+      agrupados[g.id].total = Number((agrupados[g.id].total + puntaje).toFixed(2))
+    })
+
+    return Object.values(agrupados)
+  }, [inscripcionesActuales, puntajesActuales])
+
+  function numeroNivel(nivel) {
+    const match = String(nivel || '').match(/\d+/)
+    return match ? Number(match[0]) : 999
+  }
+
+  const niveles = useMemo(() => {
+    return [...new Set(filasBase.map((g) => g.nivel).filter(Boolean))]
+      .sort((a, b) => numeroNivel(a) - numeroNivel(b))
+  }, [filasBase])
+
+  const categorias = useMemo(() => {
+    return [...new Set(filasBase.map((g) => g.categoria).filter(Boolean))].sort()
+  }, [filasBase])
+
+  const clubes = useMemo(() => {
+    return [...new Set(filasBase.map((g) => g.club).filter(Boolean))].sort()
+  }, [filasBase])
+
+  const filasFiltradas = useMemo(() => {
+    return filasBase
+      .filter((g) => {
+        const texto = `${g.apellido} ${g.nombre} ${g.club}`.toLowerCase()
+
+        return (
+          Number(g.total || 0) > 0 &&
+          texto.includes(busqueda.toLowerCase()) &&
+          (!nivelFiltro || g.nivel === nivelFiltro) &&
+          (!categoriaFiltro || g.categoria === categoriaFiltro) &&
+          (!clubFiltro || g.club === clubFiltro)
+        )
+      })
+      .sort((a, b) => {
+        const nivelA = numeroNivel(a.nivel)
+        const nivelB = numeroNivel(b.nivel)
+
+        if (nivelA !== nivelB) return nivelA - nivelB
+
+        if (a.categoria !== b.categoria) {
+          return String(a.categoria || '').localeCompare(String(b.categoria || ''))
+        }
+
+        return Number(b.total) - Number(a.total)
+      })
+  }, [filasBase, busqueda, nivelFiltro, categoriaFiltro, clubFiltro])
+
+  const grupos = useMemo(() => {
+    const mapa = {}
+
+    filasFiltradas.forEach((g) => {
+      const clave = `${g.nivel} - ${g.categoria} - ${g.sexo === 'masculino' ? 'Masculino' : 'Femenino'}`
+      if (!mapa[clave]) mapa[clave] = []
+      mapa[clave].push(g)
+    })
+
+    return mapa
+  }, [filasFiltradas])
 
   function esMiniatura(categoria) {
-    return String(categoria || '').toLowerCase().trim().includes('miniatura')
+    return String(categoria || '').toLowerCase().includes('miniatura')
   }
 
   function mostrarPuntaje(valor, categoria) {
@@ -27,15 +247,14 @@ function Resultados() {
       return Number(valor) > 0 ? '🙂' : ''
     }
 
-    return Number(valor || 0).toFixed(2)
+    return valor || ''
   }
 
-  function mostrarTotal(g, categoria) {
-    if (esMiniatura(categoria)) {
-      return '🙂'
-    }
-
-    return Number(g.total || 0).toFixed(2)
+  function limpiarFiltros() {
+    setBusqueda('')
+    setNivelFiltro('')
+    setCategoriaFiltro('')
+    setClubFiltro('')
   }
 
   function obtenerPosicionPorPuntaje(lista, puntaje) {
@@ -64,58 +283,101 @@ function Resultados() {
     return puestos[puestos.length - 1]
   }
 
-  function calcularPuestos(lista, categoria, nivel) {
-    const ordenados = [...lista]
-      .filter((g) => Number(g.total || 0) > 0)
-      .sort((a, b) => Number(b.total || 0) - Number(a.total || 0))
-
-    if (esMiniatura(categoria)) {
-      return ordenados.map((g) => ({ ...g, puesto: '🙂' }))
-    }
-
+  function calcularPuestoAdmin(gimnasta, lista, nivel, categoria) {
     const nivelTexto = String(nivel || '').toUpperCase().trim()
 
-    return ordenados.map((g) => {
-      const puntaje = Number(g.total || 0)
-      const posicionPorPuntaje = obtenerPosicionPorPuntaje(ordenados, puntaje)
+    if (esMiniatura(categoria)) return '🙂'
 
-      if (nivelTexto === 'N1') {
-        return {
-          ...g,
-          puesto: calcularPuestoPorCortes(g, ordenados, ['1°', '2°', '3°'])
-        }
-      }
+    const ordenados = [...lista]
+      .filter((item) => Number(item.total || 0) > 0)
+      .sort((a, b) => Number(b.total || 0) - Number(a.total || 0))
 
-      if (nivelTexto === 'N2' || nivelTexto === 'N3') {
-        if (posicionPorPuntaje <= 6) {
-          return { ...g, puesto: `${posicionPorPuntaje}°` }
-        }
+    const puntaje = Number(gimnasta.total || 0)
+    const posicionPorPuntaje = obtenerPosicionPorPuntaje(ordenados, puntaje)
 
-        const resto = ordenados.filter((item) => {
-          const p = Number(item.total || 0)
-          return obtenerPosicionPorPuntaje(ordenados, p) > 6
-        })
+    if (nivelTexto === 'N1') {
+      return calcularPuestoPorCortes(gimnasta, ordenados, ['1°', '2°', '3°'])
+    }
 
-        return {
-          ...g,
-          puesto: calcularPuestoPorCortes(g, resto, ['7°', '8°', '9°', '10°'])
-        }
-      }
+    if (nivelTexto === 'N2' || nivelTexto === 'N3') {
+      if (posicionPorPuntaje <= 6) return `${posicionPorPuntaje}°`
 
-      return { ...g, puesto: `${posicionPorPuntaje}°` }
+      const resto = ordenados.filter((item) => {
+        const p = Number(item.total || 0)
+        return obtenerPosicionPorPuntaje(ordenados, p) > 6
+      })
+
+      return calcularPuestoPorCortes(gimnasta, resto, ['7°', '8°', '9°', '10°'])
+    }
+
+    return `${posicionPorPuntaje}°`
+  }
+
+  function grupoCompleto(g) {
+    return filasBase.filter(item =>
+      Number(item.total || 0) > 0 &&
+      item.nivel === g.nivel &&
+      item.categoria === g.categoria &&
+      item.sexo === g.sexo
+    )
+  }
+
+  function puestoDefinitivo(g) {
+    return ajustes[g.id]?.puesto_manual || calcularPuestoAdmin(g, grupoCompleto(g), g.nivel, g.categoria)
+  }
+
+  function ajusteDesactualizado(g) {
+    const ajuste = ajustes[g.id]
+    return !!ajuste && ajuste.puntaje_referencia !== null &&
+      Number(ajuste.puntaje_referencia) !== Number(g.total || 0)
+  }
+
+  async function guardarPuesto(g) {
+    const puesto = puestoBorrador.trim()
+    if (!puesto || puesto.length > 30) {
+      alert('Ingresá un puesto válido de hasta 30 caracteres.')
+      return
+    }
+    setGuardandoPuesto(true)
+    try {
+      const { error } = await supabase.from('ajustes_podios').upsert({
+        torneo_id: torneoActual.id,
+        gimnasta_id: g.id,
+        puesto_manual: puesto,
+        puntaje_referencia: Number(g.total || 0),
+        actualizado_en: new Date().toISOString()
+      }, { onConflict: 'torneo_id,gimnasta_id' })
+      if (error) throw error
+      setAjustes(actual => ({ ...actual, [g.id]: {
+        gimnasta_id: g.id, puesto_manual: puesto,
+        puntaje_referencia: Number(g.total || 0)
+      } }))
+      setEditandoPuesto(null)
+    } catch (error) {
+      alert(`No se pudo guardar el puesto: ${error.message}`)
+    } finally { setGuardandoPuesto(false) }
+  }
+
+  async function restaurarPuesto(g) {
+    if (!window.confirm(`¿Restablecer el puesto automático de ${g.apellido} ${g.nombre}?`)) return
+    setGuardandoPuesto(true)
+    try {
+      const { error } = await supabase.from('ajustes_podios')
+        .delete().eq('torneo_id', torneoActual.id).eq('gimnasta_id', g.id)
+      if (error) throw error
+      setAjustes(actual => {
+        const copia = { ...actual }; delete copia[g.id]; return copia
+      })
+      setEditandoPuesto(null)
+    } catch (error) { alert(`No se pudo restablecer: ${error.message}`) }
+    finally { setGuardandoPuesto(false) }
+  }
+
+  function toggleGrupo(grupo) {
+    setGruposAbiertos({
+      ...gruposAbiertos,
+      [grupo]: !gruposAbiertos[grupo]
     })
-  }
-
-  function toggleCategoria(clave) {
-    setCategoriasAbiertas((actuales) => ({
-      ...actuales,
-      [clave]: !actuales[clave]
-    }))
-  }
-
-  function numeroNivel(nivel) {
-    const match = String(nivel || '').match(/\d+/)
-    return match ? Number(match[0]) : 999
   }
 
   function ordenCategoria(categoria) {
@@ -138,508 +400,190 @@ function Resultados() {
     return indice === -1 ? 999 : indice
   }
 
-  function formatearFecha(fecha) {
-    if (!fecha) return ''
+  function limpiarNombreHoja(nombre, indice) {
+    const nombreLimpio = String(nombre || 'Resultados')
+      .replace(/[\\/?*[\]:]/g, '')
+      .substring(0, 25)
 
-    const texto = String(fecha).trim()
-    let fechaObj
-
-    // Si viene como YYYY-MM-DD, la interpretamos localmente para evitar
-    // corrimientos de zona horaria y "Invalid Date".
-    const soloFecha = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-
-    if (soloFecha) {
-      const [, anio, mes, dia] = soloFecha
-      fechaObj = new Date(Number(anio), Number(mes) - 1, Number(dia))
-    } else {
-      fechaObj = new Date(texto)
-    }
-
-    if (Number.isNaN(fechaObj.getTime())) return ''
-
-    return fechaObj.toLocaleDateString('es-AR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    })
+    return `${indice + 1}-${nombreLimpio}`.substring(0, 31)
   }
 
-  async function obtenerResultados() {
-    if (!codigoConfirmado) {
-      setCargando(false)
+  function exportarPodiosExcel() {
+    const libro = XLSX.utils.book_new()
+    const gruposExcel = {}
+
+    filasFiltradas.forEach((g) => {
+      const clave = `${g.nivel} - ${g.categoria} - ${g.sexo === 'masculino' ? 'Masculino' : 'Femenino'}`
+
+      if (!gruposExcel[clave]) {
+        gruposExcel[clave] = []
+      }
+
+      gruposExcel[clave].push(g)
+    })
+
+    const entradas = Object.entries(gruposExcel)
+
+    if (entradas.length === 0) {
+      alert('No hay resultados para exportar con esos filtros.')
       return
     }
 
-    setCargando(true)
+    entradas.forEach(([grupo, gimnastas], index) => {
+      const datosExcel = gimnastas.map((g) => ({
+        Puesto: puestoDefinitivo(g),
+        Apellido: g.apellido,
+        Nombre: g.nombre,
+        Club: g.club,
+        Sexo: g.sexo,
+        Nivel: g.nivel,
+        Categoria: g.categoria,
+        Suelo: mostrarPuntaje(g.Suelo, g.categoria),
+        Salto: mostrarPuntaje(g.Salto, g.categoria),
+        Viga: mostrarPuntaje(g.Viga, g.categoria),
+        Paralelas: mostrarPuntaje(g.Paralelas, g.categoria),
+        Total: esMiniatura(g.categoria)
+          ? '🙂'
+          : Number(g.total || 0).toFixed(2)
+      }))
 
-    try {
-      const { data: torneoData, error: torneoError } = await supabase
-        .from('torneos')
-        .select('*, clubes ( nombre, color_primario, color_secundario, logo_url )')
-        .ilike('codigo', codigoConfirmado.trim())
-        .eq('estado', 'activo')
-        .single()
+      const hoja = XLSX.utils.json_to_sheet(datosExcel)
+      const nombreHoja = limpiarNombreHoja(grupo, index)
 
-      if (torneoError || !torneoData) {
-        console.log(torneoError)
-        setErrorCodigo('Código de torneo incorrecto o torneo no activo.')
-        setTorneo(null)
-        setCargando(false)
-        return
-      }
-
-      const torneoId = torneoData.id
-
-      setTorneo(torneoData)
-      aplicarTemaClub(torneoData.clubes)
-
-      if (!torneoData.resultados_publicos) {
-        setCargando(false)
-        return
-      }
-
-      const [
-        { data: inscripcionesData, error: inscripcionesError },
-        { data: relacionesTurnos, error: relacionesError },
-        { data: publicacionesData, error: publicacionesError },
-        { data: ajustesData, error: ajustesError }
-      ] = await Promise.all([
-        supabase
-          .from('inscripciones')
-          .select(`
-            gimnastas (
-              id,
-              nombre,
-              apellido,
-              club,
-              sexo,
-              niveles (nombre),
-              categorias (nombre)
-            )
-          `)
-          .eq('torneo_id', torneoId),
-
-        supabase
-          .from('turno_gimnastas')
-          .select(`
-            gimnasta_id,
-            turno_id,
-            orden,
-            turnos (
-              id,
-              nombre
-            )
-          `)
-          .eq('torneo_id', torneoId),
-
-        supabase
-          .from('publicacion_turnos')
-          .select('turno_id, publicado')
-          .eq('torneo_id', torneoId),
-        supabase.from('ajustes_podios')
-          .select('gimnasta_id, puesto_manual')
-          .eq('torneo_id', torneoId)
-      ])
-
-      if (inscripcionesError || relacionesError || publicacionesError || ajustesError) {
-        console.log(inscripcionesError || relacionesError || publicacionesError || ajustesError)
-        setCargando(false)
-        return
-      }
-
-      const mapaAjustes = new Map((ajustesData || []).map(a => [a.gimnasta_id, a.puesto_manual]))
-      const mapaPublicacion = new Map(
-        (publicacionesData || []).map((item) => [
-          Number(item.turno_id),
-          item.publicado === true
-        ])
-      )
-
-      const mapaTurnosPorGimnasta = new Map()
-
-      ;(relacionesTurnos || []).forEach((item) => {
-        if (!mapaTurnosPorGimnasta.has(item.gimnasta_id)) {
-          mapaTurnosPorGimnasta.set(item.gimnasta_id, {
-            turno_id: item.turno_id,
-            turno_nombre: item.turnos?.nombre || `Turno ${item.turno_id}`,
-            orden: item.orden || 9999
-          })
-        }
-      })
-
-      const gimnastasBase = {}
-
-      ;(inscripcionesData || []).forEach((item) => {
-        const g = item.gimnastas
-        if (!g) return
-
-        const relacionTurno = mapaTurnosPorGimnasta.get(g.id)
-        const turnoId = relacionTurno?.turno_id || null
-        const publicado = turnoId
-          ? mapaPublicacion.get(Number(turnoId)) === true
-          : false
-
-        gimnastasBase[g.id] = {
-          id: g.id,
-          nombre: `${g.apellido}, ${g.nombre}`,
-          club: g.club || '',
-          sexo: g.sexo === 'masculino' ? 'masculino' : 'femenino',
-          nivel: g.niveles?.nombre || '',
-          categoria: g.categorias?.nombre || '',
-          turno_id: turnoId,
-          turno_nombre: relacionTurno?.turno_nombre || 'Sin turno',
-          orden_turno: relacionTurno?.orden || 9999,
-          publicado,
-          Suelo: 0,
-          Salto: 0,
-          Viga: 0,
-          Paralelas: 0,
-          total: 0,
-          puesto: ''
-        }
-      })
-
-      const idsPublicados = Object.values(gimnastasBase)
-        .filter((g) => g.publicado)
-        .map((g) => g.id)
-
-      let puntajesData = []
-
-      if (idsPublicados.length > 0) {
-        const { data, error: puntajesError } = await supabase
-          .from('puntajes')
-          .select(`
-            puntaje,
-            gimnasta_id,
-            aparatos (nombre)
-          `)
-          .eq('torneo_id', torneoId)
-          .in('gimnasta_id', idsPublicados)
-
-        if (puntajesError) {
-          console.log(puntajesError)
-          setCargando(false)
-          return
-        }
-
-        puntajesData = data || []
-      }
-
-      ;(puntajesData || []).forEach((item) => {
-        const aparato = item.aparatos?.nombre
-        const g = gimnastasBase[item.gimnasta_id]
-
-        if (!g || !aparato || !g.publicado) return
-
-        g[aparato] = Number(item.puntaje)
-        g.total = Number((g.total + Number(item.puntaje)).toFixed(2))
-      })
-
-      const grupos = {}
-
-      Object.values(gimnastasBase).forEach((g) => {
-        // En la vista pública agrupamos SOLO por nivel + categoría.
-        // El turno se usa internamente para decidir si cada gimnasta
-        // puede mostrar sus puntajes, pero nunca se muestra al público.
-        const clave = `${g.nivel}|||${g.categoria}`
-
-        if (!grupos[clave]) {
-          grupos[clave] = {
-            nivel: g.nivel,
-            categoria: g.categoria,
-            gimnastas: []
-          }
-        }
-
-        grupos[clave].gimnastas.push(g)
-      })
-
-      const calculados = Object.entries(grupos).map(([clave, grupo]) => {
-        const grupoPublicado =
-          grupo.gimnastas.length > 0 &&
-          grupo.gimnastas.every((g) => g.publicado)
-
-        let mapaPuestos = new Map()
-
-        // Cada categoría pertenece completa a un turno.
-        // Cuando ese turno se publica, la categoría muestra de inmediato
-        // sus puntajes y puestos.
-        if (grupoPublicado) {
-          const conPuestos = ['femenino', 'masculino'].flatMap(sexo =>
-            calcularPuestos(grupo.gimnastas.filter(g => g.sexo === sexo), grupo.categoria, grupo.nivel)
-          )
-
-          mapaPuestos = new Map(
-            conPuestos.map((g) => [g.id, g.puesto])
-          )
-        }
-
-        return {
-          clave,
-          ...grupo,
-          publicado: grupoPublicado,
-          gimnastas: [...grupo.gimnastas]
-            .map((g) => ({
-              ...g,
-              puesto: grupoPublicado
-                ? (mapaAjustes.get(g.id) || mapaPuestos.get(g.id) || '')
-                : ''
-            }))
-            .sort((a, b) => {
-              if (a.sexo !== b.sexo) return a.sexo.localeCompare(b.sexo)
-              if (grupoPublicado) {
-                const totalA = Number(a.total || 0)
-                const totalB = Number(b.total || 0)
-
-                if (totalA !== totalB) return totalB - totalA
-              }
-
-              return a.nombre.localeCompare(b.nombre, 'es')
-            })
-        }
-      })
-
-      setGruposResultados(calculados)
-      setUltimaActualizacion(new Date())
-      setCargando(false)
-    } catch (err) {
-      console.log('Error inesperado obteniendo resultados:', err)
-      setErrorCodigo('Ocurrió un error inesperado: ' + err.message)
-      setCargando(false)
-    }
-  }
-
-  useEffect(() => {
-    obtenerResultados()
-
-    const canal = supabase
-      .channel('resultados-en-vivo')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'puntajes' }, obtenerResultados)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'publicacion_turnos' }, obtenerResultados)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'turno_gimnastas' }, obtenerResultados)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inscripciones' }, obtenerResultados)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gimnastas' }, obtenerResultados)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ajustes_podios' }, obtenerResultados)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'torneos' }, obtenerResultados)
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(canal)
-    }
-  }, [codigoConfirmado])
-
-  function confirmarCodigo() {
-    if (!codigoTorneo.trim()) {
-      setErrorCodigo('Escribí el código del torneo.')
-      return
-    }
-
-    setErrorCodigo('')
-    setCodigoConfirmado(codigoTorneo.trim())
-  }
-
-  const gruposFiltrados = gruposResultados
-    .map((grupo) => ({
-      ...grupo,
-      gimnastas: grupo.gimnastas.filter((g) => {
-        const texto = `${g.nombre} ${g.club}`.toLowerCase()
-        return texto.includes(busqueda.toLowerCase())
-      })
-    }))
-    .filter((grupo) => grupo.gimnastas.length > 0)
-    .sort((a, b) => {
-      const nivelA = numeroNivel(a.nivel)
-      const nivelB = numeroNivel(b.nivel)
-
-      if (nivelA !== nivelB) return nivelA - nivelB
-
-      const categoriaA = ordenCategoria(a.categoria)
-      const categoriaB = ordenCategoria(b.categoria)
-
-      if (categoriaA !== categoriaB) return categoriaA - categoriaB
-
-      return String(a.categoria || '').localeCompare(
-        String(b.categoria || ''),
-        'es',
-        { numeric: true, sensitivity: 'base' }
-      )
+      XLSX.utils.book_append_sheet(libro, hoja, nombreHoja)
     })
 
-  if (!codigoConfirmado) {
-    return (
-      <div className="container">
-        <h1>Ver resultados</h1>
-
-        <div className="card" style={{ maxWidth: '380px' }}>
-          <p style={{ marginBottom: '14px' }}>
-            Ingresá el código del torneo que te pasó el club.
-          </p>
-
-          <input
-            type="text"
-            placeholder="Código de torneo"
-            value={codigoTorneo}
-            onChange={(e) => setCodigoTorneo(e.target.value)}
-          />
-
-          {errorCodigo && (
-            <p style={{ color: '#b00020', marginTop: '10px' }}>
-              {errorCodigo}
-            </p>
-          )}
-
-          <button onClick={confirmarCodigo} style={{ marginTop: '14px' }}>
-            Ver resultados
-          </button>
-        </div>
-      </div>
-    )
+    XLSX.writeFile(libro, 'podios-resultados.xlsx')
   }
 
   if (cargando) {
     return (
-      <div className="container">
-        <h1>Cargando resultados...</h1>
+      <div className="container admin-page">
+        <h1>Cargando podios...</h1>
       </div>
     )
   }
 
-  if (!torneo) {
+  if (!torneoActual) {
     return (
-      <div className="container">
-        <h1>Código de torneo incorrecto</h1>
-        <p>{errorCodigo}</p>
-        <button
-          onClick={() => {
-            setCodigoConfirmado('')
-            setCodigoTorneo('')
-          }}
-        >
-          Probar de nuevo
-        </button>
-      </div>
-    )
-  }
-
-  if (!torneo.resultados_publicos) {
-    return (
-      <div className="container">
-        <h1>Resultados no publicados</h1>
-        <p>El administrador todavía no habilitó los resultados en vivo.</p>
+      <div className="container admin-page">
+        <h1>No hay torneo activo</h1>
+        <p>Seleccioná o abrí un torneo desde el panel de administración.</p>
       </div>
     )
   }
 
   return (
-    <div className="container">
-      <div
-        style={
-          torneo.clubes
-            ? {
-                width: '100%',
-                background: `linear-gradient(135deg, ${torneo.clubes.color_primario || '#151515'}, ${torneo.clubes.color_secundario || '#151515'})`,
-                borderRadius: '18px',
-                padding: '20px',
-                marginBottom: '8px',
-                color: 'white'
-              }
-            : { width: '100%' }
-        }
-      >
-        {torneo.clubes?.logo_url && (
-          <img
-            src={torneo.clubes.logo_url}
-            alt={torneo.clubes.nombre}
-            style={{
-              width: '56px',
-              height: '56px',
-              objectFit: 'contain',
-              marginBottom: '8px',
-              borderRadius: '10px',
-              background: 'white',
-              padding: '5px'
-            }}
-          />
-        )}
-
-        <h1 style={torneo.clubes ? { color: 'white' } : undefined}>
-          {torneo.nombre}
-          {torneo.clubes?.nombre ? ` — ${torneo.clubes.nombre}` : ''}
-        </h1>
-
-        {formatearFecha(torneo.fecha) && (
-          <p style={{ fontWeight: 'bold', opacity: 0.95 }}>
-            {formatearFecha(torneo.fecha)}
-          </p>
-        )}
-      </div>
-
-      <p>
-        Podés consultar las gimnastas durante el torneo. Los puntajes y puestos
-        de cada turno aparecen únicamente después de su premiación.
+    <div className="container admin-page">
+      <h1>Podios y resultados</h1>
+      <p style={{ marginTop: '-8px', opacity: 0.8 }}>
+        Torneo: <strong>{torneoActual.nombre}</strong>
       </p>
 
-      <p className="live-status">
-        🟢 EN VIVO
-        {ultimaActualizacion && (
-          <>
-            {' '}· Actualizado a las{' '}
-            {ultimaActualizacion.toLocaleTimeString('es-AR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit'
-            })}
-          </>
-        )}
-      </p>
-
-      <div className="results-search-box">
+      <div className="admin-box">
         <input
           type="text"
-          placeholder="Buscar gimnasta por nombre, apellido o club..."
+          placeholder="Buscar por nombre, apellido o club..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
+
+        <div className="podios-filter-grid">
+          <select value={nivelFiltro} onChange={(e) => setNivelFiltro(e.target.value)}>
+            <option value="">Todos los niveles</option>
+            {niveles.map((nivel) => (
+              <option key={nivel} value={nivel}>{nivel}</option>
+            ))}
+          </select>
+
+          <select value={categoriaFiltro} onChange={(e) => setCategoriaFiltro(e.target.value)}>
+            <option value="">Todas las categorías</option>
+            {categorias.map((categoria) => (
+              <option key={categoria} value={categoria}>{categoria}</option>
+            ))}
+          </select>
+
+          <select value={clubFiltro} onChange={(e) => setClubFiltro(e.target.value)}>
+            <option value="">Todos los clubes</option>
+            {clubes.map((club) => (
+              <option key={club} value={club}>{club}</option>
+            ))}
+          </select>
+
+          <button onClick={limpiarFiltros}>Limpiar filtros</button>
+          <button onClick={() => cargarDatosPodios()}>Actualizar podios</button>
+          <button onClick={exportarPodiosExcel}>Descargar Excel filtrado</button>
+        </div>
       </div>
 
-      {gruposFiltrados.map((grupo) => {
-        const abierta = busqueda.trim()
-          ? true
-          : categoriasAbiertas[grupo.clave]
+      {Object.entries(grupos)
+        .sort(([grupoA, gimnastasA], [grupoB, gimnastasB]) => {
+          const nivelA = numeroNivel(gimnastasA[0]?.nivel)
+          const nivelB = numeroNivel(gimnastasB[0]?.nivel)
 
-        return (
-          <div
-            key={grupo.clave}
-            className="result-category-card"
-            style={{
-              borderLeft: `12px solid ${grupo.publicado ? '#19eb19' : '#d62828'}`
-            }}
-          >
-            <button
-              className="result-category-header"
-              onClick={() => toggleCategoria(grupo.clave)}
+          if (nivelA !== nivelB) return nivelA - nivelB
+
+          const categoriaA = String(gimnastasA[0]?.categoria || '')
+          const categoriaB = String(gimnastasB[0]?.categoria || '')
+
+          const ordenA = ordenCategoria(categoriaA)
+          const ordenB = ordenCategoria(categoriaB)
+
+          if (ordenA !== ordenB) return ordenA - ordenB
+
+          return categoriaA.localeCompare(
+            categoriaB,
+            'es',
+            { numeric: true, sensitivity: 'base' }
+          )
+        })
+        .map(([grupo, gimnastas]) => {
+          const abierto = gruposAbiertos[grupo]
+
+          return (
+            <div
+              className="result-category-card podio-card"
+              key={grupo}
             >
-              <span>{abierta ? '−' : '+'}</span>
+              <div
+                className="podio-header"
+                onClick={() => toggleGrupo(grupo)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  flexWrap: 'nowrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  padding: '5px 8px',
+                  cursor: 'pointer',
+                  background: '#c81020',
+                  borderRadius: '12px',
+                  color: 'white',
+                  minHeight: 'auto'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                  <span style={{ flexShrink: 0 }}>{abierto ? '−' : '+'}</span>
+                  <strong style={{ fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {grupo}
+                  </strong>
+                </div>
 
-              <strong>
-                {grupo.nivel} - {grupo.categoria}
-              </strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '16px', whiteSpace: 'nowrap' }}>
+                  <span>{gimnastas.length} gim.</span>
+                </div>
+              </div>
 
-              <small>
-                {grupo.gimnastas.length} gimnasta(s) ·{' '}
-                {grupo.publicado ? 'Resultados publicados' : 'Resultados pendientes'}
-              </small>
-            </button>
-
-            {abierta && (
-              grupo.publicado ? (
+              {abierto && (
                 <div className="table-wrapper">
                   <table className="admin-table">
                     <thead>
                       <tr>
                         <th>Puesto</th>
-                        <th>Gimnasta</th>
-                        <th>Sexo</th>
+                        <th>Corrección</th>
+                        <th>Apellido</th>
+                        <th>Nombre</th>
                         <th>Club</th>
                         <th>Suelo</th>
                         <th>Salto</th>
@@ -650,61 +594,63 @@ function Resultados() {
                     </thead>
 
                     <tbody>
-                      {grupo.gimnastas.map((g) => (
-                        <tr key={g.id}>
-                          <td><strong>{g.puesto}</strong></td>
+                      {gimnastas.map((g) => {
+                        const puesto = puestoDefinitivo(g)
+                        const puestosDelGrupo = [...new Set(gimnastas.map(item => puestoDefinitivo(item)))]
+                        const indicePuesto = puestosDelGrupo.indexOf(puesto)
+                        return (
+                        <tr key={g.id} style={{ backgroundColor: indicePuesto % 2 === 0 ? '#edf0f3' : '#ffffff' }}>
+                          <td>
+                            <strong>
+                              {puesto}
+                            </strong>
+                          </td>
+                          <td>
+                            {editandoPuesto === g.id ? (
+                              <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                                <input aria-label="Puesto manual" style={{ width: 75 }}
+                                  value={puestoBorrador} onChange={e => setPuestoBorrador(e.target.value)} />
+                                <button disabled={guardandoPuesto} onClick={() => guardarPuesto(g)}>Guardar</button>
+                                <button disabled={guardandoPuesto} onClick={() => setEditandoPuesto(null)}>Cancelar</button>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <button onClick={() => { setEditandoPuesto(g.id); setPuestoBorrador(puesto) }}>Editar</button>
+                                {ajustes[g.id] && <button disabled={guardandoPuesto} onClick={() => restaurarPuesto(g)}>Restablecer</button>}
+                                {ajusteDesactualizado(g) && <span title="El puntaje cambió desde la corrección manual" style={{ color: '#ad5700' }}>⚠ Revisar puntaje</span>}
+                              </div>
+                            )}
+                          </td>
+                          <td>{g.apellido}</td>
                           <td>{g.nombre}</td>
-                          <td>{g.sexo === 'masculino' ? 'Masculino' : 'Femenino'}</td>
                           <td>{g.club}</td>
-                          <td>{mostrarPuntaje(g.Suelo, grupo.categoria)}</td>
-                          <td>{mostrarPuntaje(g.Salto, grupo.categoria)}</td>
-                          <td>{mostrarPuntaje(g.Viga, grupo.categoria)}</td>
-                          <td>{mostrarPuntaje(g.Paralelas, grupo.categoria)}</td>
-                          <td><strong>{mostrarTotal(g, grupo.categoria)}</strong></td>
+                          <td>{mostrarPuntaje(g.Suelo, g.categoria)}</td>
+                          <td>{mostrarPuntaje(g.Salto, g.categoria)}</td>
+                          <td>{mostrarPuntaje(g.Viga, g.categoria)}</td>
+                          <td>{mostrarPuntaje(g.Paralelas, g.categoria)}</td>
+                          <td>
+                            <strong>
+                              {esMiniatura(g.categoria)
+                                ? '🙂'
+                                : Number(g.total || 0).toFixed(2)}
+                            </strong>
+                          </td>
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
-              ) : (
-                <div style={{ padding: '12px 10px 16px' }}>
-                  <p style={{ marginTop: 0, fontWeight: 600 }}>
-                    🔒 Los puntajes y puestos se publicarán después de la premiación.
-                  </p>
+              )}
+            </div>
+          )
+        })}
 
-                  <div className="table-wrapper">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Gimnasta</th>
-                          <th>Sexo</th>
-                          <th>Club</th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {grupo.gimnastas.map((g) => (
-                          <tr key={g.id}>
-                            <td>{g.nombre}</td>
-                            <td>{g.sexo === 'masculino' ? 'Masculino' : 'Femenino'}</td>
-                            <td>{g.club}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-        )
-      })}
-
-      {gruposFiltrados.length === 0 && (
-        <p>No se encontraron gimnastas con esa búsqueda.</p>
+      {Object.keys(grupos).length === 0 && (
+        <p>No hay resultados para mostrar con esos filtros.</p>
       )}
     </div>
   )
 }
 
-export default Resultados
+export default AdminPodios
