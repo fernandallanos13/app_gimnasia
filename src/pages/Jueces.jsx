@@ -20,6 +20,7 @@ function Jueces() {
   const [turnoSeleccionado, setTurnoSeleccionado] = useState('')
 
   const [gimnastasGrupo, setGimnastasGrupo] = useState([])
+  const [rotacionFiltro, setRotacionFiltro] = useState('')
   const [puntajes, setPuntajes] = useState({})
 
   async function ingresarJuez() {
@@ -317,6 +318,7 @@ function Jueces() {
 
   async function obtenerGimnastasDelTurno(turnoId) {
     setTurnoSeleccionado(turnoId)
+    setRotacionFiltro('')
     setGimnastasGrupo([])
     setPuntajes({})
 
@@ -399,6 +401,7 @@ function Jueces() {
       .select(`
         gimnasta_id,
         orden,
+        rotacion,
         gimnastas (
           id,
           nombre,
@@ -528,6 +531,7 @@ function Jueces() {
     setNivelSeleccionado('')
     setCategoriaSeleccionada('')
     setTurnoSeleccionado('')
+    setRotacionFiltro('')
     setCategorias([])
     setGimnastasGrupo([])
     setPuntajes({})
@@ -545,6 +549,7 @@ function Jueces() {
     setNivelSeleccionado('')
     setCategoriaSeleccionada('')
     setTurnoSeleccionado('')
+    setRotacionFiltro('')
     setCategorias([])
     setGimnastasGrupo([])
     setPuntajes({})
@@ -650,6 +655,7 @@ function Jueces() {
               setNivelSeleccionado('')
               setCategoriaSeleccionada('')
               setTurnoSeleccionado('')
+              setRotacionFiltro('')
               setCategorias([])
               setGimnastasGrupo([])
               setPuntajes({})
@@ -673,6 +679,7 @@ function Jueces() {
               setNivelSeleccionado('')
               setCategoriaSeleccionada('')
               setTurnoSeleccionado('')
+              setRotacionFiltro('')
               setCategorias([])
               setGimnastasGrupo([])
               setPuntajes({})
@@ -747,7 +754,18 @@ function Jueces() {
                 Los puntajes se guardan automáticamente.
               </p>
 
-              {gimnastasGrupo.map((item) => (
+              {modoCarga === 'turno' && (
+                <div style={{ margin: '12px 0' }}>
+                  <label htmlFor="rotacion-filtro"><strong>Grupo de rotación: </strong></label>
+                  <select id="rotacion-filtro" value={rotacionFiltro} onChange={e => setRotacionFiltro(e.target.value)}>
+                    <option value="">Todas las gimnastas</option>
+                    {[1,2,3,4].map(n => <option key={n} value={n}>Rotación {n}</option>)}
+
+                  </select>
+                  {rotacionFiltro && <p>Mostrando {gimnastasGrupo.filter(x => rotacionFiltro === 'pendientes' ? !x.rotacion : String(x.rotacion) === rotacionFiltro).length} gimnastas</p>}
+                </div>
+              )}
+              {gimnastasGrupo.filter(item => modoCarga !== 'turno' || !rotacionFiltro || (rotacionFiltro === 'pendientes' ? !item.rotacion : String(item.rotacion) === rotacionFiltro)).map((item) => (
                 <div
                   key={item.gimnastas.id}
                   className="score-row"

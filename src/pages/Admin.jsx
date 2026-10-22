@@ -899,45 +899,60 @@ setImportandoExcel(false)
 
   function descargarQR(torneoNombre) {
     const canvas = document.querySelector('.qr-box canvas')
-
-    if (!canvas) {
-      alert('No se encontró el QR')
-      return
-    }
-
-    const qrImage = canvas.toDataURL('image/png')
+    if (!canvas) { alert('No se encontró el QR'); return }
 
     const finalCanvas = document.createElement('canvas')
     finalCanvas.width = 800
     finalCanvas.height = 1000
-
     const ctx = finalCanvas.getContext('2d')
-
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height)
-
-    ctx.fillStyle = '#c1121f'
-    ctx.font = 'bold 44px Arial'
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, 800, 1000)
+    const color = clubCuenta?.color_primario || '#c1121f'
+    ctx.fillStyle = color
     ctx.textAlign = 'center'
-    ctx.fillText('ESCANEÁ PARA VER', 400, 120)
+    ctx.font = 'bold 44px Arial'
+    ctx.fillText('ESCANEÁ PARA VER', 400, 125)
     ctx.fillText('LOS RESULTADOS EN VIVO', 400, 180)
+    ctx.drawImage(canvas, 180, 255, 440, 440)
+    ctx.fillStyle = '#333'
+    ctx.font = 'bold 30px Arial'
+    ctx.fillText(torneoNombre, 400, 765, 720)
+    ctx.font = '22px Arial'
+    ctx.fillText(clubCuenta?.nombre || '', 400, 810, 720)
 
-    const img = new Image()
-
-    img.onload = () => {
-      ctx.drawImage(img, 200, 260, 400, 400)
-
-      ctx.fillStyle = '#333'
-      ctx.font = 'bold 30px Arial'
-      ctx.fillText(torneoNombre, 400, 760)
-
-      const link = document.createElement('a')
-      link.download = `qr-resultados-${torneoNombre}.png`
-      link.href = finalCanvas.toDataURL('image/png')
-      link.click()
+    const descargar = () => {
+      try {
+        const link = document.createElement('a')
+        link.download = `qr-resultados-${String(torneoNombre).replace(/[^a-z0-9-]/gi, '_')}.png`
+        link.href = finalCanvas.toDataURL('image/png')
+        link.click()
+      } catch (error) {
+        console.error(error)
+        alert('No se pudo descargar el QR. Verificá que el logo del club permita cargar imágenes desde esta página.')
+      }
     }
 
-    img.src = qrImage
+    // El escudo se dibuja sobre el QR con fondo blanco para mantener la lectura.
+    // Si el servidor del logo no permite CORS, se descarga sin escudo, sin romper el QR.
+    if (!clubCuenta?.logo_url) { descargar(); return }
+    const logo = new Image()
+    logo.crossOrigin = 'anonymous'
+    logo.onload = () => {
+      try {
+        ctx.fillStyle = '#fff'
+        ctx.fillRect(351, 456, 98, 98)
+        const escala = Math.min(86 / logo.naturalWidth, 86 / logo.naturalHeight)
+        const w = logo.naturalWidth * escala
+        const h = logo.naturalHeight * escala
+        ctx.drawImage(logo, 400 - w / 2, 505 - h / 2, w, h)
+      } catch (error) { console.error(error) }
+      descargar()
+    }
+    logo.onerror = () => {
+      alert('El escudo no pudo cargarse; se descargará el QR sin logo.')
+      descargar()
+    }
+    logo.src = clubCuenta.logo_url
   }
 
   async function manejarCerrarSesion() {
@@ -1221,7 +1236,9 @@ setImportandoExcel(false)
 
               <QRCodeCanvas
                 value={`${window.location.origin}/resultados?codigo=${torneoSeleccionado?.codigo || ''}`}
-                size={140}
+                size={200}
+                level="H"
+                marginSize={2}
               />
 
               <button

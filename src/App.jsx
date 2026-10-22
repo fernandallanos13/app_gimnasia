@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 
 import Home from './pages/Home'
 import AdminLogin from './pages/AdminLogin'
@@ -23,6 +23,25 @@ import SuperAdminRoute from './components/SuperAdminRoute'
 import InstalarGymScore from './components/InstalarGymScore'
 import CreditoGymScore from './components/CreditoGymScore'
 
+function BotonInicio() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const ruta = location.pathname
+  if (ruta === '/' || ruta === '/admin' || ruta === '/super-admin') return null
+  const destino = ruta.startsWith('/admin/') || ruta === '/admin-inscripciones'
+    ? '/admin'
+    : '/'
+  return (
+    <button type="button" onClick={() => navigate(destino)}
+      title="Volver al inicio"
+      style={{ position: 'fixed', top: 12, right: 12, zIndex: 1000,
+        padding: '8px 12px', width: 'auto', minWidth: 0, fontSize: 13,
+        borderRadius: 10, boxShadow: '0 2px 9px #0002' }}>
+      ⌂ Inicio
+    </button>
+  )
+}
+
 function ContenidoApp() {
   const location = useLocation()
 
@@ -40,6 +59,7 @@ function ContenidoApp() {
   return (
     <>
       <InstalarGymScore />
+      <BotonInicio />
 
       {esPaginaPublica && <CreditoGymScore />}
 
