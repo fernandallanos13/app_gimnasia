@@ -749,14 +749,14 @@ function Jueces() {
 
           {gimnastasGrupo.length > 0 && (
             <div style={{ marginTop: '30px' }}>
-              <h2>Cargar puntajes</h2>
-              <p style={{ marginTop: '8px' }}>
-                Los puntajes se guardan automáticamente.
-              </p>
-
               {modoCarga === 'turno' && (
                 <div style={{ margin: '12px 0' }}>
-                  <label htmlFor="rotacion-filtro"><strong>Grupo de rotación: </strong></label>
+                  <label
+                    htmlFor="rotacion-filtro"
+                    style={{ display: 'block', fontWeight: 800, color: 'var(--color-primario, #7a2547)', marginBottom: '10px', fontSize: '1.1rem' }}
+                  >
+                    Elegí la rotación
+                  </label>
                   <select id="rotacion-filtro" value={rotacionFiltro} onChange={e => setRotacionFiltro(e.target.value)}>
                     <option value="">Todas las gimnastas</option>
                     {[1,2,3,4].map(n => <option key={n} value={n}>Rotación {n}</option>)}
@@ -765,6 +765,9 @@ function Jueces() {
                   {rotacionFiltro && <p>Mostrando {gimnastasGrupo.filter(x => rotacionFiltro === 'pendientes' ? !x.rotacion : String(x.rotacion) === rotacionFiltro).length} gimnastas</p>}
                 </div>
               )}
+              <p style={{ marginTop: '8px', marginBottom: '14px' }}>
+                Los puntajes se guardan automáticamente.
+              </p>
               {gimnastasGrupo.filter(item => modoCarga !== 'turno' || !rotacionFiltro || (rotacionFiltro === 'pendientes' ? !item.rotacion : String(item.rotacion) === rotacionFiltro)).map((item) => (
                 <div
                   key={item.gimnastas.id}
