@@ -151,54 +151,60 @@ function AdminPuntajes() {
 
     setTorneoActual(torneo)
 
-    const { data: inscripcionesData, error: inscripcionesError } = await supabase
-      .from('inscripciones')
-      .select(`
-        id,
-        gimnastas (
-          id,
-          nombre,
-          apellido,
-          club,
-          niveles (nombre),
-          categorias (nombre)
-        )
-      `)
-      .eq('torneo_id', torneo.id)
+    // Supabase/PostgREST limita por defecto el número de filas devueltas.
+    // Recuperamos TODAS las páginas: de otro modo el admin ve casillas vacías
+    // aunque los puntajes existan, y al guardar recibe "duplicado".
+    async function obtenerTodasLasFilas(tabla, columnas) {
+      const tamanoPagina = 500
+      const filas = []
+      let desde = 0
 
-    const { data: puntajesData, error: puntajesError } = await supabase
-      .from('puntajes')
-      .select(`
-        id,
-        puntaje,
-        gimnastas (
-          id,
-          nombre,
-          apellido,
-          club,
-          niveles (nombre),
-          categorias (nombre)
-        ),
-        aparatos (
-          id,
-          nombre
-        )
-      `)
-      .eq('torneo_id', torneo.id)
+      while (true) {
+        const { data, error } = await supabase
+          .from(tabla)
+          .select(columnas)
+          .eq('torneo_id', torneo.id)
+          .order('id', { ascending: true })
+          .range(desde, desde + tamanoPagina - 1)
 
-    if (inscripcionesError || puntajesError) {
-      console.error(
-        'Error cargando puntajes:',
-        inscripcionesError || puntajesError
-      )
+        if (error) throw error
+        const pagina = data || []
+        filas.push(...pagina)
+        if (pagina.length < tamanoPagina) break
+        desde += tamanoPagina
+      }
+      return filas
+    }
 
-      alert('No se pudieron actualizar los puntajes')
+    let inscripcionesData
+    let puntajesData
+    try {
+      ;[inscripcionesData, puntajesData] = await Promise.all([
+        obtenerTodasLasFilas('inscripciones', `
+          id,
+          gimnastas (
+            id, nombre, apellido, club,
+            niveles (nombre), categorias (nombre)
+          )
+        `),
+        obtenerTodasLasFilas('puntajes', `
+          id, puntaje,
+          gimnastas (
+            id, nombre, apellido, club,
+            niveles (nombre), categorias (nombre)
+          ),
+          aparatos (id, nombre)
+        `)
+      ])
+    } catch (error) {
+      console.error('Error cargando todos los puntajes:', error)
+      alert('No se pudieron actualizar todos los puntajes. No se mostrarán datos incompletos.')
       setCargando(false)
       return
     }
 
-    setInscripcionesActuales(inscripcionesData || [])
-    setPuntajesActuales(puntajesData || [])
+    setInscripcionesActuales(inscripcionesData)
+    setPuntajesActuales(puntajesData)
 
     await obtenerTurnosPorGimnasta(torneo.id)
 
@@ -246,14 +252,21 @@ function AdminPuntajes() {
       nombresPorTurno[turno.id] = turno.nombre
     })
 
-    const { data: relacionesData, error: errorRelaciones } = await supabase
-      .from('turno_gimnastas')
-      .select('turno_id, gimnasta_id')
-      .in('turno_id', idsTurnos)
+    const relacionesData = []
+    for (let desde = 0; ; desde += 500) {
+      const { data, error } = await supabase
+        .from('turno_gimnastas')
+        .select('id, turno_id, gimnasta_id')
+        .in('turno_id', idsTurnos)
+        .order('id', { ascending: true })
+        .range(desde, desde + 499)
 
-    if (errorRelaciones) {
-      console.error('Error obteniendo turno_gimnastas:', errorRelaciones)
-      return
+      if (error) {
+        console.error('Error obteniendo turno_gimnastas:', error)
+        return
+      }
+      relacionesData.push(...(data || []))
+      if ((data || []).length < 500) break
     }
 
     const mapa = {}
