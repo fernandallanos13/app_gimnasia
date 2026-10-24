@@ -85,54 +85,48 @@ function AdminPodios() {
 
     setTorneoActual(torneo)
 
-    const { data: inscripcionesData, error: inscripcionesError } = await supabase
-      .from('inscripciones')
-      .select(`
-        id,
-        gimnastas (
-          id,
-          nombre,
-          apellido,
-          club,
-          sexo,
-          niveles (nombre),
-          categorias (nombre)
-        )
-      `)
-      .eq('torneo_id', torneo.id)
-
-    const { data: puntajesData, error: puntajesError } = await supabase
-      .from('puntajes')
-      .select(`
-        id,
-        puntaje,
-        gimnastas (
-          id,
-          nombre,
-          apellido,
-          club,
-          sexo,
-          niveles (nombre),
-          categorias (nombre)
-        ),
-        aparatos (nombre)
-      `)
-      .eq('torneo_id', torneo.id)
-
-    if (inscripcionesError || puntajesError) {
-      console.log(inscripcionesError || puntajesError)
-      alert('No se pudieron actualizar los podios')
-      setCargando(false)
-      return
+    // Supabase limita la cantidad de filas de una consulta. Traemos todas
+    // las páginas para que ningún puntaje quede fuera de los podios.
+    async function obtenerTodasLasFilas(tabla, columnas) {
+      const tamanoPagina = 500
+      const filas = []
+      for (let desde = 0; ; desde += tamanoPagina) {
+        const { data, error } = await supabase
+          .from(tabla)
+          .select(columnas)
+          .eq('torneo_id', torneo.id)
+          .order(tabla === 'ajustes_podios' ? 'gimnasta_id' : 'id', { ascending: true })
+          .range(desde, desde + tamanoPagina - 1)
+        if (error) throw error
+        filas.push(...(data || []))
+        if (!data || data.length < tamanoPagina) break
+      }
+      return filas
     }
 
-    const { data: ajustesData, error: ajustesError } = await supabase
-      .from('ajustes_podios')
-      .select('gimnasta_id, puesto_manual, puntaje_referencia')
-      .eq('torneo_id', torneo.id)
-    if (ajustesError) {
-      console.error('No se pudieron cargar ajustes de podios:', ajustesError)
-      alert('No se pudieron cargar los puestos manuales.')
+    let inscripcionesData, puntajesData, ajustesData
+    try {
+      ;[inscripcionesData, puntajesData, ajustesData] = await Promise.all([
+        obtenerTodasLasFilas('inscripciones', `
+          id,
+          gimnastas (
+            id, nombre, apellido, club, sexo,
+            niveles (nombre), categorias (nombre)
+          )
+        `),
+        obtenerTodasLasFilas('puntajes', `
+          id, puntaje,
+          gimnastas (
+            id, nombre, apellido, club, sexo,
+            niveles (nombre), categorias (nombre)
+          ),
+          aparatos (nombre)
+        `),
+        obtenerTodasLasFilas('ajustes_podios', 'gimnasta_id, puesto_manual, puntaje_referencia')
+      ])
+    } catch (error) {
+      console.error('No se pudieron actualizar los podios:', error)
+      alert('No se pudieron actualizar los podios. Revisá la conexión e intentá nuevamente.')
       setCargando(false)
       return
     }
