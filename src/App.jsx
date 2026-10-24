@@ -27,7 +27,7 @@ function BotonInicio() {
   const location = useLocation()
   const navigate = useNavigate()
   const ruta = location.pathname
-  if (ruta === '/' || ruta === '/admin' || ruta === '/super-admin') return null
+  if (ruta === '/' || ruta === '/admin' || ruta === '/super-admin' || ruta === '/resultados') return null
   const destino = ruta.startsWith('/admin/') || ruta === '/admin-inscripciones'
     ? '/admin'
     : '/'
