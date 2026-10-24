@@ -632,69 +632,63 @@ function Resultados() {
             </button>
 
             {abierta && (
-              grupo.publicado ? (
-                <div className="table-wrapper">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Puesto</th>
-                        <th>Gimnasta</th>
-                        <th>Sexo</th>
-                        <th>Club</th>
-                        <th>Suelo</th>
-                        <th>Salto</th>
-                        <th>Viga</th>
-                        <th>Paralelas</th>
-                        <th>Total</th>
-                      </tr>
-                    </thead>
+              <div style={{ padding: '12px 10px 16px' }}>
+                {['femenino', 'masculino'].map((sexo) => {
+                  const participantes = grupo.gimnastas.filter((g) => g.sexo === sexo)
+                  if (participantes.length === 0) return null
 
-                    <tbody>
-                      {grupo.gimnastas.map((g) => (
-                        <tr key={g.id}>
-                          <td><strong>{g.puesto}</strong></td>
-                          <td>{g.nombre}</td>
-                          <td>{g.sexo === 'masculino' ? 'Masculino' : 'Femenino'}</td>
-                          <td>{g.club}</td>
-                          <td>{mostrarPuntaje(g.Suelo, grupo.categoria)}</td>
-                          <td>{mostrarPuntaje(g.Salto, grupo.categoria)}</td>
-                          <td>{mostrarPuntaje(g.Viga, grupo.categoria)}</td>
-                          <td>{mostrarPuntaje(g.Paralelas, grupo.categoria)}</td>
-                          <td><strong>{mostrarTotal(g, grupo.categoria)}</strong></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div style={{ padding: '12px 10px 16px' }}>
-                  <p style={{ marginTop: 0, fontWeight: 600 }}>
-                    🔒 Los puntajes y puestos se publicarán después de la premiación.
-                  </p>
-
-                  <div className="table-wrapper">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Gimnasta</th>
-                          <th>Sexo</th>
-                          <th>Club</th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {grupo.gimnastas.map((g) => (
-                          <tr key={g.id}>
-                            <td>{g.nombre}</td>
-                            <td>{g.sexo === 'masculino' ? 'Masculino' : 'Femenino'}</td>
-                            <td>{g.club}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )
+                  return (
+                    <section key={sexo} style={{ marginBottom: '20px' }}>
+                      <h3 style={{ margin: '4px 0 12px', fontWeight: 800, color: 'var(--primary-color, #333)' }}>
+                        🏆 Podio {sexo === 'masculino' ? 'masculino' : 'femenino'}
+                      </h3>
+                      {!grupo.publicado && (
+                        <p style={{ marginTop: 0, fontWeight: 600 }}>
+                          🔒 Los puntajes y puestos se publicarán después de la premiación.
+                        </p>
+                      )}
+                      <div className="table-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              {grupo.publicado && <th>Puesto</th>}
+                              <th>Gimnasta</th>
+                              <th>Club</th>
+                              {grupo.publicado && (
+                                <>
+                                  <th>Suelo</th>
+                                  <th>Salto</th>
+                                  <th>Viga</th>
+                                  <th>Paralelas</th>
+                                  <th>Total</th>
+                                </>
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {participantes.map((g) => (
+                              <tr key={g.id}>
+                                {grupo.publicado && <td><strong>{g.puesto}</strong></td>}
+                                <td>{g.nombre}</td>
+                                <td>{g.club}</td>
+                                {grupo.publicado && (
+                                  <>
+                                    <td>{mostrarPuntaje(g.Suelo, grupo.categoria)}</td>
+                                    <td>{mostrarPuntaje(g.Salto, grupo.categoria)}</td>
+                                    <td>{mostrarPuntaje(g.Viga, grupo.categoria)}</td>
+                                    <td>{mostrarPuntaje(g.Paralelas, grupo.categoria)}</td>
+                                    <td><strong>{mostrarTotal(g, grupo.categoria)}</strong></td>
+                                  </>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )
+                })}
+              </div>
             )}
           </div>
         )
