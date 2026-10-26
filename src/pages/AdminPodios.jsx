@@ -403,6 +403,15 @@ function AdminPodios() {
   }
 
   function exportarPodiosExcel() {
+    if (cargando) {
+      alert('Esperá a que terminen de cargarse los podios antes de exportar.')
+      return
+    }
+    const ajustesViejos = filasFiltradas.filter(ajusteDesactualizado)
+    if (ajustesViejos.length) {
+      alert(`Hay ${ajustesViejos.length} puesto(s) manual(es) cuyo puntaje cambió. Revisalos antes de exportar los resultados oficiales.`)
+      return
+    }
     const libro = XLSX.utils.book_new()
     const gruposExcel = {}
 
@@ -424,7 +433,10 @@ function AdminPodios() {
     }
 
     entradas.forEach(([grupo, gimnastas], index) => {
-      const datosExcel = gimnastas.map((g) => ({
+      const datosExcel = [...gimnastas]
+        .sort((a, b) => Number(b.total) - Number(a.total) ||
+          String(a.apellido).localeCompare(String(b.apellido), 'es'))
+        .map((g) => ({
         Puesto: puestoDefinitivo(g),
         Apellido: g.apellido,
         Nombre: g.nombre,
