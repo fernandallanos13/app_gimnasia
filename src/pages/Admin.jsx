@@ -780,61 +780,90 @@ setImportandoExcel(false)
   }
 
   async function exportarResultadosExcelPorTorneo(torneo) {
-    const { data, error } = await supabase
-      .from('puntajes')
-      .select(`
-        puntaje,
-        gimnastas (
-          nombre,
-          apellido,
-          club,
-          niveles (nombre),
-          categorias (nombre)
-        ),
-        aparatos (nombre)
-      `)
-      .eq('torneo_id', torneo.id)
-
-    if (error) {
-      console.log(error)
-      alert('Error al exportar resultados')
+    if (!torneo?.id) {
+      alert('Seleccioná un torneo válido antes de exportar.')
       return
     }
 
-    const agrupados = {}
+    try {
+      const registros = []
+      const pagina = 500
+      for (let desde = 0; ; desde += pagina) {
+        const { data, error } = await supabase
+          .from('puntajes')
+          .select(`
+            id, gimnasta_id, puntaje,
+            gimnastas (
+              id, nombre, apellido, club,
+              niveles (nombre), categorias (nombre)
+            ),
+            aparatos (nombre)
+          `)
+          .eq('torneo_id', torneo.id)
+          .order('id', { ascending: true })
+          .range(desde, desde + pagina - 1)
 
-    data.forEach((item) => {
-      const g = item.gimnastas
-      const aparato = item.aparatos?.nombre
-
-      if (!g || !aparato) return
-
-      const clave = `${g.apellido}-${g.nombre}-${g.club}`
-
-      if (!agrupados[clave]) {
-        agrupados[clave] = {
-          Apellido: g.apellido,
-          Nombre: g.nombre,
-          Club: g.club,
-          Nivel: g.niveles?.nombre || '',
-          Categoria: g.categorias?.nombre || '',
-          Suelo: 0,
-          Salto: 0,
-          Viga: 0,
-          Paralelas: 0,
-          Total: 0
-        }
+        if (error) throw error
+        registros.push(...(data || []))
+        if (!data || data.length < pagina) break
       }
 
-      agrupados[clave][aparato] = Number(item.puntaje)
-      agrupados[clave].Total += Number(item.puntaje)
-    })
+      if (!registros.length) {
+        alert('Este torneo todavía no tiene puntajes para exportar.')
+        return
+      }
 
-    const hoja = XLSX.utils.json_to_sheet(Object.values(agrupados))
-    const libro = XLSX.utils.book_new()
+      const agrupados = new Map()
+      for (const item of registros) {
+        const g = item.gimnastas
+        const aparato = item.aparatos?.nombre
+        if (!g || !aparato) {
+          throw new Error(`El puntaje ${item.id} no tiene gimnasta o aparato asociado.`)
+        }
+        const clave = item.gimnasta_id
+        if (!agrupados.has(clave)) {
+          agrupados.set(clave, {
+            Apellido: g.apellido,
+            Nombre: g.nombre,
+            Club: g.club,
+            Nivel: g.niveles?.nombre || '',
+            Categoria: g.categorias?.nombre || '',
+            Suelo: '', Salto: '', Viga: '', Paralelas: '', Total: 0
+          })
+        }
+        const fila = agrupados.get(clave)
+        const valor = Number(item.puntaje)
+        if (!Number.isFinite(valor)) {
+          throw new Error(`Puntaje inválido en el registro ${item.id}.`)
+        }
+        if (!['Suelo', 'Salto', 'Viga', 'Paralelas'].includes(aparato)) {
+          throw new Error(`Aparato desconocido en el puntaje ${item.id}: ${aparato}`)
+        }
+        fila[aparato] = valor
+      }
 
-    XLSX.utils.book_append_sheet(libro, hoja, 'Resultados')
-    XLSX.writeFile(libro, `resultados-${torneo.nombre}.xlsx`)
+      const filas = [...agrupados.values()]
+      for (const fila of filas) {
+        fila.Total = Number(['Suelo', 'Salto', 'Viga', 'Paralelas']
+          .reduce((total, aparato) => total + (Number(fila[aparato]) || 0), 0).toFixed(2))
+      }
+      filas.sort((a, b) =>
+        String(a.Nivel).localeCompare(String(b.Nivel), 'es', { numeric: true }) ||
+        String(a.Categoria).localeCompare(String(b.Categoria), 'es') ||
+        String(a.Apellido).localeCompare(String(b.Apellido), 'es') ||
+        String(a.Nombre).localeCompare(String(b.Nombre), 'es')
+      )
+
+      const libro = XLSX.utils.book_new()
+      const hoja = XLSX.utils.json_to_sheet(filas)
+      hoja['!cols'] = [18, 18, 30, 16, 24, 12, 12, 12, 12, 12]
+        .map(wch => ({ wch }))
+      XLSX.utils.book_append_sheet(libro, hoja, 'Resultados')
+      XLSX.writeFile(libro, `resultados-${String(torneo.nombre || torneo.id).replace(/[\\/:*?"<>|]/g, '-')}.xlsx`)
+    } catch (error) {
+      console.error('Error al exportar resultados:', error)
+      alert(`No se pudo exportar el Excel completo: ${error.message}`)
+    }
   }
 
   async function exportarResultadosExcel() {
